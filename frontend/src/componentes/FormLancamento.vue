@@ -10,6 +10,7 @@ import CampoDescricao from './CampoDescricao.vue'
 import CampoValor from './CampoValor.vue'
 import Mensagem from './Mensagem.vue'
 import SeletorCategoria from './SeletorCategoria.vue'
+import SaldoInicialPrimeiro from './SaldoInicialPrimeiro.vue'
 
 const props = defineProps<{ lancamento?: Lancamento | null; tipoInicial?: Tipo; categoriaInicial?: number; dataInicial?: string }>()
 const emit = defineEmits<{ salvo: [mensagem: string]; cancelar: [] }>()
@@ -151,7 +152,8 @@ async function salvar() {
 </script>
 
 <template>
-  <form id="form-lancamento" class="formulario" novalidate @submit.prevent="salvar">
+  <SaldoInicialPrimeiro v-if="!editando && !sessao.estado.familia?.temSaldoInicial" @sair="emit('cancelar')" />
+  <form v-else id="form-lancamento" class="formulario" novalidate @submit.prevent="salvar">
     <div v-if="!editando" class="segmentos" role="group" aria-label="Tipo">
       <button type="button" :aria-pressed="form.tipo === 'DESPESA'" @click="trocarTipo('DESPESA')">Despesa</button>
       <button type="button" :aria-pressed="form.tipo === 'RECEITA'" @click="trocarTipo('RECEITA')">Receita</button>

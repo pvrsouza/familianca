@@ -50,11 +50,12 @@ public record VisaoAnual(int ano, List<LinhaGrupo> receitas, List<LinhaGrupo> de
      * @param sobraInformada    por mês: true se a sobra veio de um saldo informado
      * @param grauIndependencia renda dos investimentos ÷ despesas fixas, por mês (nulo sem despesas fixas)
      * @param aportePrevisto    meta de aporte da família × (renda − despesas), nunca negativo
+     * @param saldoAntesDoAno   true se há saldo informado num ano anterior (janeiro vem da sobra de dezembro)
      */
     public record Fluxo(SerieMensal sobraMesAnterior, List<Boolean> sobraInformada, SerieMensal receitasFixas,
                         SerieMensal receitasVariaveis, SerieMensal aplicacoes, SerieMensal despesasFixas,
                         SerieMensal despesasVariaveis, SerieMensal rendaInvestimentos,
-                        List<Percentual> grauIndependencia, SerieMensal aportePrevisto) {
+                        List<Percentual> grauIndependencia, SerieMensal aportePrevisto, boolean saldoAntesDoAno) {
 
         public Fluxo {
             sobraInformada = List.copyOf(sobraInformada);

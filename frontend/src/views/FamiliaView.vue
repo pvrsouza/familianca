@@ -229,9 +229,9 @@ async function apagarDados() {
   try {
     await api.apagarDados(senhaApagar.value)
     apagando.value = false
-    await catalogo.carregar(true)
+    await Promise.all([catalogo.carregar(true), sessao.recarregarFamilia()]) // sem saldo inicial de novo
     sessao.avisarMudanca()
-    avisar('Os dados da família foram apagados. As categorias voltaram ao padrão.')
+    avisar('Os dados da família foram apagados. As categorias voltaram ao padrão. Recomecem pelo saldo de hoje.')
     router.push({ path: '/ano', query: { bemvindo: '1' } })
   } catch (e) {
     erroApagar.value = mensagemDeErro(e)

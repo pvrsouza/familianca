@@ -57,6 +57,8 @@ public record VisaoAnualResponse(int ano, List<String> meses, Resumo resumo, Blo
             @Schema(description = "Saldo informado no mês ou, sem ele, o fluxo líquido do mês anterior. No ano: o de janeiro.")
             Serie sobraMesAnterior,
             @Schema(description = "true nos meses em que a sobra veio de um saldo informado.") List<Boolean> sobraInformada,
+            @Schema(description = "true se há saldo informado num ano anterior: janeiro começa com a sobra de dezembro.")
+            boolean saldoAntesDoAno,
             Serie rendaTotal, Serie receitasFixas, Serie receitasVariaveis,
             @Schema(description = "Aportes líquidos nos investimentos (zero sem o recurso INVESTIMENTOS).") Serie aplicacoes,
             Serie saldoDisponivel, Serie despesasTotal, Serie despesasFixas, Serie despesasVariaveis,
@@ -68,7 +70,8 @@ public record VisaoAnualResponse(int ano, List<String> meses, Resumo resumo, Blo
 
         static Resumo de(VisaoAnual v) {
             Fluxo f = v.fluxo();
-            return new Resumo(Serie.de(f.sobraMesAnterior(), f.sobraAno()), f.sobraInformada(), Serie.de(f.rendaTotal()),
+            return new Resumo(Serie.de(f.sobraMesAnterior(), f.sobraAno()), f.sobraInformada(), f.saldoAntesDoAno(),
+                    Serie.de(f.rendaTotal()),
                     Serie.de(f.receitasFixas()), Serie.de(f.receitasVariaveis()), Serie.de(f.aplicacoes()),
                     Serie.de(f.saldoDisponivel(), f.saldoDisponivelAno()), Serie.de(f.despesasTotal()),
                     Serie.de(f.despesasFixas()), Serie.de(f.despesasVariaveis()),

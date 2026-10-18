@@ -18,7 +18,14 @@ public record SaldoRequest(
         @Schema(description = """
                 Dia a que o saldo se refere (ex.: hoje), dentro do mês e não no futuro. Sem ele, o valor é o do dia 1º.
                 Com ele, o fluxo usa como dia 1º o valor sem o que foi lançado de 1º até esse dia.""")
-        LocalDate dataReferencia) {
+        LocalDate dataReferencia,
+        @Schema(description = """
+                Só com o saldo do dia 1º (sem `dataReferencia`): o saldo somado de outro dia do mês (ex.: hoje), guardado
+                à parte para conferir. Não muda o fluxo.""")
+        @Valid Conferencia conferencia) {
+
+    public record Conferencia(@NotNull LocalDate dia, @Schema(description = "Pode ser negativo.") @NotNull BigDecimal valor) {
+    }
 
     public record PorLocal(@NotNull Long localId, @Schema(description = "Pode ser negativo.") @NotNull BigDecimal valor) {
     }

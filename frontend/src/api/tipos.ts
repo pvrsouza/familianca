@@ -68,6 +68,8 @@ export interface Familia {
   planoEmVigor: Plano
   membros: Membro[]
   convitesPendentes: Convite[]
+  /** Sem saldo inicial, nada se lança (o servidor responde 422). */
+  temSaldoInicial: boolean
 }
 
 export interface ConviteAberto {
@@ -223,6 +225,8 @@ export interface Bloco {
 export interface Resumo {
   sobraMesAnterior: Serie
   sobraInformada: boolean[]
+  /** Há saldo informado num ano anterior: janeiro começa com a sobra de dezembro. */
+  saldoAntesDoAno: boolean
   rendaTotal: Serie
   receitasFixas: Serie
   receitasVariaveis: Serie
@@ -277,6 +281,8 @@ export interface Saldo {
   dataReferencia: string | null
   /** Saldo de cada lugar (conta, cofrinho...); vazio = só o total. */
   porLocal: { localId: number; valor: number }[]
+  /** Com o saldo do dia 1º: o de outro dia (ex.: hoje), guardado à parte só para conferir. */
+  conferencia: { dia: string; valor: number } | null
 }
 
 export type TipoLugarSaldo = 'CONTA_CORRENTE' | 'POUPANCA' | 'DINHEIRO' | 'COFRINHO' | 'INVESTIMENTO' | 'OUTRO'

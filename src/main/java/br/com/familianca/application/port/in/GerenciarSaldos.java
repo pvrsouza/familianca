@@ -15,10 +15,11 @@ public interface GerenciarSaldos {
 
     /**
      * Cria ou substitui o saldo da competência; sem dataReferencia, o valor é o do dia 1º. Com porLocal (o saldo de
-     * cada conta, cofrinho...), o total é a soma deles e valor é ignorado.
+     * cada conta, cofrinho...), o total é a soma deles e valor é ignorado. A conferência (saldo de outro dia, só para
+     * comparar) acompanha apenas o saldo do dia 1º.
      */
     SaldoMes definir(Competencia competencia, Dinheiro valor, List<SaldoMes.PorLocal> porLocal, String observacao,
-                     LocalDate dataReferencia);
+                     LocalDate dataReferencia, SaldoMes.Conferencia conferencia);
 
     /** O que foi lançado do dia 1º até a data: mostra a conta do saldo de um dia para o do dia 1º. */
     MovimentoDoMes movimentoAte(LocalDate data);

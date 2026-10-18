@@ -54,20 +54,41 @@ public class SaldoService implements GerenciarSaldos {
 
     @Override
     public SaldoMes definir(Competencia competencia, Dinheiro valor, List<SaldoMes.PorLocal> porLocal,
-                            String observacao, LocalDate dataReferencia) {
+                            String observacao, LocalDate dataReferencia, SaldoMes.Conferencia conferencia) {
         if (dataReferencia != null && dataReferencia.isAfter(relogio.hoje())) {
             throw new RegraNegocioException("O saldo precisa ser de hoje ou de um dia que já passou");
+        }
+        // O saldo inicial (nenhum saldo antes deste mês) pode ser de qualquer mês, menos de um que ainda não chegou.
+        if (competencia.compareTo(Competencia.de(relogio.hoje())) > 0
+                && saldos.primeira().map(p -> p.compareTo(competencia) >= 0).orElse(true)) {
+            throw new RegraNegocioException("O saldo inicial precisa ser do mês atual ou de um mês que já passou");
+        }
+        // Mês que já passou: só o saldo do dia 1º (está no extrato). O de outro dia só no mês corrente; um saldo
+        // guardado com dia quando o mês era o corrente continua valendo e pode ser corrigido mantendo o dia.
+        LocalDate dia = dataReferencia != null ? dataReferencia : conferencia != null ? conferencia.dia() : null;
+        if (dia != null && competencia.compareTo(Competencia.de(relogio.hoje())) < 0
+                && !dia.equals(saldos.listar(competencia.ano()).stream()
+                .filter(s -> s.competencia().equals(competencia)).findFirst().map(SaldoService::diaGuardado)
+                .orElse(null))) {
+            throw new RegraNegocioException("Para um mês que já passou, informem só o saldo do dia 1º");
+        }
+        if (conferencia != null && conferencia.dia().isAfter(relogio.hoje())) {
+            throw new RegraNegocioException("O saldo para conferir precisa ser de hoje ou de um dia que já passou");
         }
         if (porLocal != null && !porLocal.isEmpty()) {
             // Lugar inativo vale: a família pode corrigir um mês antigo em que ele ainda existia.
             porLocal.forEach(p -> locais.buscar(p.localId())
                     .orElseThrow(() -> new NaoEncontradoException("Lugar do saldo", p.localId())));
-            return saldos.salvar(SaldoMes.porLocal(competencia, porLocal, observacao, dataReferencia));
+            return saldos.salvar(SaldoMes.porLocal(competencia, porLocal, observacao, dataReferencia, conferencia));
         }
         if (valor == null) {
             throw new RegraNegocioException("Informe o saldo");
         }
-        return saldos.salvar(new SaldoMes(competencia, valor, observacao, dataReferencia));
+        return saldos.salvar(new SaldoMes(competencia, valor, observacao, dataReferencia, conferencia));
+    }
+
+    private static LocalDate diaGuardado(SaldoMes s) {
+        return s.dataReferencia() != null ? s.dataReferencia() : s.conferencia() != null ? s.conferencia().dia() : null;
     }
 
     @Override
@@ -83,6 +104,12 @@ public class SaldoService implements GerenciarSaldos {
 
     @Override
     public void remover(Competencia competencia) {
+        // O saldo inicial é obrigatório: o último saldo informado não sai, só se corrige (pode ser zero).
+        if (saldos.contar() == 1 && saldos.listar(competencia.ano()).stream()
+                .anyMatch(s -> s.competencia().equals(competencia))) {
+            throw new RegraNegocioException("Este é o saldo inicial da família e não pode ser removido: corrijam o "
+                    + "valor (pode ser zero ou negativo)");
+        }
         saldos.remover(competencia);
     }
 }

@@ -20,6 +20,7 @@ import br.com.familianca.domain.service.CalculadoraInvestimentos;
 import br.com.familianca.domain.service.CalculadoraVisaoAnual;
 import br.com.familianca.domain.service.CalculadoraVisaoAnual.Entrada;
 import br.com.familianca.domain.service.CalculadoraVisaoAnual.Ocorrencia;
+import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Dinheiro;
 import br.com.familianca.domain.vo.SerieMensal;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -88,6 +89,15 @@ public class VisaoAnualService implements ConsultarVisaoAnual {
         }
         confirmacaoAutomatica.processar();
         Familia familia = acesso.familia();
+        Integer anoDoPrimeiroSaldo = saldos.primeira().map(Competencia::ano).orElse(null);
+        return calcular(ano, familia, anoDoPrimeiroSaldo);
+    }
+
+    /** Cada ano começa com a sobra de dezembro do anterior, desde o ano do primeiro saldo informado. */
+    private VisaoAnual calcular(int ano, Familia familia, Integer anoDoPrimeiroSaldo) {
+        Dinheiro sobraAnoAnterior = anoDoPrimeiroSaldo != null && anoDoPrimeiroSaldo < ano
+                ? calcular(ano - 1, familia, anoDoPrimeiroSaldo).fluxo().fluxoLiquido().mes(SerieMensal.MESES)
+                : null;
         Set<Ocorrencia> confirmadas = lancamentos.listarOcorrenciasConfirmadas(ano).stream()
                 .map(l -> new Ocorrencia(l.recorrenciaId(), l.competenciaRecorrencia()))
                 .collect(Collectors.toSet());
@@ -103,6 +113,6 @@ public class VisaoAnualService implements ConsultarVisaoAnual {
         return CALCULADORA.calcular(new Entrada(ano, planoContas.listarGrupos(), planoContas.listarCategorias(),
                 lancamentos.listar(LocalDate.of(ano, 1, 1), LocalDate.of(ano, 12, 31)), lista,
                 confirmadas, saldos.listar(ano), aplicacoes, rendaInvestimentos, familia.metaAporte(),
-                familia.estimativa(), relogio.hoje(), previsaoFamilia.calcular(lista)));
+                familia.estimativa(), relogio.hoje(), previsaoFamilia.calcular(lista), sobraAnoAnterior));
     }
 }

@@ -6,6 +6,7 @@ import br.com.familianca.domain.model.PapelFamilia;
 import br.com.familianca.domain.model.Plano;
 import org.junit.jupiter.api.Test;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -49,6 +50,87 @@ class SaldoApiTest extends IntegracaoBase {
                 .andExpect(jsonPath("$.dataReferencia").doesNotExist());
         mvc.perform(get("/api/visao-anual/2026"))
                 .andExpect(jsonPath("$.resumo.sobraMesAnterior.valores[9]").value(90000));
+    }
+
+    @Test
+    void saldoDeHojeParaConferirNaoMudaOSaldoDoDiaPrimeiro() throws Exception {
+        lancar("Habitação", "Condomínio", "Condomínio", "3", "2026-10-05");
+
+        // 10 no dia 1º e 5 hoje: são dois saldos, guardados lado a lado. O fluxo começa com os 10.
+        mvc.perform(put("/api/saldos/2026-10").contentType(APPLICATION_JSON)
+                        .content("{\"valor\": 10, \"conferencia\": {\"dia\": \"2026-10-17\", \"valor\": 5}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valor").value(10))
+                .andExpect(jsonPath("$.dataReferencia").doesNotExist())
+                .andExpect(jsonPath("$.conferencia.dia").value("2026-10-17"))
+                .andExpect(jsonPath("$.conferencia.valor").value(5));
+        mvc.perform(get("/api/saldos").param("ano", "2026"))
+                .andExpect(jsonPath("$[0].valor").value(10))
+                .andExpect(jsonPath("$[0].conferencia.valor").value(5));
+        mvc.perform(get("/api/visao-anual/2026"))
+                .andExpect(jsonPath("$.resumo.sobraMesAnterior.valores[9]").value(10));
+
+        // Guardar de novo sem conferência tira o saldo de hoje.
+        mvc.perform(put("/api/saldos/2026-10").contentType(APPLICATION_JSON).content("{\"valor\": 10}"))
+                .andExpect(jsonPath("$.conferencia").doesNotExist());
+
+        // Conferência só junto do saldo do dia 1º, dentro do mês e não no futuro.
+        mvc.perform(put("/api/saldos/2026-10").contentType(APPLICATION_JSON).content("""
+                        {"valor": 5, "dataReferencia": "2026-10-17", "conferencia": {"dia": "2026-10-17", "valor": 5}}"""))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(put("/api/saldos/2026-10").contentType(APPLICATION_JSON).content("""
+                        {"valor": 10, "conferencia": {"dia": "2026-09-30", "valor": 5}}"""))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(put("/api/saldos/2026-10").contentType(APPLICATION_JSON).content("""
+                        {"valor": 10, "conferencia": {"dia": "2026-10-20", "valor": 5}}"""))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    void saldoInicialDeQualquerMesQueJaChegouEASobraPassaDeUmAnoParaOOutro() throws Exception {
+        semSaldoInicial(dono);
+        // Mês que ainda não chegou não serve de saldo inicial (hoje = 17/10/2026).
+        mvc.perform(put("/api/saldos/2026-11").contentType(APPLICATION_JSON).content("{\"valor\": 1000}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail", containsString("mês atual ou de um mês que já passou")));
+
+        // Começar num mês de um ano que já passou vale; janeiro do ano seguinte continua de onde dezembro parou.
+        mvc.perform(put("/api/saldos/2025-11").contentType(APPLICATION_JSON).content("{\"valor\": 1000}"))
+                .andExpect(status().isOk());
+        lancar("Habitação", "Condomínio", "Condomínio", "200", "2025-12-10");
+        mvc.perform(get("/api/visao-anual/2026"))
+                .andExpect(jsonPath("$.resumo.saldoAntesDoAno").value(true))
+                .andExpect(jsonPath("$.resumo.sobraInformada[0]").value(false))
+                .andExpect(jsonPath("$.resumo.sobraMesAnterior.valores[0]").value(800));
+        mvc.perform(get("/api/visao-anual/2025"))
+                .andExpect(jsonPath("$.resumo.saldoAntesDoAno").value(false));
+
+        // Depois do saldo inicial, corrigir um mês adiante é permitido (é correção, não começo).
+        mvc.perform(put("/api/saldos/2026-11").contentType(APPLICATION_JSON).content("{\"valor\": 500}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void mesQueJaPassouSoAceitaOSaldoDoDiaPrimeiro() throws Exception {
+        mvc.perform(put("/api/saldos/2026-09").contentType(APPLICATION_JSON)
+                        .content("{\"valor\": 100, \"dataReferencia\": \"2026-09-15\"}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail", containsString("só o saldo do dia 1º")));
+        mvc.perform(put("/api/saldos/2026-09").contentType(APPLICATION_JSON)
+                        .content("{\"valor\": 100, \"conferencia\": {\"dia\": \"2026-09-15\", \"valor\": 90}}"))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(put("/api/saldos/2026-09").contentType(APPLICATION_JSON).content("{\"valor\": 100}"))
+                .andExpect(status().isOk());
+
+        // Guardado com dia quando setembro era o mês corrente: continua valendo e se corrige mantendo o dia.
+        jdbc.update("update saldo_mes set data_referencia = ? where familia_id = ? and competencia = '2026-09'",
+                java.sql.Date.valueOf("2026-09-15"), dono.familiaId());
+        mvc.perform(put("/api/saldos/2026-09").contentType(APPLICATION_JSON)
+                        .content("{\"valor\": 120, \"dataReferencia\": \"2026-09-15\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(put("/api/saldos/2026-09").contentType(APPLICATION_JSON)
+                        .content("{\"valor\": 120, \"dataReferencia\": \"2026-09-20\"}"))
+                .andExpect(status().isUnprocessableEntity());
     }
 
     @Test
@@ -105,6 +187,51 @@ class SaldoApiTest extends IntegracaoBase {
         mvc.perform(post("/api/locais-saldo").contentType(APPLICATION_JSON).content("""
                         {"nome": "Minha", "tipo": "OUTRO", "membroId": %d}""".formatted(outro.id())))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void nadaSeLancaAntesDoSaldoInicial() throws Exception {
+        semSaldoInicial(dono);
+        Membro membro = adicionarMembro(dono, "membro@teste.com", PapelFamilia.MEMBRO);
+        Long mercado = categoria("Habitação", "Supermercado");
+        String lancamento = """
+                {"categoriaId": %d, "descricao": "Mercado", "valor": 100, "data": "2026-10-05"}""".formatted(mercado);
+
+        mvc.perform(get("/api/familia")).andExpect(jsonPath("$.temSaldoInicial").value(false));
+        mvc.perform(post("/api/lancamentos").contentType(APPLICATION_JSON).content(lancamento))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value(containsString("informem quanto a família tem hoje")));
+        mvc.perform(post("/api/lancamentos/parcelados").contentType(APPLICATION_JSON).content("""
+                        {"categoriaId": %d, "descricao": "Geladeira", "valorTotal": 3000, "parcelas": 3,
+                         "primeiraData": "2026-10-05"}""".formatted(mercado)))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(post("/api/recorrencias").contentType(APPLICATION_JSON).content("""
+                        {"categoriaId": %d, "descricao": "Mercado", "valor": 900, "dia": 5, "frequencia": "MENSAL",
+                         "inicio": "2026-10"}""".formatted(mercado)))
+                .andExpect(status().isUnprocessableEntity());
+        // Quem participa não informa o saldo: a mensagem diz quem precisa fazer.
+        mvcComo(membro).perform(post("/api/lancamentos").contentType(APPLICATION_JSON).content(lancamento))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value(containsString("quem organiza")));
+
+        // Zero vale como saldo inicial.
+        mvc.perform(put("/api/saldos/2026-10").contentType(APPLICATION_JSON).content("{\"valor\": 0}"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/familia")).andExpect(jsonPath("$.temSaldoInicial").value(true));
+        mvc.perform(post("/api/lancamentos").contentType(APPLICATION_JSON).content(lancamento))
+                .andExpect(status().isCreated());
+        mvcComo(membro).perform(post("/api/lancamentos").contentType(APPLICATION_JSON).content(lancamento))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void oSaldoInicialNaoSaiSoSeCorrige() throws Exception {
+        mvc.perform(delete("/api/saldos/" + COMPETENCIA_SALDO_INICIAL)).andExpect(status().isUnprocessableEntity());
+        // Com outro mês informado, um deles pode sair.
+        mvc.perform(put("/api/saldos/2026-10").contentType(APPLICATION_JSON).content("{\"valor\": -250}"))
+                .andExpect(status().isOk());
+        mvc.perform(delete("/api/saldos/2026-10")).andExpect(status().isNoContent());
+        mvc.perform(delete("/api/saldos/" + COMPETENCIA_SALDO_INICIAL)).andExpect(status().isUnprocessableEntity());
     }
 
     @Test

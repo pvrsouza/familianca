@@ -154,12 +154,14 @@ export const saldos = {
   listar: (ano: number) => api.get<Saldo[]>(`/api/saldos?ano=${ano}`),
   /**
    * Sem dataReferencia, o valor é o do dia 1º; com ela, o saldo nesse dia (o fluxo volta até o dia 1º).
-   * Com porLocal, o total é a soma dos lugares e valor é ignorado.
+   * Com porLocal, o total é a soma dos lugares e valor é ignorado. A conferência (saldo de hoje, só para comparar)
+   * acompanha apenas o saldo do dia 1º.
    */
   definir: (competencia: string, d: { valor: number | null; porLocal: { localId: number; valor: number }[] | null;
-    observacao?: string; dataReferencia?: string | null }) =>
+    observacao?: string; dataReferencia?: string | null; conferencia?: { dia: string; valor: number } | null }) =>
     api.put<Saldo>(`/api/saldos/${competencia}`, {
       valor: d.valor, porLocal: d.porLocal, observacao: d.observacao || null, dataReferencia: d.dataReferencia || null,
+      conferencia: d.conferencia ?? null,
     }),
   /** Receitas e despesas lançadas do dia 1º do mês até a data. */
   movimento: (ate: string) => api.get<MovimentoDoMes>(`/api/saldos/movimento?ate=${ate}`),

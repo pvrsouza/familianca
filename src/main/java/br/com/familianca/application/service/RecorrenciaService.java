@@ -82,6 +82,7 @@ public class RecorrenciaService implements GerenciarRecorrencias {
     @Override
     public RecorrenciaDetalhada criar(DadosRecorrencia dados) {
         Membro membro = validar(dados);
+        acesso.exigirSaldoInicial();
         Recorrencia nova = new Recorrencia(null, dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
                 dados.dia(), dados.frequencia(), dados.inicio(), dados.fim(), dados.observacao(), Set.of(),
                 dados.confirmarSozinha() ? relogio.hoje() : null, null, dados.semVencimento(),
@@ -148,6 +149,7 @@ public class RecorrenciaService implements GerenciarRecorrencias {
     @Override
     public LancamentoDetalhado confirmar(Long id, Competencia competencia, Dinheiro valor, LocalDate data) {
         Recorrencia r = exigirOcorrencia(id, competencia);
+        acesso.exigirSaldoInicial();
         if (r.puladas().contains(competencia)) {
             throw new RegraNegocioException("A ocorrência de " + competencia + " foi pulada: desfaça o pulo antes");
         }

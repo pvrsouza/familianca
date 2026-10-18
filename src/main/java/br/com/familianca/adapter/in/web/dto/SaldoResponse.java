@@ -7,13 +7,18 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record SaldoResponse(String competencia, BigDecimal valor, String observacao, LocalDate dataReferencia,
-                            List<PorLocal> porLocal) {
+                            List<PorLocal> porLocal, Conferencia conferencia) {
 
     public record PorLocal(Long localId, BigDecimal valor) {
     }
 
+    public record Conferencia(LocalDate dia, BigDecimal valor) {
+    }
+
     public static SaldoResponse de(SaldoMes s) {
         return new SaldoResponse(s.competencia().toString(), s.valor().valor(), s.observacao(), s.dataReferencia(),
-                s.porLocal().stream().map(p -> new PorLocal(p.localId(), p.valor().valor())).toList());
+                s.porLocal().stream().map(p -> new PorLocal(p.localId(), p.valor().valor())).toList(),
+                s.conferencia() == null ? null
+                        : new Conferencia(s.conferencia().dia(), s.conferencia().valor().valor()));
     }
 }

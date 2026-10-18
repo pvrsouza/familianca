@@ -37,7 +37,9 @@ public interface GerenciarFamilia {
      */
     void apagarDados(String senha);
 
-    record FamiliaDetalhe(Familia familia, Plano planoEmVigor, List<Membro> membros, List<Convite> convitesPendentes) {
+    /** temSaldoInicial: sem ele não se lança nada (o front leva para informar o saldo antes). */
+    record FamiliaDetalhe(Familia familia, Plano planoEmVigor, List<Membro> membros, List<Convite> convitesPendentes,
+                          boolean temSaldoInicial) {
     }
 
     record ConviteCriado(Convite convite, String token) {

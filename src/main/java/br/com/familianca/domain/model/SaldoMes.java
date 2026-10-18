@@ -19,9 +19,20 @@ import static br.com.familianca.domain.Validacoes.opcional;
  * - com data (ex.: hoje): o valor é o saldo no fim daquele dia, e o do dia 1º sai desfazendo o que foi lançado de 1º
  *   até a data ({@link #noDiaPrimeiro}). Conta paga nesse período e lançada depois entra na conta sozinha.
  * - porLocal: o saldo item a item (conta, poupança, cofrinho...); com itens, o valor é a soma deles ({@link #porLocal}).
+ * - conferencia: com o saldo do dia 1º, o saldo de outro dia (ex.: hoje) guardado à parte, só para conferir. Não muda
+ *   o fluxo; a diferença para o dia 1º + o lançado até esse dia mostra o que falta lançar.
  */
 public record SaldoMes(Competencia competencia, Dinheiro valor, String observacao, LocalDate dataReferencia,
-                       List<PorLocal> porLocal) {
+                       List<PorLocal> porLocal, Conferencia conferencia) {
+
+    /** Saldo somado num dia do mês, para comparar com o que o sistema calcula a partir do dia 1º. */
+    public record Conferencia(LocalDate dia, Dinheiro valor) {
+
+        public Conferencia {
+            obrigatorio(dia, "dia da conferência");
+            obrigatorio(valor, "saldo da conferência");
+        }
+    }
 
     /** Saldo de um lugar no mesmo dia do saldo do mês. */
     public record PorLocal(Long localId, Dinheiro valor) {
@@ -49,24 +60,33 @@ public record SaldoMes(Competencia competencia, Dinheiro valor, String observaca
         if (!porLocal.isEmpty() && valor.compareTo(soma(porLocal)) != 0) {
             throw new RegraNegocioException("O saldo do mês precisa ser a soma dos lugares");
         }
+        if (conferencia != null) {
+            if (dataReferencia != null) {
+                throw new RegraNegocioException("O saldo para conferir só vale junto do saldo do dia 1º");
+            }
+            if (!Competencia.de(conferencia.dia()).equals(competencia)) {
+                throw new RegraNegocioException("O dia do saldo para conferir precisa ser de " + competencia);
+            }
+        }
     }
 
     /** Saldo já do dia 1º, sem itens. */
     public SaldoMes(Competencia competencia, Dinheiro valor, String observacao) {
-        this(competencia, valor, observacao, null, List.of());
+        this(competencia, valor, observacao, null, List.of(), null);
     }
 
-    public SaldoMes(Competencia competencia, Dinheiro valor, String observacao, LocalDate dataReferencia) {
-        this(competencia, valor, observacao, dataReferencia, List.of());
+    public SaldoMes(Competencia competencia, Dinheiro valor, String observacao, LocalDate dataReferencia,
+                    Conferencia conferencia) {
+        this(competencia, valor, observacao, dataReferencia, List.of(), conferencia);
     }
 
     /** Saldo item a item: o total é a soma dos lugares. */
     public static SaldoMes porLocal(Competencia competencia, List<PorLocal> itens, String observacao,
-                                    LocalDate dataReferencia) {
+                                    LocalDate dataReferencia, Conferencia conferencia) {
         if (itens == null || itens.isEmpty()) {
             throw new RegraNegocioException("Informe o saldo de pelo menos um lugar");
         }
-        return new SaldoMes(competencia, soma(itens), observacao, dataReferencia, itens);
+        return new SaldoMes(competencia, soma(itens), observacao, dataReferencia, itens, conferencia);
     }
 
     /** O saldo do dia 1º: o informado ou, se for de outro dia, ele sem o que entrou e saiu de 1º até esse dia. */

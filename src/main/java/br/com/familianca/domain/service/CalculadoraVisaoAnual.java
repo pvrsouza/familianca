@@ -52,11 +52,23 @@ public final class CalculadoraVisaoAnual {
      * @param estimativaFamilia  regra padrão da família para estimar os próximos meses
      * @param hoje               data de referência: só o ano corrente é estimado, a partir do mês seguinte
      * @param previsao           valor previsto de cada ocorrência das recorrências (estimado pela regra ou cadastrado)
+     * @param sobraAnoAnterior   fluxo líquido de dezembro do ano anterior, com que janeiro começa sem saldo informado;
+     *                           nulo = nenhum saldo informado antes deste ano (janeiro começa do zero)
      */
     public record Entrada(int ano, List<Grupo> grupos, List<Categoria> categorias, List<Lancamento> lancamentos,
                           List<Recorrencia> recorrencias, Set<Ocorrencia> confirmadas, List<SaldoMes> saldos,
                           SerieMensal aplicacoes, SerieMensal rendaInvestimentos, Percentual metaAporte,
-                          Estimativa estimativaFamilia, LocalDate hoje, PrevisaoRecorrencias previsao) {
+                          Estimativa estimativaFamilia, LocalDate hoje, PrevisaoRecorrencias previsao,
+                          Dinheiro sobraAnoAnterior) {
+
+        /** Sem saldo informado em anos anteriores. */
+        public Entrada(int ano, List<Grupo> grupos, List<Categoria> categorias, List<Lancamento> lancamentos,
+                       List<Recorrencia> recorrencias, Set<Ocorrencia> confirmadas, List<SaldoMes> saldos,
+                       SerieMensal aplicacoes, SerieMensal rendaInvestimentos, Percentual metaAporte,
+                       Estimativa estimativaFamilia, LocalDate hoje, PrevisaoRecorrencias previsao) {
+            this(ano, grupos, categorias, lancamentos, recorrencias, confirmadas, saldos, aplicacoes,
+                    rendaInvestimentos, metaAporte, estimativaFamilia, hoje, previsao, null);
+        }
 
         /** Recorrências sempre pelo valor cadastrado. */
         public Entrada(int ano, List<Grupo> grupos, List<Categoria> categorias, List<Lancamento> lancamentos,
@@ -303,7 +315,8 @@ public final class CalculadoraVisaoAnual {
 
         SerieMensal sobra = SerieMensal.ZERO;
         List<Boolean> informada = new ArrayList<>();
-        Dinheiro fluxoAnterior = Dinheiro.ZERO;
+        // Janeiro continua de onde dezembro parou, se já havia saldo informado antes deste ano.
+        Dinheiro fluxoAnterior = e.sobraAnoAnterior() != null ? e.sobraAnoAnterior() : Dinheiro.ZERO;
         for (int mes = 1; mes <= SerieMensal.MESES; mes++) {
             Dinheiro saldo = saldos.get(Competencia.of(e.ano(), mes));
             informada.add(saldo != null);
@@ -325,7 +338,7 @@ public final class CalculadoraVisaoAnual {
             }
         }
         return new Fluxo(sobra, informada, receitasFixas, receitasVariaveis, e.aplicacoes(), despesasFixas,
-                despesasVariaveis, e.rendaInvestimentos(), grau, aportePrevisto);
+                despesasVariaveis, e.rendaInvestimentos(), grau, aportePrevisto, e.sobraAnoAnterior() != null);
     }
 
     private static SerieMensal somaPorNatureza(List<LinhaGrupo> grupos, Natureza natureza) {

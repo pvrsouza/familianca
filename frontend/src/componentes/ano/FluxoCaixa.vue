@@ -113,6 +113,7 @@ function dicaSaldo(i: number): string | undefined {
   const partes = [s.dataReferencia
     ? `Saldo do dia 1º calculado do saldo de ${diaMes(s.dataReferencia)} (${reais(s.valor)}), desfazendo o que foi lançado de 1º até esse dia.`
     : 'Saldo do dia 1º informado.']
+  if (s.conferencia) partes.push(`Saldo de ${diaMes(s.conferencia.dia)} para conferir: ${reais(s.conferencia.valor)}.`)
   if (s.porLocal.length) {
     partes.push(s.porLocal.map((p) => `${lugares.value.find((l) => l.id === p.localId)?.nome ?? 'Lugar'}: ${reais(p.valor)}`).join(' · '))
   }
@@ -245,7 +246,8 @@ function dicaSaldo(i: number): string | undefined {
       </div>
     </section>
 
-    <PainelSaldo :visao="visao" :mes="editando" :informados="informados" @fechar="editando = null" @mudou="emit('mudou')" />
+    <PainelSaldo :visao="visao" :mes="editando" :informados="informados" @fechar="editando = null" @mudou="emit('mudou')"
+                 @trocar-mes="editando = $event" />
   </div>
 </template>
 

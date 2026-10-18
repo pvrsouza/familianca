@@ -128,13 +128,28 @@ public abstract class IntegracaoBase {
                 hashSenhaPadrao, papel));
     }
 
-    /** Família com assinatura ativa no plano, categorias padrão e o usuário como DONO. */
+    /**
+     * Mês do saldo inicial das famílias de teste: depois de todos os anos testados, para não levar sobra a nenhum
+     * deles (cada ano começa com a sobra de dezembro do anterior, a partir do primeiro saldo).
+     */
+    protected static final String COMPETENCIA_SALDO_INICIAL = "2099-12";
+
+    /**
+     * Família com assinatura ativa no plano, categorias padrão, o usuário como DONO e o saldo inicial (zero) já
+     * informado, porque sem ele nada se lança. Para testar a família sem saldo: {@link #semSaldoInicial}.
+     */
     protected Membro criarFamilia(String emailDono, Plano plano) {
         Usuario usuario = criarUsuario(emailDono, Papel.USER);
         Familia familia = familias.salvar(Familia.nova("Família " + emailDono,
                 new Assinatura(plano, StatusAssinatura.ATIVA, null)));
         planoContas.criarModelo(familia.id(), CatalogoCategorias.padrao());
+        jdbc.update("insert into saldo_mes (familia_id, competencia, valor) values (?, ?, 0)", familia.id(),
+                COMPETENCIA_SALDO_INICIAL);
         return membros.salvar(Membro.novo(familia.id(), usuario.id(), PapelFamilia.DONO));
+    }
+
+    protected void semSaldoInicial(Membro daFamilia) {
+        jdbc.update("delete from saldo_mes where familia_id = ?", daFamilia.familiaId());
     }
 
     protected Membro adicionarMembro(Membro daFamilia, String email, PapelFamilia papel) {

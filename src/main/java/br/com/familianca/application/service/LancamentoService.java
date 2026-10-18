@@ -99,6 +99,7 @@ public class LancamentoService implements GerenciarLancamentos {
     @Override
     public LancamentoDetalhado lancar(DadosLancamento dados) {
         Membro membro = validar(dados);
+        acesso.exigirSaldoInicial();
         Lancamento novo = new Lancamento(null, dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
                 dados.data(), null, null, null, dados.observacao());
         return detalhador().detalhar(lancamentos.salvar(novo));
@@ -107,6 +108,7 @@ public class LancamentoService implements GerenciarLancamentos {
     @Override
     public List<LancamentoDetalhado> lancarParcelado(DadosLancamento dados, int parcelas) {
         Membro membro = validar(dados);
+        acesso.exigirSaldoInicial();
         UUID parcelamento = UUID.randomUUID();
         List<Lancamento> novos = GERADOR.gerar(obrigatorio(dados.valor(), "valor"), parcelas,
                         obrigatorio(dados.data(), "data")).stream()

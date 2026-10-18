@@ -3,6 +3,7 @@ package br.com.familianca.application.service;
 import br.com.familianca.application.port.out.FamiliaRepository;
 import br.com.familianca.application.port.out.MembroRepository;
 import br.com.familianca.application.port.out.Relogio;
+import br.com.familianca.application.port.out.SaldoRepository;
 import br.com.familianca.application.port.out.UsuarioAtual;
 import br.com.familianca.domain.exception.AcessoNegadoException;
 import br.com.familianca.domain.exception.NaoEncontradoException;
@@ -27,9 +28,11 @@ public class AcessoFamilia {
     private final FamiliaRepository familias;
     private final MembroRepository membros;
     private final Relogio relogio;
+    private final SaldoRepository saldos;
 
     public AcessoFamilia(UsuarioAtual usuarioAtual, FamiliaRepository familias, MembroRepository membros,
-                         Relogio relogio) {
+                         Relogio relogio, SaldoRepository saldos) {
+        this.saldos = saldos;
         this.usuarioAtual = usuarioAtual;
         this.familias = familias;
         this.membros = membros;
@@ -49,6 +52,23 @@ public class AcessoFamilia {
         if (!plano.permite(recurso)) {
             throw new RecursoForaDoPlanoException(plano, recurso,
                     recurso.rotulo() + " não faz parte do plano " + plano.rotulo());
+        }
+    }
+
+    /** Se a família já informou o saldo inicial (o saldo de algum mês). */
+    public boolean temSaldoInicial() {
+        return saldos.contar() > 0;
+    }
+
+    /**
+     * Nada se lança antes do saldo inicial: ele é o ponto de partida do fluxo de caixa (pode ser zero ou negativo).
+     * Só quem organiza informa o saldo, por isso a mensagem muda para quem participa.
+     */
+    public void exigirSaldoInicial() {
+        if (!temSaldoInicial()) {
+            throw new RegraNegocioException(usuarioAtual.dono()
+                    ? "Antes do primeiro lançamento, informem quanto a família tem hoje (pode ser zero ou negativo)"
+                    : "Antes do primeiro lançamento, quem organiza a família precisa informar o saldo inicial");
         }
     }
 

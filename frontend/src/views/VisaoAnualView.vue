@@ -90,7 +90,8 @@ const tempo = computed(() => (ano.value < anoAtual() ? 'passado' : ano.value > a
 // Guia de quem está chegando (ou recomeçou do zero), no ano corrente. O saldo inicial é obrigatório (pode ser zero ou
 // negativo) porque é o ponto de partida do fluxo; o painel dele abre aqui mesmo. Os outros passos podem ser pulados
 // (guardado no navegador). O guia some quando nada mais está pendente.
-const temSaldo = computed(() => !!dados.value?.resumo.sobraInformada.some(Boolean))
+// Saldo inicial em qualquer ano conta (é o que libera os lançamentos no servidor).
+const temSaldo = computed(() => !!sessao.estado.familia?.temSaldoInicial || !!dados.value?.resumo.sobraInformada.some(Boolean))
 const realizadas = computed(() =>
   dados.value ? dados.value.despesas.grupos.reduce((s, g) => s + g.realizado.reduce((a, b) => a + b, 0), 0) : 0,
 )
@@ -108,6 +109,8 @@ interface Passo {
   feito: boolean
   /** O saldo inicial não se pula. */
   obrigatorio: boolean
+  /** Só depois do saldo inicial (lançar e cadastrar o que se repete). */
+  depoisDoSaldo?: boolean
   pulado: boolean
   acao?: { rotulo: string; para?: string; abrir?: () => void }
 }
@@ -122,7 +125,7 @@ const passos = computed<Passo[]>(() => {
       texto: temSaldo.value
         ? 'Feito. Para conferir ou corrigir, abram a aba Fluxo de caixa: o saldo fica na primeira linha.'
         : dono
-          ? `O saldo de ${MESES[mes - 1]}: contas, poupança, dinheiro na mão, cofrinho. Mesmo que seja zero ou negativo. É o ponto de partida: depois cada mês começa sozinho com a sobra do anterior.`
+          ? `O saldo do mês em que vocês começam, ${MESES[mes - 1]} ou um que já passou: contas, poupança, dinheiro na mão, cofrinho. Mesmo que seja zero ou negativo. É o ponto de partida: depois cada mês começa sozinho com a sobra do anterior.`
           : 'O saldo inicial é informado por quem organiza a família. Ele é o ponto de partida do fluxo de caixa.',
       feito: temSaldo.value,
       obrigatorio: true,
@@ -138,6 +141,7 @@ const passos = computed<Passo[]>(() => {
       feito: !vazio.value,
       obrigatorio: false,
       pulado: pulado('recorrencias'),
+      depoisDoSaldo: !temSaldo.value,
       acao: { rotulo: 'Cadastrar', para: '/recorrencias?nova=1' },
     },
     {
@@ -147,6 +151,7 @@ const passos = computed<Passo[]>(() => {
       feito: realizadas.value > 0.004,
       obrigatorio: false,
       pulado: pulado('lancamento'),
+      depoisDoSaldo: !temSaldo.value,
       acao: { rotulo: 'Lançar', para: '/lancamentos?novo=1' },
     },
   ]
@@ -168,6 +173,20 @@ const mostrarGuia = computed(() => tempo.value === 'atual' && !!dados.value && p
 function pular(p: Passo, sim: boolean) {
   guia.pular(familiaId.value, p.id, sim)
 }
+// Vindo de um formulário de lançamento sem saldo inicial (?saldo=1): abre o painel do saldo do mês atual. Com
+// ?saldo=AAAA-MM (o mês do saldo inicial escolhido no painel, de outro ano), abre nesse mês quando a visão chega.
+watch([() => route.query.saldo, dados], () => {
+  const pedido = String(route.query.saldo ?? '')
+  if (!pedido || !dados.value) return
+  const doMes = /^(\d{4})-(\d{2})$/.exec(pedido)
+  if (doMes && Number(doMes[1]) !== dados.value.ano) return // a visão do ano pedido ainda está carregando
+  if (sessao.dono.value) {
+    if (doMes) saldoAberto.value = Number(doMes[2]) - 1
+    else if (pedido === '1' && tempo.value === 'atual') saldoAberto.value = mesAtual() - 1
+  }
+  router.replace({ query: { ...route.query, saldo: undefined } })
+}, { immediate: true })
+
 const proximo = computed(() => passos.value.findIndex(pendente))
 </script>
 
@@ -235,8 +254,9 @@ const proximo = computed(() => passos.value.findIndex(pendente))
         <div>
           <h2 id="comeco-titulo">{{ bemvindo ? 'Tudo pronto. O ano de vocês começa aqui.' : 'Como começar' }}</h2>
           <p>
-            Comecem pelo saldo: quanto a família tem hoje, somando tudo. Ele é o único passo obrigatório; os outros
-            podem ser feitos agora ou pulados. Este guia some quando não houver mais nada pendente.
+            Comecem pelo saldo: quanto a família tem hoje, somando tudo. Ele é obrigatório e vem antes de qualquer
+            lançamento; os outros passos podem ser feitos depois dele ou pulados. Este guia some quando não houver
+            mais nada pendente.
           </p>
         </div>
         <ol class="passos">
@@ -256,7 +276,8 @@ const proximo = computed(() => passos.value.findIndex(pendente))
               <span>{{ p.texto }}</span>
             </div>
             <div v-if="p.acao || (!p.obrigatorio && !p.feito)" class="acoes-passo">
-              <template v-if="p.acao">
+              <span v-if="p.depoisDoSaldo && !p.feito" class="depois">Depois do saldo</span>
+              <template v-else-if="p.acao">
                 <RouterLink v-if="p.acao.para && !p.feito" :to="p.acao.para" class="botao botao-pequeno"
                             :class="{ 'botao-primario': i === proximo }">{{ p.acao.rotulo }}</RouterLink>
                 <button v-else-if="p.acao.abrir" type="button" class="botao botao-pequeno"
@@ -283,7 +304,8 @@ const proximo = computed(() => passos.value.findIndex(pendente))
 
     <PainelMes :alvo="alvo" @fechar="alvo = null" />
     <PainelSaldo v-if="dados" :visao="dados" :mes="saldoAberto" :informados="[]" fora-do-fluxo
-                 @fechar="saldoAberto = null" @mudou="carregar" />
+                 @fechar="saldoAberto = null" @mudou="carregar"
+                 @trocar-mes="saldoAberto = $event" />
   </div>
 </template>
 
@@ -432,6 +454,11 @@ const proximo = computed(() => passos.value.findIndex(pendente))
   align-items: center;
   justify-content: flex-end;
   gap: var(--e-1);
+}
+
+.depois {
+  font-size: var(--t-xs);
+  color: var(--texto-2);
 }
 
 .marca {

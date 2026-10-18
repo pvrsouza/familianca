@@ -1,10 +1,2 @@
-- na primeira vez ou quando o usuário nao tiver nenhum dado cadastrados, fazer um guia de como iniciar. Mostrar que tem que inserir o saldo disponivel no mes que ele quer iniciar.
-- incluir essa inclusao de saldo na tela inicial do sistema, na tela de entrar como o promeiro passos
 
-
-- o passo de Informar quanto vocês têm hoje tem que ser obrigatório, mesmo que seja zeor, negativo etc.
-    - depois de cadastrar informar que é possível conferir ou editar na tela de fluxo de caixa.
-- o passo Cadastrar o que se repete pode ser pulado
-- Lançar um gasto do dia a dia pode ser pulado 
-- trazer a famlia tb pode ser pulado.
-
+ - se for incluir esse saldo em meses anteriores ao corrente nao faz sentido informar o primeiro dia e um outro dia depois. Sempre tem que ser só o primeiro dia. Nao concorde comigo. Faz sentido o que eu falei? Par ao mes corrente sim, ach que faz sentido

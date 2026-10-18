@@ -4,6 +4,7 @@ import br.com.familianca.domain.model.SaldoMes;
 import br.com.familianca.domain.vo.Competencia;
 
 import java.util.List;
+import java.util.Optional;
 
 /** Saldos informados da família do usuário logado. */
 public interface SaldoRepository {
@@ -13,4 +14,10 @@ public interface SaldoRepository {
     SaldoMes salvar(SaldoMes saldo);
 
     void remover(Competencia competencia);
+
+    /** Quantos meses têm saldo informado, em qualquer ano. */
+    long contar();
+
+    /** O mês do primeiro saldo informado (o saldo inicial), em qualquer ano. */
+    Optional<Competencia> primeira();
 }

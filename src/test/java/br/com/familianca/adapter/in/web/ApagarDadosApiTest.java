@@ -57,8 +57,12 @@ class ApagarDadosApiTest extends IntegracaoBase {
         assertThat(contar("categoria", dono)).isEqualTo(categoriasPadrao);
         assertThat(jdbc.queryForObject("select count(*) from grupo_categoria where familia_id = ? and nome = 'Pets'",
                 Integer.class, dono.familiaId())).isZero();
-        // Pessoas e família ficam; dá para lançar de novo na hora.
-        mvc.perform(get("/api/familia")).andExpect(jsonPath("$.membros[0].papel").value("DONO"));
+        // Pessoas e família ficam; recomeça pelo saldo inicial, como uma família nova, e lança na hora.
+        mvc.perform(get("/api/familia"))
+                .andExpect(jsonPath("$.membros[0].papel").value("DONO"))
+                .andExpect(jsonPath("$.temSaldoInicial").value(false));
+        mvc.perform(put("/api/saldos/2026-10").contentType(APPLICATION_JSON).content("{\"valor\": 0}"))
+                .andExpect(status().isOk());
         lancar("Habitação", "Supermercado", "Mercado", "120", "2026-10-06");
     }
 

@@ -31,7 +31,8 @@ import java.util.List;
         Saldo em conta no dia 1º de cada mês (a "sobra do mês anterior" da planilha), somando as contas da família.
         É o ponto de partida do fluxo de caixa: mês sem saldo informado usa o fluxo líquido calculado do mês
         anterior. A família pode informar o saldo de outro dia do mês (ex.: hoje): o fluxo usa como dia 1º esse
-        valor sem o que foi lançado de 1º até o dia. O saldo pode vir item a item (conta corrente, poupança, dinheiro
+        valor sem o que foi lançado de 1º até o dia. Informando o do dia 1º, pode guardar também o de hoje para
+        conferir: ele não muda o fluxo. O saldo pode vir item a item (conta corrente, poupança, dinheiro
         na mão, cofrinho...): o total é a soma. Na prática a família informa o saldo inicial uma vez e depois só
         corrige quando o banco mostrar outro valor. Qualquer membro consulta; só o DONO altera.""")
 public class SaldoController {
@@ -53,12 +54,15 @@ public class SaldoController {
     @PutMapping("/{competencia}")
     @Operation(summary = "Informar saldo do mês", description = """
             Cria ou substitui o saldo da competência (AAAA-MM). Com `dataReferencia`, o valor é o saldo nesse dia.
-            Com `porLocal`, o total é a soma do saldo de cada lugar (cadastrados em /api/locais-saldo).""")
+            Com `porLocal`, o total é a soma do saldo de cada lugar (cadastrados em /api/locais-saldo). Com o saldo do
+            dia 1º, `conferencia` guarda à parte o saldo de outro dia, só para conferir (não muda o fluxo).""")
     public SaldoResponse definir(@PathVariable String competencia, @Valid @RequestBody SaldoRequest r) {
         List<SaldoMes.PorLocal> porLocal = r.porLocal() == null ? List.of() : r.porLocal().stream()
                 .map(p -> new SaldoMes.PorLocal(p.localId(), Valores.dinheiro(p.valor()))).toList();
         return SaldoResponse.de(saldos.definir(Competencia.parse(competencia),
-                Valores.dinheiro(r.valor()), porLocal, r.observacao(), r.dataReferencia()));
+                Valores.dinheiro(r.valor()), porLocal, r.observacao(), r.dataReferencia(),
+                r.conferencia() == null ? null
+                        : new SaldoMes.Conferencia(r.conferencia().dia(), Valores.dinheiro(r.conferencia().valor()))));
     }
 
     @GetMapping("/movimento")

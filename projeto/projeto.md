@@ -241,21 +241,43 @@ Pontos de atenção constante na hora de desenvolver.
   (4) saldo disponível = 1 + 2 − 3, (5) despesas, fluxo líquido = 4 − 5.
   - A sobra do mês é o **saldo em conta informado** pela família no início do mês; sem ele, o fluxo líquido do mês
     anterior (o saldo vai sendo carregado).
-  - **O saldo informado vale sempre como o do dia 1º (2026-10-18).** Quem começa no meio do mês costuma ter em mãos o
-    saldo de hoje, que já descontou as contas pagas no mês; informar esse valor como o do dia 1º e lançar as contas
-    pagas desconta tudo duas vezes. Por isso o DONO escolhe "O de hoje" (ou outro dia do mês até hoje) ou "O do dia 1º":
-    - com dia, o sistema guarda o valor e o dia, e o fluxo usa como dia 1º: saldo do dia − receitas lançadas de 1º
-      até o dia + despesas lançadas de 1º até o dia (inclusive). Ex.: 100.000 em 18/10, com 3.000 de contas e 9.000
-      de salário lançados em outubro = 94.000 no dia 1º;
-    - a conta é refeita a cada visão: conta paga no período e lançada depois entra sozinha; o que for lançado para
-      depois do dia não entra;
-    - a tela mostra a conta antes de guardar; mês que ainda não começou só aceita o saldo do dia 1º;
-    - aplicação em investimento não tem dia, então não entra na conta: a tela pede para somá-la ao saldo do dia.
+  - **Dois saldos: o do dia 1º e o de hoje (2026-10-18, revisto no mesmo dia).** No fluxo vale sempre o saldo do dia
+    1º. Quem começa no meio do mês costuma ter em mãos o saldo de hoje, que já descontou as contas pagas no mês;
+    informar esse valor como o do dia 1º e lançar as contas pagas desconta tudo duas vezes. Por isso o painel tem
+    **dois campos separados**, o do dia 1º primeiro e o de hoje (ou outro dia do mês até hoje) depois, e um nunca
+    sobrescreve o outro. A família informa os dois ou só um:
+    - **só o do dia 1º:** vale como está;
+    - **o do dia 1º e o de hoje:** o do dia 1º continua sendo o ponto de partida, como foi digitado. O de hoje é
+      guardado à parte, **só para conferir** (não muda o fluxo): a tela mostra dia 1º + receitas lançadas − despesas
+      lançadas de 1º até o dia = esperado no dia, ao lado do saldo informado, e a diferença ("o banco tem R$ X a
+      menos que o lançado: falta lançar alguma despesa", ou a mais: falta lançar alguma receita). Ex.: 10 no dia 1º,
+      nada lançado e 5 hoje = faltam R$ 5 em despesas; o fluxo segue partindo de 10. Guardar sem o de hoje apaga a
+      conferência. O saldo de hoje é só o total (sem lugar a lugar);
+    - **só o de hoje:** o sistema guarda o valor e o dia, e o fluxo usa como dia 1º: saldo do dia − receitas lançadas
+      de 1º até o dia + despesas lançadas de 1º até o dia (inclusive). Ex.: 100.000 em 18/10, com 3.000 de contas e
+      9.000 de salário lançados em outubro = 94.000 no dia 1º. A conta é refeita a cada visão: conta paga no período
+      e lançada depois entra sozinha; o que for lançado para depois do dia não entra;
+    - **o saldo de outro dia só existe no mês corrente.** Num mês que já passou a família informa só o do dia 1º:
+      ele está no extrato (o saldo do fim do mês anterior), e conferir o fim daquele mês é o mesmo que corrigir o
+      saldo do mês seguinte. Mês que ainda não começou também só tem o do dia 1º. Exceção: o saldo guardado com dia
+      quando o mês era o corrente continua valendo depois que o mês vira; aparece com o dia travado e pode ser
+      corrigido mantendo o dia, ou apagado. O servidor recusa um dia novo num mês que já passou (422);
+    - a conta aparece antes de guardar, em ordem de data, marcando o que a família informou e o que foi calculado;
+    - aplicação em investimento não tem dia, então não entra na conta: só com o saldo de hoje, a tela pede para
+      somá-la a ele.
   - **Saldo inicial e correções (2026-10-18).** A família informa o saldo **uma vez**, no mês em que começa a usar
     (o "saldo inicial"); nos meses seguintes cada mês começa sozinho com a sobra do anterior. Informar o saldo de um
     mês depois do inicial é uma **correção**: o painel mostra o valor calculado pelo sistema (a sobra do mês anterior)
     e a diferença para o valor real, que passa a valer daquele mês em diante. Na tabela, o botão "Corrigir o saldo de
     <mês atual>" (ou "Informar o saldo inicial") abre o painel direto.
+  - **O saldo inicial pode ser de qualquer mês que já chegou (2026-10-18).** Enquanto a família não tem saldo
+    nenhum, o painel mostra "Mês em que vocês começam" (vem no mês atual): vale este mês ou qualquer um que já passou,
+    até de outro ano (a visão vai para aquele ano com o painel aberto). Mês futuro não serve: o servidor recusa o
+    saldo inicial de um mês que ainda não chegou (422). Depois do saldo inicial, corrigir um mês adiante continua
+    permitido.
+  - **A sobra passa de um ano para o outro.** A partir do ano do primeiro saldo informado, janeiro começa com o fluxo
+    líquido de dezembro do ano anterior (se janeiro não tiver saldo informado por cima). Antes do primeiro saldo,
+    janeiro começa do zero.
   - **Saldo lugar a lugar.** O saldo pode ser informado só no total (o jeito rápido de corrigir) ou **lugar a lugar**,
     o padrão do saldo inicial. Os lugares são cadastrados uma vez e voltam prontos: conta corrente ou digital,
     poupança, dinheiro na mão, cofrinho, investimento de resgate rápido ou outro. Cada um tem dono opcional (um membro;
@@ -275,6 +297,14 @@ Pontos de atenção constante na hora de desenvolver.
     - **Informar o saldo** é o único passo **obrigatório** (zero e negativo valem). Abre o painel do saldo ali
       mesmo, só para quem organiza. Depois de guardar, o aviso e o próprio passo dizem que dá para conferir ou
       corrigir na aba Fluxo de caixa (botão "Conferir").
+    - **Nada se lança antes do saldo inicial.** Sem saldo informado (em qualquer mês), o servidor recusa lançar,
+      lançar parcelado, cadastrar recorrência e confirmar ocorrência (422, com a mensagem de quem precisa agir:
+      quem organiza informa o saldo; quem participa é avisado de que essa pessoa precisa fazer isso). Editar e
+      excluir o que já existe continua liberado. No front, os formulários de lançamento e de recorrência mostram
+      "Primeiro, o saldo de hoje" com o botão "Informar saldo", que abre o painel do saldo; no guia, cadastrar e
+      lançar ficam "Depois do saldo".
+    - O **último saldo informado não pode ser removido**, só corrigido (pode ser zero): senão a família voltaria a
+      ficar sem saldo inicial. "Recomeçar do zero" apaga os saldos e a família recomeça pelo saldo.
     - Cadastrar o que se repete, lançar um gasto e trazer a família (só quem organiza) podem ser **pulados**, com
       "Desfazer". O pulo fica guardado no navegador, por família.
     - Cada passo feito aparece marcado e o próximo pendente em destaque. O guia some quando nada mais está pendente

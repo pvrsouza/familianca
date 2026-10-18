@@ -28,6 +28,9 @@ public class SaldoMesEntity {
     BigDecimal valor;
     String observacao;
     LocalDate dataReferencia;
+    /** Saldo de outro dia guardado só para conferir; os dois juntos ou nenhum. */
+    LocalDate conferenciaDia;
+    BigDecimal conferenciaValor;
 
     /** Saldo de cada lugar (conta, cofrinho...) no mês; vazio = só o total. */
     @ElementCollection
