@@ -1,0 +1,436 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { Copy, MessageCircle, Pencil } from 'lucide-vue-next'
+import { familia as api } from '../api/servicos'
+import type { Convite, Membro, Papel } from '../api/tipos'
+import { mensagemDeErro } from '../api/http'
+import { sessao } from '../estado/sessao'
+import { avisar } from '../estado/avisos'
+import { dataCurta, dataPorExtenso, primeiroNome } from '../util/formato'
+import Mensagem from '../componentes/Mensagem.vue'
+
+const f = computed(() => sessao.estado.familia)
+const dono = computed(() => sessao.dono.value)
+const eu = computed(() => sessao.estado.usuario?.membroId)
+const ativos = computed(() => f.value?.membros.filter((m) => m.ativo) ?? [])
+const inativos = computed(() => f.value?.membros.filter((m) => !m.ativo) ?? [])
+const ocupadas = computed(() => ativos.value.length + (f.value?.convitesPendentes.length ?? 0))
+const limite = computed(() => f.value?.planoEmVigor.limiteMembros ?? 0)
+const cheio = computed(() => ocupadas.value >= limite.value)
+
+const PAPEIS: Record<Papel, string> = { DONO: 'organiza', MEMBRO: 'participa' }
+const RECURSOS: Record<string, string> = { INVESTIMENTOS: 'Investimentos', DESPESAS_PJ: 'Despesas da empresa (PJ)' }
+
+const statusPlano = computed(() => {
+  const a = f.value?.assinatura
+  if (!a) return ''
+  if (a.status === 'TESTE') return a.validaAte ? `Em teste até ${dataPorExtenso(a.validaAte, true)}` : 'Em teste'
+  if (a.status === 'ATIVA') return a.validaAte ? `Ativo até ${dataPorExtenso(a.validaAte, true)}` : 'Ativo'
+  return 'Cancelado'
+})
+
+// ——— Nome e meta ———
+const editandoNome = ref(false)
+const nome = ref('')
+const meta = ref<number | null>(null)
+const erroNome = ref('')
+const salvandoNome = ref(false)
+
+function editarNome() {
+  nome.value = f.value?.nome ?? ''
+  meta.value = f.value?.metaAportePercentual ?? null
+  erroNome.value = ''
+  editandoNome.value = true
+}
+
+async function salvarNome() {
+  if (!nome.value.trim()) {
+    erroNome.value = 'A família precisa de um nome.'
+    return
+  }
+  if (meta.value !== null && (meta.value < 0 || meta.value > 100)) {
+    erroNome.value = 'A meta vai de 0% a 100%.'
+    return
+  }
+  salvandoNome.value = true
+  try {
+    sessao.estado.familia = await api.atualizar(nome.value.trim(), meta.value)
+    editandoNome.value = false
+    avisar('Dados da família atualizados.')
+  } catch (e) {
+    erroNome.value = mensagemDeErro(e)
+  } finally {
+    salvandoNome.value = false
+  }
+}
+
+// ——— Membros ———
+const confirmarRemocao = ref<number | null>(null)
+const erroMembro = ref('')
+
+async function trocarPapel(m: Membro) {
+  erroMembro.value = ''
+  try {
+    await api.alterarPapel(m.id, m.papel === 'DONO' ? 'MEMBRO' : 'DONO')
+    await sessao.recarregarFamilia()
+    avisar(`${primeiroNome(m.nome)} agora ${m.papel === 'DONO' ? 'participa' : 'também organiza'}. Para valer, a pessoa entra de novo no próximo acesso.`)
+  } catch (e) {
+    erroMembro.value = mensagemDeErro(e)
+  }
+}
+
+async function remover(m: Membro) {
+  erroMembro.value = ''
+  try {
+    await api.remover(m.id)
+    confirmarRemocao.value = null
+    await sessao.recarregarFamilia()
+    avisar(`${primeiroNome(m.nome)} saiu da família. Os lançamentos continuam no histórico.`)
+  } catch (e) {
+    erroMembro.value = mensagemDeErro(e)
+  }
+}
+
+// ——— Convites ———
+const email = ref('')
+const papel = ref<Papel>('MEMBRO')
+const convidando = ref(false)
+const erroConvite = ref('')
+const criado = ref<Convite | null>(null)
+
+async function convidar() {
+  erroConvite.value = ''
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) {
+    erroConvite.value = 'Confira o e-mail da pessoa.'
+    return
+  }
+  convidando.value = true
+  try {
+    criado.value = await api.convidar(email.value.trim(), papel.value)
+    email.value = ''
+    papel.value = 'MEMBRO'
+    await sessao.recarregarFamilia()
+  } catch (e) {
+    erroConvite.value = mensagemDeErro(e)
+  } finally {
+    convidando.value = false
+  }
+}
+
+const mensagemConvite = computed(() =>
+  criado.value?.link
+    ? `Oi! Quero você no orçamento da ${f.value?.nome} no Familiança, para a gente ver o ano da casa juntos. ` +
+      `Crie sua conta por este link (vale 7 dias): ${criado.value.link}`
+    : '',
+)
+const linkWhatsapp = computed(() => `https://wa.me/?text=${encodeURIComponent(mensagemConvite.value)}`)
+
+async function copiar() {
+  if (!criado.value?.link) return
+  try {
+    await navigator.clipboard.writeText(criado.value.link)
+    avisar('Link copiado.')
+  } catch {
+    avisar('Não deu para copiar. Selecione o link e copie à mão.')
+  }
+}
+
+async function cancelarConvite(c: Convite) {
+  erroConvite.value = ''
+  try {
+    await api.cancelarConvite(c.id)
+    if (criado.value?.id === c.id) criado.value = null
+    await sessao.recarregarFamilia()
+    avisar('Convite cancelado. O link não vale mais.')
+  } catch (e) {
+    erroConvite.value = mensagemDeErro(e)
+  }
+}
+</script>
+
+<template>
+  <div v-if="f" class="pagina">
+    <header class="pagina-cabecalho">
+      <div>
+        <h1>{{ f.nome }}</h1>
+        <p>Todos da família veem o mesmo quadro. Cada pessoa lança o que é seu; quem organiza cuida das categorias, dos convites e do plano.</p>
+      </div>
+      <button v-if="dono && !editandoNome" type="button" class="botao" @click="editarNome">
+        <Pencil aria-hidden="true" /> Nome e meta
+      </button>
+    </header>
+
+    <form v-if="editandoNome" class="painel painel-corpo formulario editar-familia" novalidate @submit.prevent="salvarNome">
+      <div class="grade-campos duas">
+        <div class="campo">
+          <label for="f-nome">Nome da família</label>
+          <input id="f-nome" v-model="nome" class="entrada" maxlength="100" required />
+        </div>
+        <div class="campo">
+          <label for="f-meta">Meta de aporte <span class="texto-2">(opcional)</span></label>
+          <div class="entrada-pct">
+            <input id="f-meta" v-model.number="meta" class="entrada num" type="number" min="0" max="100" step="1"
+                   inputmode="decimal" placeholder="Ex.: 20" />
+          </div>
+          <span class="ajuda">% do que sobra no mês que vocês querem investir. Vira o "aporte previsto" no fluxo.</span>
+        </div>
+      </div>
+      <Mensagem v-if="erroNome" tipo="erro">{{ erroNome }}</Mensagem>
+      <div class="acoes">
+        <button type="submit" class="botao botao-primario" :disabled="salvandoNome">Salvar</button>
+        <button type="button" class="botao" @click="editandoNome = false">Cancelar</button>
+      </div>
+    </form>
+
+    <div class="colunas">
+      <div class="principal">
+        <section class="secao">
+          <div class="secao-cabecalho">
+            <h2>Pessoas</h2>
+            <p class="num">{{ ocupadas }} de {{ limite }} no plano {{ f.planoEmVigor.rotulo }}</p>
+          </div>
+          <Mensagem v-if="erroMembro" tipo="erro">{{ erroMembro }}</Mensagem>
+          <ul class="lista painel">
+            <li v-for="m in ativos" :key="m.id" class="membro">
+              <span class="avatar" aria-hidden="true">{{ m.nome.charAt(0) }}</span>
+              <span class="quem">
+                <span class="nome">{{ m.nome }}<template v-if="m.id === eu"> (você)</template></span>
+                <span class="email">{{ m.email }}</span>
+              </span>
+              <span class="selo" :class="{ 'selo-petroleo': m.papel === 'DONO' }">{{ PAPEIS[m.papel] }}</span>
+              <div v-if="dono && m.id !== eu" class="acoes acoes-membro">
+                <template v-if="confirmarRemocao === m.id">
+                  <span class="confirmar-texto">Tirar {{ primeiroNome(m.nome) }} da família?</span>
+                  <button type="button" class="botao botao-perigo botao-pequeno" @click="remover(m)">Tirar</button>
+                  <button type="button" class="botao botao-pequeno" @click="confirmarRemocao = null">Manter</button>
+                </template>
+                <template v-else>
+                  <button type="button" class="botao botao-sutil botao-pequeno" @click="trocarPapel(m)">
+                    {{ m.papel === 'DONO' ? 'Passar a participar' : 'Também organiza' }}
+                  </button>
+                  <button type="button" class="botao botao-sutil botao-pequeno" @click="confirmarRemocao = m.id">Tirar da família</button>
+                </template>
+              </div>
+            </li>
+          </ul>
+          <p v-if="inativos.length" class="inativos texto-2">
+            Saíram da família: {{ inativos.map((m) => m.nome).join(', ') }}. Os lançamentos deles continuam no histórico.
+          </p>
+        </section>
+
+        <section v-if="f.convitesPendentes.length" class="secao">
+          <h2>Convites esperando resposta</h2>
+          <ul class="lista painel">
+            <li v-for="c in f.convitesPendentes" :key="c.id">
+              <span class="quem">
+                <span class="nome">{{ c.email }}</span>
+                <span class="email">{{ PAPEIS[c.papel] }} · vale até {{ dataCurta(c.expiraEm) }}</span>
+              </span>
+              <button v-if="dono" type="button" class="botao botao-sutil botao-pequeno" @click="cancelarConvite(c)">Cancelar</button>
+            </li>
+          </ul>
+        </section>
+      </div>
+
+      <aside class="lateral">
+        <section v-if="dono" class="painel painel-corpo convidar">
+          <h2>Convidar alguém</h2>
+          <template v-if="criado?.link">
+            <p class="texto-2">Mande este link para <strong>{{ criado.email }}</strong>. Ele vale uma vez, por 7 dias, e só aparece agora.</p>
+            <input class="entrada link" :value="criado.link" readonly aria-label="Link do convite" @focus="($event.target as HTMLInputElement).select()" />
+            <div class="acoes">
+              <a :href="linkWhatsapp" target="_blank" rel="noopener noreferrer" class="botao botao-primario">
+                <MessageCircle aria-hidden="true" /> Enviar pelo WhatsApp
+              </a>
+              <button type="button" class="botao" @click="copiar"><Copy aria-hidden="true" /> Copiar link</button>
+            </div>
+            <button type="button" class="botao botao-sutil botao-pequeno" @click="criado = null">Convidar outra pessoa</button>
+          </template>
+          <form v-else class="formulario" novalidate @submit.prevent="convidar">
+            <Mensagem v-if="cheio">
+              A família chegou ao limite de {{ limite }} pessoas do plano {{ f.planoEmVigor.rotulo }}. Cancele um convite
+              ou tire alguém para convidar outra pessoa.
+            </Mensagem>
+            <div class="campo">
+              <label for="c-email">E-mail da pessoa</label>
+              <input id="c-email" v-model="email" class="entrada" type="email" inputmode="email" maxlength="200"
+                     :disabled="cheio" />
+            </div>
+            <div class="campo">
+              <span class="rotulo">Ela vai</span>
+              <div class="segmentos" role="group" aria-label="Papel">
+                <button type="button" :aria-pressed="papel === 'MEMBRO'" :disabled="cheio" @click="papel = 'MEMBRO'">Participar</button>
+                <button type="button" :aria-pressed="papel === 'DONO'" :disabled="cheio" @click="papel = 'DONO'">Organizar também</button>
+              </div>
+              <span class="ajuda">
+                {{ papel === 'MEMBRO' ? 'Lança e altera os próprios gastos e vê o orçamento inteiro.' : 'Pode tudo: categorias, convites, saldos e os lançamentos de todos.' }}
+              </span>
+            </div>
+            <Mensagem v-if="erroConvite" tipo="erro">{{ erroConvite }}</Mensagem>
+            <button type="submit" class="botao botao-primario" :disabled="convidando || cheio">
+              {{ convidando ? 'Gerando o link…' : 'Gerar link do convite' }}
+            </button>
+          </form>
+        </section>
+
+        <section class="painel painel-corpo plano">
+          <h2>Plano {{ f.planoEmVigor.rotulo }}</h2>
+          <p class="texto-2">{{ statusPlano }}</p>
+          <ul class="recursos">
+            <li>Orçamento, recorrências, visão do ano, fluxo de caixa, por pessoa e quanto pesa</li>
+            <li v-for="r in f.planoEmVigor.recursos" :key="r">{{ RECURSOS[r] ?? r }}</li>
+            <li>Até {{ limite }} pessoas</li>
+          </ul>
+          <p v-if="f.assinatura.status === 'TESTE'" class="ajuda-plano">
+            Depois do teste, a família volta ao plano Gratuito se não assinar. Nada se perde: o que for de outro plano
+            só fica fechado.
+          </p>
+        </section>
+      </aside>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.editar-familia {
+  margin-bottom: var(--e-6);
+  max-width: 48rem;
+}
+
+.entrada-pct {
+  position: relative;
+}
+
+.entrada-pct::after {
+  content: '%';
+  position: absolute;
+  right: var(--e-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--texto-2);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.colunas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+  gap: var(--e-8);
+  align-items: start;
+}
+
+.principal .secao:first-child {
+  margin-top: 0;
+}
+
+.lateral {
+  display: grid;
+  gap: var(--e-5);
+}
+
+.membro {
+  flex-wrap: wrap;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--petroleo-tinta);
+  color: var(--petroleo-escuro);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.quem {
+  display: grid;
+  flex: 1;
+  min-width: 10rem;
+}
+
+.nome {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.email {
+  font-size: var(--t-xs);
+  color: var(--texto-2);
+  overflow-wrap: anywhere;
+}
+
+.acoes-membro {
+  margin-left: auto;
+}
+
+.confirmar-texto {
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
+.inativos {
+  margin-top: var(--e-3);
+  font-size: var(--t-sm);
+}
+
+.convidar h2,
+.plano h2 {
+  margin-bottom: var(--e-3);
+}
+
+.convidar .formulario {
+  gap: var(--e-4);
+}
+
+.convidar > p {
+  font-size: var(--t-sm);
+  margin-bottom: var(--e-3);
+}
+
+.link {
+  margin-bottom: var(--e-3);
+  font-size: var(--t-sm);
+  color: var(--petroleo-escuro);
+}
+
+.convidar .acoes + .botao {
+  margin-top: var(--e-3);
+}
+
+.segmentos {
+  display: flex;
+}
+
+.segmentos button {
+  flex: 1;
+  justify-content: center;
+}
+
+.recursos {
+  margin: var(--e-3) 0 0;
+  padding-left: var(--e-5);
+  font-size: var(--t-sm);
+  display: grid;
+  gap: var(--e-1);
+}
+
+.recursos li::marker {
+  color: var(--petroleo);
+}
+
+.ajuda-plano {
+  margin-top: var(--e-4);
+  font-size: var(--t-xs);
+  color: var(--texto-2);
+}
+
+@media (max-width: 960px) {
+  .colunas {
+    grid-template-columns: 1fr;
+  }
+
+}
+</style>
