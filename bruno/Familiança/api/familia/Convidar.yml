@@ -1,0 +1,28 @@
+info:
+  name: Convidar
+  type: http
+  seq: 3
+  tags:
+    - Família
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/familia/convites"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "filha@exemplo.com",
+        "papel": "MEMBRO"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Devolve o link (token só aparece aqui).

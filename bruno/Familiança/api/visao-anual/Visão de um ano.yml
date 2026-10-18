@@ -1,0 +1,18 @@
+info:
+  name: Visão de um ano
+  type: http
+  seq: 2
+  tags:
+    - Visão anual
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/visao-anual/2026"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

@@ -1,0 +1,26 @@
+info:
+  name: Criar grupo
+  type: http
+  seq: 2
+  tags:
+    - Categorias
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/categorias/grupos"
+  body:
+    type: json
+    data: |-
+      {
+        "tipo": "DESPESA",
+        "natureza": "FIXA",
+        "nome": "Pets"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

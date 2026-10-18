@@ -1,0 +1,26 @@
+info:
+  name: Registrar movimento
+  type: http
+  seq: 7
+  tags:
+    - Investimentos
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/investimentos/1/movimentos/2026-10"
+  body:
+    type: json
+    data: |-
+      {
+        "aporte": 1000,
+        "rentabilidade": 0.95,
+        "saldoInformado": null
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

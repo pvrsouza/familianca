@@ -1,0 +1,18 @@
+info:
+  name: Visão do ano atual
+  type: http
+  seq: 1
+  tags:
+    - Visão anual
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/visao-anual"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

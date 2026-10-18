@@ -1,0 +1,32 @@
+info:
+  name: Lançar
+  type: http
+  seq: 3
+  tags:
+    - Lançamentos
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/lancamentos"
+  body:
+    type: json
+    data: |-
+      {
+        "categoriaId": 1,
+        "membroId": null,
+        "descricao": "Compra do mês",
+        "valor": 850.4,
+        "data": "2026-10-05",
+        "observacao": ""
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  membroId nulo = você.

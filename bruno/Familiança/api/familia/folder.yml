@@ -1,0 +1,6 @@
+info:
+  name: "familia"
+  type: folder
+
+request:
+  auth: inherit

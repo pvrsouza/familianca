@@ -1,0 +1,28 @@
+info:
+  name: Estimativa dos próximos meses
+  type: http
+  seq: 7
+  tags:
+    - Família
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/familia/estimativa"
+  body:
+    type: json
+    data: |-
+      {
+        "estimativa": "MEDIA"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Só DONO. Regra padrão para estimar os próximos meses das despesas que não se repetem: MEDIA, MAXIMO, MINIMO ou
+  NENHUMA. A categoria pode ter a sua (campo "estimativa" em PUT /api/categorias/{id}; "FAMILIA" volta a seguir esta).

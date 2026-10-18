@@ -1,0 +1,28 @@
+info:
+  name: Aceitar convite
+  type: http
+  seq: 4
+  tags:
+    - Cadastro e convites
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/convites/COLE_O_TOKEN/aceite"
+  body:
+    type: json
+    data: |-
+      {
+        "nome": "Pessoa Convidada",
+        "senha": "senha-da-pessoa-123"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Público. Cria a conta com o e-mail do convite, dentro da família.

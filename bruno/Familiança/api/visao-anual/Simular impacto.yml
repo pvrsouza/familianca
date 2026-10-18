@@ -1,0 +1,29 @@
+info:
+  name: Simular impacto
+  type: http
+  seq: 3
+  tags:
+    - Visão anual
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/impacto"
+  body:
+    type: json
+    data: |-
+      {
+        "valor": 15,
+        "periodicidade": "DIAS_UTEIS",
+        "ano": null
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Periodicidades: UNICA, DIARIA, DIAS_UTEIS, SEMANAL, QUINZENAL, MENSAL, BIMESTRAL, TRIMESTRAL, SEMESTRAL, ANUAL.

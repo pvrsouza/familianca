@@ -1,0 +1,43 @@
+opencollection: 1.0.0
+
+info:
+  name: Familiança
+
+docs:
+  content: |
+    API do Familiança: o orçamento é de todos.
+
+    **Começo rápido:** `cadastro/Token CSRF` → `cadastro/Criar conta e família` → `auth/Entrar`. E-mail e senha do
+    login vêm de um arquivo `.env` nesta pasta (fora do git):
+
+    ```
+    LOGIN_EMAIL=seu.email@exemplo.com
+    LOGIN_SENHA=sua-senha-de-12-caracteres
+    ```
+
+    Toda requisição envia o header `X-XSRF-TOKEN` com o valor do cookie `XSRF-TOKEN`; o script da coleção
+    atualiza a variável `xsrfToken` a cada resposta que troca o token (csrf, login, logout).
+
+    Os ids nos exemplos (categoriaId, membroId...) vêm de `categorias/Plano de contas` e `familia/Minha família`.
+    Datas `AAAA-MM-DD`, competências `AAAA-MM`, séries mensais com 12 valores (jan a dez). Erros em ProblemDetail:
+    400, 401, 402 (fora do plano), 403, 404, 409, 422, 429.
+  type: text/markdown
+request:
+  headers:
+    - name: X-XSRF-TOKEN
+      value: "{{xsrfToken}}"
+  scripts:
+    - type: after-response
+      code: |-
+        // Guarda o token CSRF sempre que o servidor grava um novo cookie XSRF-TOKEN (vale o último).
+        const cookies = [].concat(res.getHeader('set-cookie') || []);
+        for (const c of cookies) {
+          const m = /^XSRF-TOKEN=([^;]*)/.exec(c);
+          if (m) bru.setVar('xsrfToken', decodeURIComponent(m[1]));
+        }
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

@@ -1,0 +1,6 @@
+info:
+  name: "categorias"
+  type: folder
+
+request:
+  auth: inherit

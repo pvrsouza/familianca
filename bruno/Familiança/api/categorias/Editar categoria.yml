@@ -1,0 +1,29 @@
+info:
+  name: Editar categoria
+  type: http
+  seq: 6
+  tags:
+    - Categorias
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/categorias/1"
+  body:
+    type: json
+    data: |-
+      {
+        "grupoId": 1,
+        "nome": "Ração",
+        "ativa": true
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  `ativa: false` desativa.

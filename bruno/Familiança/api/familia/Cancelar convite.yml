@@ -1,0 +1,18 @@
+info:
+  name: Cancelar convite
+  type: http
+  seq: 4
+  tags:
+    - Família
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/api/familia/convites/1"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

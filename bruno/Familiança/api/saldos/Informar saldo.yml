@@ -1,0 +1,25 @@
+info:
+  name: Informar saldo
+  type: http
+  seq: 2
+  tags:
+    - Saldos
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/saldos/2026-01"
+  body:
+    type: json
+    data: |-
+      {
+        "valor": 5000,
+        "observacao": "Conta corrente + PJ"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

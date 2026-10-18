@@ -1,0 +1,18 @@
+info:
+  name: Buscar lançamento
+  type: http
+  seq: 2
+  tags:
+    - Lançamentos
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/lancamentos/1"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

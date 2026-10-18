@@ -1,0 +1,21 @@
+info:
+  name: Aplicar modelo PJ
+  type: http
+  seq: 8
+  tags:
+    - Categorias
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/categorias/modelos/pj"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Recurso DESPESAS_PJ. Ajuste as alíquotas depois em Editar categoria.

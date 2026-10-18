@@ -1,0 +1,30 @@
+info:
+  name: Criar conta e família
+  type: http
+  seq: 2
+  tags:
+    - Cadastro e convites
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/cadastro"
+  body:
+    type: json
+    data: |-
+      {
+        "nome": "Seu Nome",
+        "email": "{{process.env.LOGIN_EMAIL}}",
+        "senha": "{{process.env.LOGIN_SENHA}}",
+        "nomeFamilia": "Família Exemplo"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Cria a família com o plano completo em teste e as categorias padrão; você vira DONO.

@@ -1,0 +1,6 @@
+info:
+  name: "recorrencias"
+  type: folder
+
+request:
+  auth: inherit

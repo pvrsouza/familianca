@@ -1,0 +1,21 @@
+info:
+  name: Plano de contas
+  type: http
+  seq: 1
+  tags:
+    - Categorias
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/categorias"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Árvore tipo → grupo → categoria, com os ids.

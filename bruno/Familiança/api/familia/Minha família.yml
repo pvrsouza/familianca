@@ -1,0 +1,21 @@
+info:
+  name: Minha família
+  type: http
+  seq: 1
+  tags:
+    - Família
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/familia"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Membros, convites pendentes, assinatura e plano em vigor.

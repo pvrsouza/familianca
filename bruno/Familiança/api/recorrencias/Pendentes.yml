@@ -1,0 +1,21 @@
+info:
+  name: Pendentes
+  type: http
+  seq: 2
+  tags:
+    - Recorrências
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/recorrencias/pendentes"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  O que já venceu e falta confirmar.

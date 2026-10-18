@@ -1,0 +1,21 @@
+info:
+  name: Ver convite
+  type: http
+  seq: 3
+  tags:
+    - Cadastro e convites
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/convites/COLE_O_TOKEN"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Público. Token do link gerado em familia/Convidar.

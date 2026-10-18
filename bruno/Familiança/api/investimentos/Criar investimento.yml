@@ -1,0 +1,28 @@
+info:
+  name: Criar investimento
+  type: http
+  seq: 3
+  tags:
+    - Investimentos
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/investimentos"
+  body:
+    type: json
+    data: |-
+      {
+        "nome": "CDB Banco X",
+        "tipo": "RENDA_FIXA"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Tipos: RENDA_FIXA, TESOURO, POUPANCA, ACOES, FUNDOS, PREVIDENCIA, CRIPTO, OUTRO.

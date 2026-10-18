@@ -1,0 +1,6 @@
+info:
+  name: "lancamentos"
+  type: folder
+
+request:
+  auth: inherit

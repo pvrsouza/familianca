@@ -1,0 +1,30 @@
+info:
+  name: Entrar com MFA
+  type: http
+  seq: 10
+  tags:
+    - Autenticação
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/auth/login"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{process.env.LOGIN_EMAIL}}",
+        "senha": "{{process.env.LOGIN_SENHA}}",
+        "codigoMfa": "123456"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Login de quem ativou a verificação em duas etapas: troque codigoMfa pelo código atual do aplicativo (ou por um
+  código de recuperação). Sem ele, o Entrar responde 401 com mfaObrigatorio: true.

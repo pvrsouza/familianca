@@ -1,0 +1,21 @@
+info:
+  name: Famílias
+  type: http
+  seq: 1
+  tags:
+    - Administração
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/familias"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Só ADMIN da plataforma.

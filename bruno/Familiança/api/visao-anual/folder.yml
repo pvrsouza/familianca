@@ -1,0 +1,6 @@
+info:
+  name: "visao-anual"
+  type: folder
+
+request:
+  auth: inherit

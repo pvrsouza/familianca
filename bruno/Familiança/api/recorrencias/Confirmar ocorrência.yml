@@ -1,0 +1,28 @@
+info:
+  name: Confirmar ocorrência
+  type: http
+  seq: 6
+  tags:
+    - Recorrências
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/recorrencias/1/ocorrencias/2026-10/confirmacao"
+  body:
+    type: json
+    data: |-
+      {
+        "valor": null,
+        "data": null
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Nulos = valor e dia previstos.

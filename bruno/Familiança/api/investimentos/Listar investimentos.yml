@@ -1,0 +1,18 @@
+info:
+  name: Listar investimentos
+  type: http
+  seq: 1
+  tags:
+    - Investimentos
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/investimentos"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

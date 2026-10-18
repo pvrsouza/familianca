@@ -1,0 +1,26 @@
+info:
+  name: Alterar assinatura
+  type: http
+  seq: 2
+  tags:
+    - Administração
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/admin/familias/1/assinatura"
+  body:
+    type: json
+    data: |-
+      {
+        "plano": "PREMIUM",
+        "status": "ATIVA",
+        "validaAte": null
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

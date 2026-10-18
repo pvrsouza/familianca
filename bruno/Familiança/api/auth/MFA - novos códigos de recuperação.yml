@@ -1,0 +1,27 @@
+info:
+  name: MFA - novos códigos de recuperação
+  type: http
+  seq: 8
+  tags:
+    - Autenticação
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/conta/mfa/codigos-recuperacao"
+  body:
+    type: json
+    data: |-
+      {
+        "codigo": "123456"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Troca os códigos de recuperação; exige um código do aplicativo.

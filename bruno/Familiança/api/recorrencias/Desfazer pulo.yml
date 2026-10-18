@@ -1,0 +1,18 @@
+info:
+  name: Desfazer pulo
+  type: http
+  seq: 8
+  tags:
+    - Recorrências
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/api/recorrencias/1/ocorrencias/2026-10/pulo"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

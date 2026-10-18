@@ -1,0 +1,31 @@
+info:
+  name: Editar recorrência
+  type: http
+  seq: 4
+  tags:
+    - Recorrências
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/recorrencias/1"
+  body:
+    type: json
+    data: |-
+      {
+        "categoriaId": 1,
+        "descricao": "Condomínio",
+        "valor": 700,
+        "dia": 10,
+        "frequencia": "MENSAL",
+        "inicio": "2026-01",
+        "fim": null,
+        "confirmarSozinha": false
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

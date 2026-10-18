@@ -1,0 +1,28 @@
+info:
+  name: Atualizar família
+  type: http
+  seq: 2
+  tags:
+    - Família
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/familia"
+  body:
+    type: json
+    data: |-
+      {
+        "nome": "Família Exemplo",
+        "metaAportePercentual": 20
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Só DONO.

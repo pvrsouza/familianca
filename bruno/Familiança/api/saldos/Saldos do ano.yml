@@ -1,0 +1,18 @@
+info:
+  name: Saldos do ano
+  type: http
+  seq: 1
+  tags:
+    - Saldos
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/saldos?ano=2026"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

@@ -1,0 +1,6 @@
+info:
+  name: "saldos"
+  type: folder
+
+request:
+  auth: inherit

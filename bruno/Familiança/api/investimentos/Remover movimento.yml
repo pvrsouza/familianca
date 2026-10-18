@@ -1,0 +1,18 @@
+info:
+  name: Remover movimento
+  type: http
+  seq: 8
+  tags:
+    - Investimentos
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/api/investimentos/1/movimentos/2026-10"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

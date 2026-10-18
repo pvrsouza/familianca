@@ -1,0 +1,25 @@
+info:
+  name: Trocar senha
+  type: http
+  seq: 4
+  tags:
+    - Autenticação
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/conta/senha"
+  body:
+    type: json
+    data: |-
+      {
+        "senhaAtual": "senha-atual-123",
+        "novaSenha": "senha-nova-456789"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

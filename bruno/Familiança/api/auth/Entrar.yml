@@ -1,0 +1,28 @@
+info:
+  name: Entrar
+  type: http
+  seq: 1
+  tags:
+    - Autenticação
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/auth/login"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{process.env.LOGIN_EMAIL}}",
+        "senha": "{{process.env.LOGIN_SENHA}}"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Abre a sessão (cookie SESSION) e troca o token CSRF. Conta com verificação em duas etapas: use "Entrar com MFA".
