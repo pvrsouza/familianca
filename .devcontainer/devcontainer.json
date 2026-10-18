@@ -1,0 +1,24 @@
+{
+  "name": "familianca",
+  "dockerComposeFile": ["../compose.yaml"],
+  "service": "dev",
+  "runServices": ["dev", "postgres"],
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+  "remoteUser": "dev",
+  "postStartCommand": "sudo chmod 666 /var/run/docker.sock && git config --global --add safe.directory /workspace && bash /workspace/.devcontainer/link-harness.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "vmware.vscode-boot-dev-pack",
+        "redhat.vscode-yaml",
+        "ms-azuretools.vscode-docker",
+        "bruno-api-client.bruno"
+      ]
+    },
+    "jetbrains": {
+      "backend": "IntelliJ"
+    }
+  }
+}

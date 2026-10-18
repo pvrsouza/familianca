@@ -1,0 +1,77 @@
+name: familianca
+
+# Portas no host diferentes das do controle-alugueis (8081/5432/5173): os dois devcontainers sobem juntos.
+services:
+  dev:
+    build:
+      context: .devcontainer
+      dockerfile: Dockerfile
+    command: sleep infinity
+    volumes:
+      - .:/workspace:cached
+      - m2-cache:/home/dev/.m2
+      - claude-config:/home/dev/.claude
+      # Harness global do Claude versionado no host (skills, agents, commands, rules, CLAUDE.md).
+      - ${CLAUDE_HARNESS_DIR:-${HOME}/claude-harness}:/home/dev/claude-harness
+      - npm-cache:/home/dev/.npm
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/familianca
+      DB_USER: familianca
+      DB_PASSWORD: familianca
+      # Primeiro ADMIN da plataforma (opcional, só quando não há usuário): ver .env.example.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+      CLAUDE_CONFIG_DIR: /home/dev/.claude
+      TZ: America/Sao_Paulo
+    ports:
+      - "127.0.0.1:8082:8080"
+      # Front-end (Vite) rodando no devcontainer: npm run dev em frontend/
+      - "127.0.0.1:5174:5173"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: familianca
+      POSTGRES_USER: familianca
+      POSTGRES_PASSWORD: familianca
+      TZ: America/Sao_Paulo
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U familianca -d familianca"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/familianca
+      DB_USER: familianca
+      DB_PASSWORD: familianca
+      TZ: America/Sao_Paulo
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    ports:
+      - "127.0.0.1:8083:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  m2-cache:
+  claude-config:
+  npm-cache:

@@ -1,0 +1,15 @@
+target/
+backups/
+projeto/
+.git/
+.idea/
+.vscode/
+docs/
+bruno/
+
+# Segredos e dados pessoais não entram no contexto de build.
+**/.env
+**/.env.prod
+**/*.xlsx
+frontend/node_modules/
+frontend/dist/

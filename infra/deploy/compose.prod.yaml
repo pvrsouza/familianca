@@ -1,0 +1,74 @@
+# Produção no mesmo VPS do controle-alugueis. Uso, nesta pasta:
+#   cp .env.example .env   # e preencha
+#   docker compose -f compose.prod.yaml up -d --build
+# Nenhuma porta publicada: o HTTPS fica com o proxy compartilhado do VPS (Caddy do controle-alugueis, rede "web").
+# O app entra na rede "web" com o alias familianca-app; o Postgres fica só na rede interna deste compose.
+name: familianca
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: familianca
+      # Superusuário: só administração (psql, backup). App e Flyway usam os usuários de postgres-init/.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      FLYWAY_PASSWORD: ${FLYWAY_PASSWORD:?defina FLYWAY_PASSWORD}
+      APP_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD}
+      TZ: America/Sao_Paulo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Cria familianca_ddl e familianca_app; só roda com o volume vazio (primeira subida).
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d familianca"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    logging: *logging
+    restart: unless-stopped
+
+  app:
+    # Tag por versão: o rollback do app é subir a tag anterior (README, "Rollback").
+    image: familianca-app:${APP_VERSAO:-latest}
+    build:
+      context: ../..
+      dockerfile: docker/app.Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/familianca
+      DB_USER: familianca_app
+      DB_PASSWORD: ${DB_PASSWORD}
+      FLYWAY_USER: familianca_ddl
+      FLYWAY_PASSWORD: ${FLYWAY_PASSWORD}
+      TZ: America/Sao_Paulo
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75
+      CONVITE_URL_BASE: ${CONVITE_URL_BASE:?defina CONVITE_URL_BASE}
+      # Opcional: sem ela, a verificação em duas etapas fica desligada.
+      MFA_CHAVE: ${MFA_CHAVE:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    mem_limit: 1g
+    networks:
+      default:
+      web:
+        aliases:
+          - familianca-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+    restart: unless-stopped
+
+networks:
+  web:
+    external: true
+
+volumes:
+  pgdata:

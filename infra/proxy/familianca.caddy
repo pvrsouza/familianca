@@ -1,0 +1,19 @@
+# Site do Familiança no proxy compartilhado do VPS (o Caddy do controle-alugueis, infra/proxy/conf/sites/ de lá).
+# Copie para conf/sites/familianca.caddy no proxy, defina DOMINIO_FAMILIANCA no .env do proxy e recarregue:
+#   docker compose exec -w /etc/caddy caddy caddy reload
+# "familianca-app" é o alias do serviço app na rede "web" (infra/deploy/compose.prod.yaml).
+{$DOMINIO_FAMILIANCA} {
+	import seguranca
+
+	handle /actuator/health {
+		reverse_proxy familianca-app:8080
+	}
+
+	handle /actuator/* {
+		respond 404
+	}
+
+	handle {
+		reverse_proxy familianca-app:8080
+	}
+}
