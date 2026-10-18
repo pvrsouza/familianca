@@ -1,4 +1,2 @@
-- montrar inflacao já na primeira tela, como era na planilha
-- ter uma informaçao visual de que a categoria é recorrente ou nao. crie pequenos badges de 1 letra para cata tipo (Recorrente, etc ) e com o alt bem detalho para o cliente repousar o mouse em cima e saber do que se trata.
-- crie uma feature para apagar todos os dados da familia. Servira para caso o cliente queira garantir que os dados foram apagadoe e tb para recomecar do zero
-- na hora de castradar a despesa ou receita já sugerir descricao já pre existente para a categoria escolhida. para evitar ou diminuir nomes diferentes para as mesmas coisas.
+- na primeira vez ou quando o usuário nao tiver nenhum dado cadastrados, fazer um guia de como iniciar. Mostrar que tem que inserir o saldo disponivel no mes que ele quer iniciar.
+- incluir essa inclusao de saldo na tela inicial do sistema, na tela de entrar como o promeiro pass

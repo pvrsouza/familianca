@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import Marca from './Marca.vue'
+import ComoFunciona from './ComoFunciona.vue'
 
 // Moldura das telas sem login: a marca à esquerda (no celular, em cima) e o formulário à direita.
-defineProps<{ titulo: string; subtitulo?: string }>()
+// comoFunciona: mostra os 5 passos do produto; no computador ficam no lado da marca, no celular depois do
+// formulário (em cima, empurrariam o formulário para fora da tela).
+defineProps<{ titulo: string; subtitulo?: string; comoFunciona?: boolean }>()
 const alturas = [38, 52, 64, 74, 82, 88, 88, 82, 74, 64, 52, 38]
 const meses = ['j', 'f', 'm', 'a', 'm', 'j', 'j', 'a', 's', 'o', 'n', 'd']
 </script>
 
 <template>
   <div class="acesso">
-    <aside class="lado-marca">
+    <aside class="lado-marca" :class="{ 'com-passos': comoFunciona }">
       <Marca claro :tamanho="34" />
       <div class="copa" aria-hidden="true">
         <div v-for="(h, i) in alturas" :key="i" class="coluna">
@@ -21,6 +24,7 @@ const meses = ['j', 'f', 'm', 'a', 'm', 'j', 'j', 'a', 's', 'o', 'n', 'd']
         <p class="lema">O orçamento é de todos.</p>
         <p>A família inteira vê o ano, entende o peso de cada gasto e decide junto.</p>
       </div>
+      <ComoFunciona v-if="comoFunciona" escuro class="passos-lado" />
     </aside>
     <section class="lado-form">
       <div class="form-caixa">
@@ -28,6 +32,7 @@ const meses = ['j', 'f', 'm', 'a', 'm', 'j', 'j', 'a', 's', 'o', 'n', 'd']
         <p v-if="subtitulo" class="subtitulo">{{ subtitulo }}</p>
         <slot />
       </div>
+      <ComoFunciona v-if="comoFunciona" class="passos-celular" />
     </section>
   </div>
 </template>
@@ -114,6 +119,36 @@ const meses = ['j', 'f', 'm', 'a', 'm', 'j', 'j', 'a', 's', 'o', 'n', 'd']
   padding: var(--e-10) var(--e-6);
 }
 
+/* Com os passos, a copa encolhe para o lado da marca caber numa tela de notebook. */
+.com-passos {
+  justify-content: flex-start;
+  gap: var(--e-6);
+}
+
+/* Os passos já explicam o produto: fica só o lema. */
+.com-passos .frase p:last-child {
+  display: none;
+}
+
+.com-passos .copa {
+  height: min(17vh, 8rem);
+  max-width: 20rem;
+}
+
+.com-passos .lema {
+  font-size: var(--t-2xl);
+}
+
+.passos-lado {
+  margin-top: auto;
+  padding-top: var(--e-6);
+  border-top: 1px solid rgb(246 244 240 / 0.18);
+}
+
+.passos-celular {
+  display: none;
+}
+
 .form-caixa {
   width: 100%;
   max-width: 26rem;
@@ -165,6 +200,28 @@ const meses = ['j', 'f', 'm', 'a', 'm', 'j', 'j', 'a', 's', 'o', 'n', 'd']
   .lado-form {
     place-items: start center;
     padding: var(--e-8) var(--e-5) var(--e-10);
+  }
+
+  .com-passos .copa {
+    height: 4.5rem;
+    max-width: 16rem;
+  }
+
+  .com-passos .lema {
+    font-size: var(--t-xl);
+  }
+
+  .passos-lado {
+    display: none;
+  }
+
+  .passos-celular {
+    display: block;
+    width: 100%;
+    max-width: 26rem;
+    margin-top: var(--e-10);
+    padding-top: var(--e-8);
+    border-top: 1px solid var(--linha);
   }
 }
 </style>

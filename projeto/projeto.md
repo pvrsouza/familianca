@@ -267,6 +267,13 @@ Pontos de atenção constante na hora de desenvolver.
       tela avisa).
     - Lugar que já entrou num saldo não pode ser excluído, só desativado: some dos meses novos e continua nos antigos.
       Em Família, "Onde está o dinheiro" lista os lugares para renomear, trocar o dono, desativar ou excluir.
+- **Como começar (2026-10-18).** O saldo de hoje é o primeiro passo de quem chega:
+  - na tela de entrar, "Como funciona, em 5 passos": (1) informar quanto têm hoje, (2) cadastrar o que se repete,
+    (3) lançar e marcar o que foi pago, (4) ver o ano inteiro, (5) trazer a família;
+  - em "O ano de vocês", o guia "Como começar" aparece no ano corrente enquanto falta o saldo inicial ou o ano está em
+    branco (inclusive depois de "Recomeçar do zero"). Passos: informar o saldo (abre o painel do saldo ali mesmo, só
+    para quem organiza), cadastrar o que se repete, lançar um gasto e trazer a família (só quem organiza). Cada passo
+    feito aparece marcado; o próximo fica em destaque. O guia some quando há saldo e o ano tem valores.
 - **Apagar todos os dados (2026-10-18):** em Família, "Recomeçar do zero" (só quem organiza) apaga de vez todo o
   orçamento: lançamentos, recorrências (com meses confirmados e pulados), saldos informados e os lugares do
   dinheiro, investimentos e o plano de contas, que volta a ser o padrão de família nova. Ficam a família, as

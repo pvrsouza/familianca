@@ -58,7 +58,7 @@ function voltarParaSenha() {
 </script>
 
 <template>
-  <LayoutAcesso :titulo="pedirCodigo ? 'Código de verificação' : 'Entrar'"
+  <LayoutAcesso :titulo="pedirCodigo ? 'Código de verificação' : 'Entrar'" :como-funciona="!pedirCodigo"
                 :subtitulo="pedirCodigo ? 'Abra o aplicativo autenticador e digite o código de 6 dígitos. Sem o celular? Use um dos códigos de recuperação.' : 'Que bom ver vocês de novo.'">
     <form class="formulario" novalidate @submit.prevent="entrar">
       <Mensagem v-if="expirou && !erro">Sua sessão terminou. Entre de novo para continuar de onde parou.</Mensagem>

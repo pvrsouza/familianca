@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { ChevronLeft, ChevronRight, Repeat, Plus, Users } from 'lucide-vue-next'
+import { Check, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { recorrencias, visao as apiVisao } from '../api/servicos'
 import type { CategoriaVisao, Pendente, Tipo, VisaoAnual } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
-import { anoAtual, mesAtual, reais, variacao } from '../util/formato'
+import { MESES, anoAtual, mesAtual, reais, variacao } from '../util/formato'
 import { useMidia } from '../util/midia'
 import TabelaAno from '../componentes/ano/TabelaAno.vue'
 import AnoCelular from '../componentes/ano/AnoCelular.vue'
@@ -14,6 +14,7 @@ import FluxoCaixa from '../componentes/ano/FluxoCaixa.vue'
 import PorPessoa from '../componentes/ano/PorPessoa.vue'
 import Mensagem from '../componentes/Mensagem.vue'
 import PainelMes, { type AlvoMes } from '../componentes/ano/PainelMes.vue'
+import PainelSaldo from '../componentes/ano/PainelSaldo.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -83,6 +84,63 @@ const vazio = computed(() => !!dados.value && renda.value === 0 && despesas.valu
 const bemvindo = computed(() => route.query.bemvindo === '1')
 const inflacao = computed(() => dados.value?.resumo.inflacaoFamiliar.ano ?? null)
 const tempo = computed(() => (ano.value < anoAtual() ? 'passado' : ano.value > anoAtual() ? 'futuro' : 'atual'))
+
+// ——— Como começar ———
+// Guia de quem está chegando (ou recomeçou do zero): aparece no ano corrente enquanto falta o saldo inicial ou o ano
+// está em branco. O saldo vem primeiro porque é o ponto de partida do fluxo; o painel dele abre aqui mesmo.
+const temSaldo = computed(() => !!dados.value?.resumo.sobraInformada.some(Boolean))
+const realizadas = computed(() =>
+  dados.value ? dados.value.despesas.grupos.reduce((s, g) => s + g.realizado.reduce((a, b) => a + b, 0), 0) : 0,
+)
+const temFamilia = computed(() => {
+  const f = sessao.estado.familia
+  return !!f && (f.membros.filter((m) => m.ativo).length > 1 || f.convitesPendentes.length > 0)
+})
+const mostrarGuia = computed(() => tempo.value === 'atual' && !!dados.value && (!temSaldo.value || vazio.value))
+const saldoAberto = ref<number | null>(null)
+
+interface Passo {
+  titulo: string
+  texto: string
+  feito: boolean
+  acao?: { rotulo: string; para?: string; abrir?: () => void }
+}
+const passos = computed<Passo[]>(() => {
+  const mes = mesAtual()
+  const nomeMes = MESES[mes - 1]
+  const dono = sessao.dono.value
+  return [
+    {
+      titulo: 'Informar quanto vocês têm hoje',
+      texto: dono
+        ? `O saldo de ${nomeMes}: contas, poupança, dinheiro na mão, cofrinho. É o ponto de partida; depois cada mês começa sozinho com a sobra do anterior.`
+        : 'O saldo inicial é informado por quem organiza a família. Ele é o ponto de partida do fluxo de caixa.',
+      feito: temSaldo.value,
+      acao: dono ? { rotulo: 'Informar saldo', abrir: () => (saldoAberto.value = mes - 1) } : undefined,
+    },
+    {
+      titulo: 'Cadastrar o que se repete',
+      texto: 'Salário, aluguel, escola, plano de saúde. Aparecem como previstos em todos os meses seguintes.',
+      feito: !vazio.value,
+      acao: { rotulo: 'Cadastrar', para: '/recorrencias?nova=1' },
+    },
+    {
+      titulo: 'Lançar um gasto do dia a dia',
+      texto: 'Mercado, farmácia, combustível. Inclusive o que já pagaram este mês.',
+      feito: realizadas.value > 0.004,
+      acao: { rotulo: 'Lançar', para: '/lancamentos?novo=1' },
+    },
+    ...(dono
+      ? [{
+          titulo: 'Trazer a família',
+          texto: 'Cada um lança o seu e todos veem o mesmo quadro.',
+          feito: temFamilia.value,
+          acao: { rotulo: 'Convidar', para: '/familia' },
+        }]
+      : []),
+  ]
+})
+const proximo = computed(() => passos.value.findIndex((p) => !p.feito))
 </script>
 
 <template>
@@ -145,40 +203,32 @@ const tempo = computed(() => (ano.value < anoAtual() ? 'passado' : ano.value > a
         </template>
       </Mensagem>
 
-      <section v-if="vazio" class="comeco painel">
+      <section v-if="mostrarGuia" class="comeco painel" aria-labelledby="comeco-titulo">
         <div>
-          <h2>{{ bemvindo ? 'Tudo pronto. O ano de vocês começa aqui.' : `${ano} ainda está em branco.` }}</h2>
+          <h2 id="comeco-titulo">{{ bemvindo ? 'Tudo pronto. O ano de vocês começa aqui.' : 'Como começar' }}</h2>
           <p>
-            O jeito mais rápido de ver o ano inteiro é começar pelo que se repete: salário, aluguel, escola, plano de
-            saúde. Cada um aparece como previsto em todos os meses até vocês confirmarem.
+            Comecem pelo saldo: quanto a família tem hoje, somando tudo. Depois, o que se repete e o dia a dia. Este
+            guia some quando o saldo estiver informado e o ano tiver os primeiros valores.
           </p>
         </div>
-        <ul class="passos">
-          <li>
-            <Repeat aria-hidden="true" />
+        <ol class="passos">
+          <li v-for="(p, i) in passos" :key="p.titulo" :class="{ feito: p.feito, proximo: i === proximo }">
+            <span class="numero" aria-hidden="true">
+              <Check v-if="p.feito" />
+              <template v-else>{{ i + 1 }}</template>
+            </span>
             <div>
-              <strong>Cadastrar o que se repete</strong>
-              <span>Salário, contas fixas, assinaturas.</span>
+              <strong>{{ p.titulo }}<span v-if="p.feito" class="sr"> (feito)</span></strong>
+              <span>{{ p.texto }}</span>
             </div>
-            <RouterLink to="/recorrencias?nova=1" class="botao botao-primario botao-pequeno">Cadastrar</RouterLink>
+            <template v-if="!p.feito && p.acao">
+              <RouterLink v-if="p.acao.para" :to="p.acao.para" class="botao botao-pequeno"
+                          :class="{ 'botao-primario': i === proximo }">{{ p.acao.rotulo }}</RouterLink>
+              <button v-else type="button" class="botao botao-pequeno" :class="{ 'botao-primario': i === proximo }"
+                      @click="p.acao.abrir?.()">{{ p.acao.rotulo }}</button>
+            </template>
           </li>
-          <li>
-            <Plus aria-hidden="true" />
-            <div>
-              <strong>Lançar um gasto do dia a dia</strong>
-              <span>Mercado, farmácia, combustível.</span>
-            </div>
-            <RouterLink to="/lancamentos?novo=1" class="botao botao-pequeno">Lançar</RouterLink>
-          </li>
-          <li v-if="sessao.dono.value">
-            <Users aria-hidden="true" />
-            <div>
-              <strong>Trazer a família</strong>
-              <span>Cada um lança o seu e vê o mesmo quadro.</span>
-            </div>
-            <RouterLink to="/familia" class="botao botao-pequeno">Convidar</RouterLink>
-          </li>
-        </ul>
+        </ol>
       </section>
 
       <div class="conteudo-aba">
@@ -192,6 +242,8 @@ const tempo = computed(() => (ano.value < anoAtual() ? 'passado' : ano.value > a
     </template>
 
     <PainelMes :alvo="alvo" @fechar="alvo = null" />
+    <PainelSaldo v-if="dados" :visao="dados" :mes="saldoAberto" :informados="[]" @fechar="saldoAberto = null"
+                 @mudou="carregar" />
   </div>
 </template>
 
@@ -297,11 +349,45 @@ const tempo = computed(() => (ano.value < anoAtual() ? 'passado' : ano.value > a
   background: var(--areia);
 }
 
-.passos svg {
-  width: 1.25rem;
-  height: 1.25rem;
+.numero {
+  display: grid;
+  place-items: center;
   flex: none;
-  color: var(--petroleo);
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--papel);
+  border: 1px solid var(--pedra-forte);
+  font-family: var(--fonte-titulo);
+  font-weight: 600;
+  color: var(--petroleo-escuro);
+}
+
+.proximo .numero {
+  background: var(--petroleo);
+  border-color: var(--petroleo);
+  color: var(--areia);
+}
+
+.feito .numero {
+  background: var(--petroleo-tinta);
+  border-color: transparent;
+}
+
+.numero svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.feito strong {
+  color: var(--texto-2);
+  text-decoration: line-through;
+  text-decoration-color: var(--pedra-forte);
+}
+
+.passos li.proximo {
+  background: var(--papel);
+  box-shadow: inset 0 0 0 1px var(--petroleo);
 }
 
 .passos div {
