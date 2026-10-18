@@ -9,11 +9,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapKeyColumn;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 @Entity
@@ -42,4 +45,12 @@ public class RecorrenciaEntity {
     @CollectionTable(name = "recorrencia_excecao", joinColumns = @JoinColumn(name = "recorrencia_id"))
     @Column(name = "competencia")
     Set<String> puladas = new HashSet<>();
+    boolean semVencimento;
+    String formaPagamento;
+    /** Vencimento ajustado por competência (AAAA-MM). */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "recorrencia_vencimento", joinColumns = @JoinColumn(name = "recorrencia_id"))
+    @MapKeyColumn(name = "competencia")
+    @Column(name = "vencimento")
+    Map<String, LocalDate> vencimentos = new HashMap<>();
 }

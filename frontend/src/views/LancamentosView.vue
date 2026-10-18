@@ -223,6 +223,10 @@ const tituloMes = computed(() => tituloPeriodo.value.charAt(0).toUpperCase() + t
                 <span v-if="l.parcela || l.recorrenciaId" class="selos">
                   <span v-if="l.parcela" class="selo num">parcela {{ l.parcela.numero }}/{{ l.parcela.total }}</span>
                   <span v-if="l.recorrenciaId" class="selo selo-petroleo"><Repeat aria-hidden="true" /> confirmada</span>
+                  <span v-if="l.diasAtraso != null" class="selo" :class="l.diasAtraso ? 'selo-atraso' : 'selo-verde'"
+                        :title="`Vencimento em ${dataPorExtenso(l.vencimento!)}; pago em ${dataPorExtenso(l.data)}`">
+                    {{ l.diasAtraso ? `${l.diasAtraso} ${l.diasAtraso === 1 ? 'dia' : 'dias'} de atraso` : 'em dia' }}
+                  </span>
                 </span>
               </span>
               <span class="valor num" :class="{ receita: l.tipo === 'RECEITA' }">

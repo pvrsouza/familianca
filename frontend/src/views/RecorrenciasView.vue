@@ -7,7 +7,7 @@ import type { Pendente, Recorrencia, Tipo } from '../api/tipos'
 import { ErroApi, mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { avisar } from '../estado/avisos'
-import { FREQUENCIAS, competenciaCurta, competenciaPorExtenso, previstoPelaRegra, reais } from '../util/formato'
+import { FORMAS_PAGAMENTO, FREQUENCIAS, competenciaCurta, competenciaPorExtenso, previstoPelaRegra, reais } from '../util/formato'
 import PainelLateral from '../componentes/PainelLateral.vue'
 import FormRecorrencia from '../componentes/FormRecorrencia.vue'
 import ConferirOcorrencia from '../componentes/ConferirOcorrencia.vue'
@@ -52,6 +52,7 @@ function podeAlterar(r: Recorrencia) {
 }
 
 function periodo(r: Recorrencia): string {
+  if (r.frequencia === 'UNICA') return `só em ${competenciaCurta(r.inicio)}`
   return r.fim ? `de ${competenciaCurta(r.inicio)} a ${competenciaCurta(r.fim)}` : `desde ${competenciaCurta(r.inicio)}`
 }
 
@@ -117,6 +118,13 @@ async function desfazerPulo(c: string) {
   } finally {
     ocupado.value = false
   }
+}
+
+/** "vence dia 10", "sem vencimento", "no cartão dia 5" ou "cai dia 5" (receita). */
+function textoDia(r: Recorrencia): string {
+  if (r.tipo === 'RECEITA') return `cai dia ${r.dia}`
+  if (r.formaPagamento === 'CARTAO_CREDITO') return `no cartão dia ${r.dia}`
+  return r.semVencimento ? `sem vencimento (dia ${r.dia})` : `vence dia ${r.dia}`
 }
 </script>
 
@@ -198,8 +206,9 @@ async function desfazerPulo(c: string) {
                 <span class="item-texto">
                   <span class="descricao">{{ r.descricao }}<span v-if="r.confirmarSozinha" class="selo selo-sozinha">confirma sozinha</span><span v-if="r.puladas.length" class="selo">{{ r.puladas.length === 1 ? `${competenciaCurta(r.puladas[0])} pulado` : `${r.puladas.length} meses pulados` }}</span></span>
                   <span class="meta">
-                    {{ r.categoria.nome }} · {{ FREQUENCIAS[r.frequencia].rotulo.toLowerCase() }}, dia {{ r.dia }} ·
-                    {{ periodo(r) }}<template v-if="r.membro"> · {{ r.membro.nome }}</template>
+                    {{ r.categoria.nome }} · {{ FREQUENCIAS[r.frequencia].rotulo.toLowerCase() }}, {{ textoDia(r) }} ·
+                    {{ periodo(r) }}<template v-if="r.membro"> · {{ r.membro.nome }}</template><template
+                      v-if="r.formaPagamento"> · {{ FORMAS_PAGAMENTO[r.formaPagamento].rotulo.toLowerCase() }}</template>
                   </span>
                 </span>
                 <span class="peso num">

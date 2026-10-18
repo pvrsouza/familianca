@@ -101,6 +101,7 @@ export function mesAtual(): number {
 }
 
 export const FREQUENCIAS: Record<string, { rotulo: string; por: string; vezes: number }> = {
+  UNICA: { rotulo: 'Uma vez só (conta avulsa)', por: 'uma vez', vezes: 1 },
   MENSAL: { rotulo: 'Todo mês', por: 'por mês', vezes: 12 },
   BIMESTRAL: { rotulo: 'A cada 2 meses', por: 'por bimestre', vezes: 6 },
   TRIMESTRAL: { rotulo: 'A cada 3 meses', por: 'por trimestre', vezes: 4 },
@@ -120,6 +121,48 @@ export const PERIODICIDADES: { valor: string; rotulo: string; por: string }[] = 
   { valor: 'SEMESTRAL', rotulo: 'Semestre', por: 'por semestre' },
   { valor: 'ANUAL', rotulo: 'Ano', por: 'por ano' },
 ]
+
+/** Como a despesa é paga: rótulo e o que acontece com ela, para mostrar ao escolher. */
+export const FORMAS_PAGAMENTO: Record<string, { rotulo: string; explica: string }> = {
+  BOLETO_PIX: {
+    rotulo: 'Boleto ou Pix',
+    explica: 'Alguém da família precisa pagar até o vencimento. É o tipo de conta que vai aparecer na lista de contas a pagar.',
+  },
+  DEBITO_AUTOMATICO: {
+    rotulo: 'Débito automático',
+    explica: 'Sai sozinho da conta no vencimento: ninguém precisa pagar, só conferir se o valor veio certo. Se o valor é sempre o mesmo, ligue "Confirmar sozinha no vencimento".',
+  },
+  CARTAO_CREDITO: {
+    rotulo: 'No cartão de crédito',
+    explica: 'É cobrada no cartão e entra na fatura, então não tem vencimento próprio: quem vence é a fatura. O dia abaixo só diz quando a cobrança costuma cair.',
+  },
+}
+
+/** Vencimento de uma ocorrência (AAAA-MM-DD): o ajustado daquele mês ou o dia cadastrado; nulo = sem vencimento. */
+export function vencimentoDe(r: { temVencimento: boolean; dia: number; vencimentosAjustados: { competencia: string; vencimento: string }[] },
+  comp: string): string | null {
+  if (!r.temVencimento) return null
+  return r.vencimentosAjustados.find((v) => v.competencia === comp)?.vencimento ?? diaNoMes(comp, r.dia)
+}
+
+/** Dia do mês na competência; 31 vira o último dia nos meses curtos. */
+export function diaNoMes(comp: string, dia: number): string {
+  const [a, m] = comp.split('-').map(Number)
+  const ultimo = new Date(a, m, 0).getDate()
+  return `${comp}-${String(Math.min(dia, ultimo)).padStart(2, '0')}`
+}
+
+/** Dias entre duas datas AAAA-MM-DD (positivo quando "ate" é depois de "de"). */
+export function diasEntre(de: string, ate: string): number {
+  return Math.round((Date.parse(ate + 'T00:00:00Z') - Date.parse(de + 'T00:00:00Z')) / 86_400_000)
+}
+
+/** "Pago em dia" / "Pago com 3 dias de atraso"; nulo quando não há vencimento. */
+export function situacaoPagamento(diasAtraso: number | null | undefined): string | null {
+  if (diasAtraso == null) return null
+  if (diasAtraso === 0) return 'Pago em dia'
+  return `Pago com ${diasAtraso} ${diasAtraso === 1 ? 'dia' : 'dias'} de atraso`
+}
 
 /** Regras de estimativa dos próximos meses: rótulo curto e "como" (para frases). */
 export const ESTIMATIVAS: Record<string, { rotulo: string; como: string }> = {

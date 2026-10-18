@@ -5,7 +5,9 @@ export type Natureza = 'FIXA' | 'VARIAVEL'
 export type Papel = 'DONO' | 'MEMBRO'
 export type CodigoPlano = 'GRATUITO' | 'FAMILIA' | 'PREMIUM'
 export type Recurso = 'INVESTIMENTOS' | 'DESPESAS_PJ'
-export type Frequencia = 'MENSAL' | 'BIMESTRAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL'
+export type Frequencia = 'UNICA' | 'MENSAL' | 'BIMESTRAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL'
+/** Como a despesa é paga: diz se ela pede uma ação até o vencimento. */
+export type FormaPagamento = 'BOLETO_PIX' | 'DEBITO_AUTOMATICO' | 'CARTAO_CREDITO'
 export type Periodicidade =
   | 'UNICA' | 'DIARIA' | 'DIAS_UTEIS' | 'SEMANAL' | 'QUINZENAL'
   | 'MENSAL' | 'BIMESTRAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL'
@@ -120,6 +122,10 @@ export interface Lancamento {
   competenciaRecorrencia: string | null
   parcela: { parcelamentoId: string; numero: number; total: number } | null
   observacao: string | null
+  /** Vencimento da conta que este lançamento pagou; nulo = sem vencimento. */
+  vencimento: string | null
+  /** 0 = pago em dia; nulo = sem vencimento. */
+  diasAtraso: number | null
 }
 
 export interface Recorrencia {
@@ -147,6 +153,12 @@ export interface Recorrencia {
   /** Regra que gerou o valorPrevisto; nulo = valor cadastrado. */
   previstoPor: Estimativa | null
   confirmacoesNaPrevisao: number
+  semVencimento: boolean
+  formaPagamento: FormaPagamento | null
+  /** Despesa com data certa para pagar (não marcada sem vencimento e não cobrada no cartão). */
+  temVencimento: boolean
+  /** Vencimentos diferentes do dia cadastrado, por mês. */
+  vencimentosAjustados: { competencia: string; vencimento: string }[]
 }
 
 export interface Pendente {
@@ -154,6 +166,8 @@ export interface Pendente {
   data: string
   valorPrevisto: number
   recorrencia: Recorrencia
+  /** Vencimento desta ocorrência; nulo = sem vencimento. */
+  vencimento: string | null
 }
 
 export interface Serie {

@@ -1,0 +1,28 @@
+info:
+  name: Vencimento diferente no mês
+  type: http
+  seq: 9
+  tags:
+    - Recorrências
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/recorrencias/1/ocorrencias/2026-10/vencimento"
+  body:
+    type: json
+    data: |-
+      {
+        "vencimento": "2026-10-20"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  O boleto deste mês veio para outro dia: muda só esta ocorrência (até 2 meses antes ou depois).
+  `vencimento: null` volta ao dia cadastrado. Conta sem vencimento ou no cartão: 422.

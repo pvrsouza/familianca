@@ -6,6 +6,7 @@ import br.com.familianca.adapter.in.web.dto.OcorrenciaPendenteResponse;
 import br.com.familianca.adapter.in.web.dto.RecorrenciaRequest;
 import br.com.familianca.adapter.in.web.dto.RecorrenciaResponse;
 import br.com.familianca.adapter.in.web.dto.Valores;
+import br.com.familianca.adapter.in.web.dto.VencimentoRequest;
 import br.com.familianca.application.port.in.GerenciarRecorrencias;
 import br.com.familianca.domain.vo.Competencia;
 import io.swagger.v3.oas.annotations.Operation;
@@ -105,6 +106,17 @@ public class RecorrenciaController {
     @Operation(summary = "Pular ocorrência", description = "A competência deixa de ser prevista. Já confirmada: 409.")
     public RecorrenciaResponse pular(@PathVariable Long id, @PathVariable String competencia) {
         return RecorrenciaResponse.de(recorrencias.pular(id, Competencia.parse(competencia)));
+    }
+
+    @PutMapping("/{id}/ocorrencias/{competencia}/vencimento")
+    @Operation(summary = "Vencimento diferente só neste mês", description = """
+            O boleto deste mês veio para outro dia: muda só esta ocorrência (a data sugerida ao confirmar e quando
+            ela passa a contar como vencida). Até 2 meses antes ou depois do mês. `vencimento` nulo volta ao dia
+            cadastrado. Conta sem vencimento ou cobrada no cartão: 422.""")
+    public RecorrenciaResponse ajustarVencimento(@PathVariable Long id, @PathVariable String competencia,
+                                                 @Valid @RequestBody VencimentoRequest r) {
+        return RecorrenciaResponse.de(recorrencias.ajustarVencimento(id, Competencia.parse(competencia),
+                r.vencimento()));
     }
 
     @DeleteMapping("/{id}/ocorrencias/{competencia}/pulo")

@@ -594,6 +594,12 @@ textarea.entrada {
   color: var(--verde);
 }
 
+/* Conta paga depois do vencimento. */
+.selo-atraso {
+  background: var(--erro-claro);
+  color: var(--erro);
+}
+
 /* Mensagens */
 .aviso {
   display: flex;

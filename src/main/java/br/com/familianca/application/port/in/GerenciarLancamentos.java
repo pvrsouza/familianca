@@ -49,6 +49,12 @@ public interface GerenciarLancamentos {
                            String observacao) {
     }
 
-    record LancamentoDetalhado(Lancamento lancamento, Categoria categoria, Grupo grupo, Membro membro) {
+    /** @param vencimento da ocorrência que o lançamento confirmou (despesa com vencimento); nulo = não tem */
+    record LancamentoDetalhado(Lancamento lancamento, Categoria categoria, Grupo grupo, Membro membro,
+                               LocalDate vencimento) {
+
+        public LancamentoDetalhado(Lancamento lancamento, Categoria categoria, Grupo grupo, Membro membro) {
+            this(lancamento, categoria, grupo, membro, null);
+        }
     }
 }

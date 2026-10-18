@@ -173,6 +173,26 @@ Pontos de atenção constante na hora de desenvolver.
 - Editar a recorrência muda as ocorrências não confirmadas. Com ocorrências confirmadas não dá para excluir:
   define-se o fim.
 - Cada recorrência mostra quanto pesa no ano atual e num ano cheio (ex.: R$ 39,90/mês = R$ 478,80/ano).
+- **Vencimento das contas (2026-10-18)** — base da futura lista de contas a pagar (o "azul pago / vermelho
+  pendente" da planilha). Cada regra tem texto explicativo na própria tela.
+  - Na despesa, o dia da recorrência é o **vencimento** ("Vence no dia"); na receita, o dia em que costuma cair
+    ("Cai no dia"). As recorrências que já existiam passam a usar o dia que tinham como vencimento.
+  - **"Não tem vencimento fixo"** (opcional, não obriga): para conta sem data certa (mesada, feira do mês). O dia só
+    posiciona a conta no mês e o pagamento não aparece como em dia ou com atraso.
+  - **Como é paga** (opcional, só despesa): **boleto ou Pix** (alguém paga até o vencimento: é o que vai para a
+    lista de contas a pagar), **débito automático** (sai sozinho; só conferir o valor — e, se for fixo, ligar
+    "confirmar sozinha") ou **no cartão de crédito** (entra na fatura, então não tem vencimento próprio: quem vence é
+    a fatura). Receita não tem forma de pagamento.
+  - **Vencimento diferente só num mês:** o boleto do mês veio para outro dia → muda só aquela ocorrência (até 2 meses
+    antes ou depois), com "voltar ao dia X". Esse vencimento passa a ser a data da ocorrência: decide quando ela
+    vence (e entra em "para conferir") e é a data sugerida ao confirmar. Conta sem vencimento ou no cartão não tem.
+  - **Pagar = confirmar.** Ao confirmar uma conta com vencimento, informa-se "Pago em" (ou "Debitado em"): já vencida,
+    vem preenchido com o vencimento (supõe pago em dia; corrige-se se foi depois); ainda a vencer, com hoje. Comparando
+    com o vencimento, o lançamento fica **pago em dia** ou **com N dias de atraso** (selo nos Lançamentos e no mês da
+    visão anual).
+  - **Conta avulsa (uma vez só):** nova frequência "Uma vez só" para conta que não se repete (IPTU em cota única,
+    boleto de conserto): prevista só naquele mês até ser paga. Também dá para criar ao lançar uma despesa, marcando
+    **"Ainda não paguei (conta a pagar)"**: a data vira o vencimento e a despesa fica prevista, sem contar como paga.
 
 ## Visão anual (o diferencial)
 - **Atalho do valor (2026-10-17):** clicar no valor de uma categoria num mês abre o que forma aquele valor:
@@ -292,7 +312,13 @@ Pontos de atenção constante na hora de desenvolver.
 - **Uma pessoa em mais de uma família** (hoje é uma só) e "sair da família".
 - **Excluir a conta e a família inteira** (LGPD): hoje dá para apagar o orçamento ("Recomeçar do zero"); falta
   excluir pessoas, convites, família e contas, com confirmação por e-mail, e exportar os dados antes.
-- **Cartões de crédito:** forma de pagamento/cartão no lançamento e visão da fatura (a planilha controla faturas).
+- **Contas a pagar (lista do mês)** — próximo passo dos vencimentos: tela de checklist do mês com as contas que
+  pedem ação (boleto/Pix e avulsas), agrupadas em vencidas, vencem em 7 dias, depois e pagas; "Paguei" confirma
+  com o valor previsto (corrigível) e a data do pagamento; progresso "faltam R$ X". **Quem vê:** por padrão só quem
+  organiza; configurável para escolher quem mais vê (decidido em 2026-10-18). Depois: lembretes de vencimento
+  (e-mail/WhatsApp), candidato a recurso de plano pago.
+- **Cartões de crédito:** cartão no lançamento e visão da fatura (a planilha controla faturas). A forma de pagamento
+  "no cartão de crédito" das recorrências já existe; falta dizer qual cartão e montar a fatura com vencimento.
 - **Reajuste de recorrência a partir de um mês** (hoje editar o valor muda todas as ocorrências não confirmadas).
 - **Importar a planilha** (xlsx) de anos anteriores para o histórico. Já testado com um script fora do repositório
   que usa só a API (2026-10-17, ver "Aprendizados da carga da planilha"). Como produto, precisa de uma rota de

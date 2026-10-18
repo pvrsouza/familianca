@@ -1,6 +1,6 @@
 import { api } from './http'
 import type {
-  Carteira, Categoria, Convite, ConviteAberto, Estimativa, Familia, Frequencia, Grupo, Impacto, Investimento, Lancamento, Membro,
+  Carteira, Categoria, Convite, ConviteAberto, Estimativa, Familia, FormaPagamento, Frequencia, Grupo, Impacto, Investimento, Lancamento, Membro,
   Movimento, Natureza, Papel, Pendente, Periodicidade, Recorrencia, Saldo, SituacaoMfa, Tipo, TipoInvestimento,
   UsuarioLogado, VisaoAnual,
 } from './tipos'
@@ -127,6 +127,10 @@ export interface DadosRecorrencia {
   observacao?: string | null
   /** Só despesa: o que vence a partir de hoje vira lançamento sozinho. Ausente = desligada. */
   confirmarSozinha?: boolean
+  /** Só despesa: a conta não tem data certa para pagar. */
+  semVencimento?: boolean
+  /** Só despesa: como é paga. */
+  formaPagamento?: FormaPagamento | null
 }
 
 export const recorrencias = {
@@ -141,6 +145,9 @@ export const recorrencias = {
   pular: (id: number, competencia: string) => api.post<Recorrencia>(`/api/recorrencias/${id}/ocorrencias/${competencia}/pulo`),
   desfazerPulo: (id: number, competencia: string) =>
     api.delete<Recorrencia>(`/api/recorrencias/${id}/ocorrencias/${competencia}/pulo`),
+  /** Vencimento diferente só neste mês; null volta ao dia cadastrado. */
+  ajustarVencimento: (id: number, competencia: string, vencimento: string | null) =>
+    api.put<Recorrencia>(`/api/recorrencias/${id}/ocorrencias/${competencia}/vencimento`, { vencimento }),
 }
 
 export const saldos = {

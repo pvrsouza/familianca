@@ -28,6 +28,7 @@ const form = reactive({
   observacao: l?.observacao ?? '',
   repetir: false,
   frequencia: 'MENSAL' as Frequencia,
+  aPagar: false,
 })
 const enviando = ref(false)
 const erro = ref('')
@@ -44,23 +45,50 @@ onMounted(() => catalogo.carregar())
 // Categoria recorrente (aluguel, telefone, salário): o lançamento já sugere repetir no ano. Repetir cria a
 // recorrência a partir do mês da data e confirma este mês com o valor e a data informados.
 const categoria = computed(() => catalogo.estado.grupos.flatMap((g) => g.categorias).find((c) => c.id === form.categoriaId) ?? null)
-const podeRepetir = computed(() => !editando.value && !form.parcelado)
+const podeRepetir = computed(() => !editando.value && !form.parcelado && !form.aPagar)
 const competenciaDaData = computed(() => form.data.slice(0, 7))
 const repetirNoAno = computed(() => (form.valor ? form.valor * FREQUENCIAS[form.frequencia].vezes : null))
+/** "Repetir no ano" só oferece o que se repete: a conta avulsa é o "Ainda vou pagar". */
+const frequenciasRepetir = Object.fromEntries(Object.entries(FREQUENCIAS).filter(([chave]) => chave !== 'UNICA'))
+const podeFicarAPagar = computed(() => !editando.value && form.tipo === 'DESPESA' && !form.parcelado && !form.repetir)
 
 watch(() => [form.categoriaId, catalogo.estado.carregado] as const, () => {
   if (!editando.value) form.repetir = !!categoria.value?.recorrente
 }, { immediate: true })
 
 watch(() => form.parcelado, (p) => {
-  if (p) form.repetir = false
+  if (p) {
+    form.repetir = false
+    form.aPagar = false
+  }
+})
+
+watch(() => form.repetir, (r) => {
+  if (r) form.aPagar = false
 })
 
 function trocarTipo(t: Tipo) {
   if (form.tipo === t) return
   form.tipo = t
   form.categoriaId = null
-  if (t === 'RECEITA') form.parcelado = false
+  if (t === 'RECEITA') {
+    form.parcelado = false
+    form.aPagar = false
+  }
+}
+
+/** Conta avulsa ainda não paga: vira uma recorrência de uma vez só, prevista até ser confirmada. */
+async function lancarAPagar(base: { categoriaId: number; membroId: number | null; descricao: string; observacao: string | null }) {
+  await recorrencias.criar({
+    ...base,
+    valor: form.valor!,
+    dia: Number(form.data.slice(8, 10)),
+    frequencia: 'UNICA',
+    inicio: competenciaDaData.value,
+    fim: null,
+  })
+  emit('salvo', `Conta a pagar registrada: fica prevista em ${competenciaPorExtenso(competenciaDaData.value)}, `
+    + 'com vencimento no dia informado. Quando pagar, confirme na visão anual ou em Recorrências.')
 }
 
 async function lancarRepetindo(base: { categoriaId: number; membroId: number | null; descricao: string; observacao: string | null }) {
@@ -104,6 +132,8 @@ async function salvar() {
       emit('salvo', 'Lançamento atualizado.')
     } else if (form.repetir) {
       await lancarRepetindo(base)
+    } else if (form.aPagar) {
+      await lancarAPagar(base)
     } else if (form.parcelado) {
       await lancamentos.lancarParcelado({ ...base, valorTotal: form.valor, parcelas: form.parcelas, primeiraData: form.data })
       emit('salvo', `Compra lançada em ${form.parcelas} parcelas.`)
@@ -150,7 +180,7 @@ async function salvar() {
 
     <div class="grade-campos duas">
       <div class="campo">
-        <label for="l-data">{{ form.parcelado ? 'Data da 1ª parcela' : 'Data' }}</label>
+        <label for="l-data">{{ form.parcelado ? 'Data da 1ª parcela' : form.aPagar ? 'Vencimento' : 'Data' }}</label>
         <input id="l-data" v-model="form.data" class="entrada" type="date" required />
       </div>
       <div class="campo">
@@ -172,7 +202,7 @@ async function salvar() {
         <div class="campo">
           <label for="l-frequencia">Repete</label>
           <select id="l-frequencia" v-model="form.frequencia" class="selecao">
-            <option v-for="(f, chave) in FREQUENCIAS" :key="chave" :value="chave">{{ f.rotulo }}</option>
+            <option v-for="(f, chave) in frequenciasRepetir" :key="chave" :value="chave">{{ f.rotulo }}</option>
           </select>
         </div>
         <p v-if="repetirNoAno" class="resumo-parcela num">
@@ -193,7 +223,25 @@ async function salvar() {
       </p>
     </div>
 
-    <div v-if="!editando && form.tipo === 'DESPESA' && !form.repetir" class="parcelas">
+    <div v-if="podeFicarAPagar" class="repetir" :class="{ ligado: form.aPagar }">
+      <label class="caixa-marcar">
+        <input v-model="form.aPagar" type="checkbox" aria-describedby="l-apagar-ajuda" />
+        Ainda não paguei (conta a pagar)
+      </label>
+      <p id="l-apagar-ajuda" class="ajuda">
+        <template v-if="form.aPagar">
+          A data acima vira o vencimento. A conta fica prevista em {{ competenciaPorExtenso(competenciaDaData) }} e
+          aparece para conferir quando vencer; ao pagar, confirme com o valor e a data reais. Até lá ela não conta
+          como paga.
+        </template>
+        <template v-else>
+          Para um boleto que ainda vai vencer (IPTU em cota única, um conserto): marque e informe o vencimento na data.
+          Desmarcado, a despesa entra como já paga.
+        </template>
+      </p>
+    </div>
+
+    <div v-if="!editando && form.tipo === 'DESPESA' && !form.repetir && !form.aPagar" class="parcelas">
       <label class="caixa-marcar">
         <input v-model="form.parcelado" type="checkbox" />
         Compra parcelada

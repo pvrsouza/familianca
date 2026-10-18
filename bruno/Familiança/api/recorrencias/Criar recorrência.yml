@@ -19,7 +19,9 @@ http:
         "frequencia": "MENSAL",
         "inicio": "2026-01",
         "fim": null,
-        "confirmarSozinha": true
+        "confirmarSozinha": false,
+        "formaPagamento": "BOLETO_PIX",
+        "semVencimento": false
       }
   auth: inherit
 

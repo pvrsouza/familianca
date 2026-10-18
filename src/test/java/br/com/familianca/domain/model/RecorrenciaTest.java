@@ -6,6 +6,7 @@ import br.com.familianca.domain.vo.Dinheiro;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,11 +57,58 @@ class RecorrenciaTest {
     }
 
     @Test
+    void unicaAconteceSoNoMesDeInicio() {
+        Recorrencia r = recorrencia(Frequencia.UNICA, "2026-11", "2027-05", Set.of());
+
+        assertThat(r.fim()).as("o fim vira o próprio início").isEqualTo(Competencia.of(2026, 11));
+        assertThat(r.ocorrenciasNoAno(2026)).extracting(Competencia::toString).containsExactly("2026-11");
+        assertThat(r.ocorrenciasNoAno(2027)).isEmpty();
+        assertThat(r.valorAnualizado()).isEqualTo(Dinheiro.of("100"));
+    }
+
+    @Test
+    void vencimentoAjustadoSoNaquelaOcorrencia() {
+        Competencia nov = Competencia.of(2026, 11);
+        Recorrencia r = recorrencia(Frequencia.MENSAL, "2026-01", null, Set.of())
+                .comVencimentoAjustado(nov, LocalDate.of(2026, 12, 2));
+
+        assertThat(r.dataEm(nov)).isEqualTo(LocalDate.of(2026, 12, 2));
+        assertThat(r.vencimentoEm(nov)).isEqualTo(LocalDate.of(2026, 12, 2));
+        assertThat(r.dataEm(Competencia.of(2026, 10))).isEqualTo(LocalDate.of(2026, 10, 31));
+        // Voltar ao dia cadastrado (ou nulo) desfaz o ajuste.
+        assertThat(r.comVencimentoAjustado(nov, null).vencimentosAjustados()).isEmpty();
+        assertThat(r.comVencimentoAjustado(nov, LocalDate.of(2026, 11, 30)).vencimentosAjustados()).isEmpty();
+        assertThatThrownBy(() -> r.comVencimentoAjustado(nov, LocalDate.of(2027, 2, 1)))
+                .isInstanceOf(RegraNegocioException.class).hasMessageContaining("até 2 meses");
+    }
+
+    @Test
+    void semVencimentoECartaoNaoTemVencimento() {
+        Competencia out = Competencia.of(2026, 10);
+        Recorrencia base = recorrencia(Frequencia.MENSAL, "2026-01", null, Set.of());
+        Recorrencia semVencimento = comPagamento(base, true, null);
+        Recorrencia cartao = comPagamento(base, false, FormaPagamento.CARTAO_CREDITO);
+        Recorrencia boleto = comPagamento(base, false, FormaPagamento.BOLETO_PIX);
+
+        assertThat(base.vencimentoEm(out)).isEqualTo(LocalDate.of(2026, 10, 31));
+        assertThat(boleto.temVencimento()).isTrue();
+        assertThat(semVencimento.temVencimento()).isFalse();
+        assertThat(semVencimento.vencimentoEm(out)).isNull();
+        assertThat(semVencimento.dataEm(out)).as("o dia ainda posiciona no mês").isEqualTo(LocalDate.of(2026, 10, 31));
+        assertThat(cartao.vencimentoEm(out)).isNull();
+    }
+
+    @Test
     void validacoes() {
         assertThatThrownBy(() -> recorrencia(Frequencia.MENSAL, "2026-05", "2026-04", Set.of()))
                 .isInstanceOf(RegraNegocioException.class).hasMessage("O fim não pode ser antes do início");
         assertThatThrownBy(() -> new Recorrencia(null, 1L, 1L, "X", Dinheiro.of("10"), 0, Frequencia.MENSAL,
                 Competencia.of(2026, 1), null, null, Set.of(), null)).isInstanceOf(RegraNegocioException.class);
+    }
+
+    private static Recorrencia comPagamento(Recorrencia r, boolean semVencimento, FormaPagamento forma) {
+        return new Recorrencia(r.id(), r.categoriaId(), r.membroId(), r.descricao(), r.valor(), r.dia(), r.frequencia(),
+                r.inicio(), r.fim(), r.observacao(), r.puladas(), null, null, semVencimento, forma, Map.of());
     }
 
     private static Recorrencia recorrencia(Frequencia f, String inicio, String fim, Set<Competencia> puladas) {

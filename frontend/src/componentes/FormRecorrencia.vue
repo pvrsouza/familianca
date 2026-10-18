@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { recorrencias } from '../api/servicos'
-import type { Frequencia, Recorrencia, Tipo } from '../api/tipos'
+import type { FormaPagamento, Frequencia, Recorrencia, Tipo } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { catalogo } from '../estado/catalogo'
 import { sessao } from '../estado/sessao'
-import { FREQUENCIAS, anoAtual, mesAtual, competencia, dataPorExtenso, reais } from '../util/formato'
+import { FORMAS_PAGAMENTO, FREQUENCIAS, anoAtual, mesAtual, competencia, dataPorExtenso, reais } from '../util/formato'
 import CampoDescricao from './CampoDescricao.vue'
 import CampoValor from './CampoValor.vue'
 import Mensagem from './Mensagem.vue'
@@ -29,6 +29,8 @@ const form = reactive({
   membroId: r?.membro?.id ?? sessao.estado.usuario?.membroId ?? null,
   observacao: r?.observacao ?? '',
   confirmarSozinha: r?.confirmarSozinha ?? false,
+  semVencimento: r?.semVencimento ?? false,
+  formaPagamento: (r?.formaPagamento ?? '') as FormaPagamento | '',
 })
 const enviando = ref(false)
 const erro = ref('')
@@ -37,6 +39,20 @@ const tentou = ref(false)
 const membros = computed(() => (sessao.estado.familia?.membros ?? []).filter((m) => m.ativo))
 const podeEscolherPessoa = computed(() => sessao.dono.value && membros.value.length > 1)
 const noAno = computed(() => (form.valor ? form.valor * FREQUENCIAS[form.frequencia].vezes : null))
+const unica = computed(() => form.frequencia === 'UNICA')
+const despesa = computed(() => form.tipo === 'DESPESA')
+const noCartao = computed(() => form.formaPagamento === 'CARTAO_CREDITO')
+const rotuloDia = computed(() => {
+  if (!despesa.value) return 'Cai no dia'
+  if (noCartao.value) return 'Cobrada no cartão no dia'
+  return form.semVencimento ? 'Dia previsto no mês' : 'Vence no dia'
+})
+const ajudaDia = computed(() => {
+  if (!despesa.value) return 'Dia em que a receita costuma entrar. 31 vira o último dia nos meses curtos.'
+  if (noCartao.value) return 'Só diz quando a cobrança costuma cair no cartão; quem vence é a fatura.'
+  if (form.semVencimento) return 'Só posiciona a conta no mês; não há data para pagar.'
+  return 'Data limite para pagar sem atraso. 31 vira o último dia nos meses curtos. Se num mês o boleto vier para outro dia, dá para mudar só aquele mês.'
+})
 
 onMounted(() => catalogo.carregar())
 
@@ -51,7 +67,7 @@ async function salvar() {
   erro.value = ''
   if (!form.valor || !form.categoriaId || !form.descricao.trim() || !form.inicio) return
   if (form.dia < 1 || form.dia > 31) return
-  if (form.temFim && form.fim < form.inicio) {
+  if (!unica.value && form.temFim && form.fim < form.inicio) {
     erro.value = 'O último mês precisa ser depois do primeiro.'
     return
   }
@@ -64,9 +80,11 @@ async function salvar() {
     dia: form.dia,
     frequencia: form.frequencia,
     inicio: form.inicio,
-    fim: form.temFim ? form.fim : null,
+    fim: !unica.value && form.temFim ? form.fim : null,
     observacao: form.observacao.trim() || null,
-    confirmarSozinha: form.tipo === 'DESPESA' && form.confirmarSozinha,
+    confirmarSozinha: despesa.value && form.confirmarSozinha,
+    semVencimento: despesa.value && form.semVencimento,
+    formaPagamento: despesa.value && form.formaPagamento ? form.formaPagamento : null,
   }
   try {
     if (props.recorrencia) {
@@ -121,24 +139,52 @@ async function salvar() {
       </div>
     </div>
 
-    <p v-if="noAno" class="peso num">
+    <p v-if="noAno && !unica" class="peso num">
       {{ reais(form.valor) }} {{ FREQUENCIAS[form.frequencia].por }} = <strong>{{ reais(noAno) }} no ano</strong>
     </p>
+    <p v-else-if="unica" class="ajuda-campo">
+      Conta avulsa (como IPTU em cota única ou um boleto de conserto): aparece como prevista só no mês escolhido e
+      some da lista quando for paga. Não se repete.
+    </p>
+
+    <div v-if="despesa" class="campo">
+      <label for="r-forma">Como é paga <span class="texto-2">(opcional)</span></label>
+      <select id="r-forma" v-model="form.formaPagamento" class="selecao" aria-describedby="r-forma-ajuda">
+        <option value="">Não informar</option>
+        <option v-for="(f, chave) in FORMAS_PAGAMENTO" :key="chave" :value="chave">{{ f.rotulo }}</option>
+      </select>
+      <span id="r-forma-ajuda" class="ajuda">
+        {{ form.formaPagamento ? FORMAS_PAGAMENTO[form.formaPagamento].explica
+          : 'Ajuda a separar o que alguém precisa pagar do que sai sozinho (débito automático) ou vai para a fatura do cartão.' }}
+      </span>
+    </div>
 
     <div class="grade-campos duas">
       <div class="campo">
-        <label for="r-dia">Dia do mês</label>
+        <label for="r-dia">{{ rotuloDia }}</label>
         <input id="r-dia" v-model.number="form.dia" class="entrada num" type="number" min="1" max="31"
-               inputmode="numeric" />
-        <span class="ajuda">31 vira o último dia nos meses curtos.</span>
+               inputmode="numeric" aria-describedby="r-dia-ajuda" />
       </div>
       <div class="campo">
-        <label for="r-inicio">A partir de</label>
+        <label for="r-inicio">{{ unica ? 'Mês da conta' : 'A partir de' }}</label>
         <input id="r-inicio" v-model="form.inicio" class="entrada" type="month" required />
       </div>
     </div>
+    <p id="r-dia-ajuda" class="ajuda ajuda-dia">{{ ajudaDia }}</p>
 
-    <div class="grade-campos">
+    <div v-if="despesa && !noCartao" class="sozinha">
+      <label class="caixa-marcar">
+        <input v-model="form.semVencimento" type="checkbox" aria-describedby="r-semvenc-ajuda" />
+        Não tem vencimento fixo
+      </label>
+      <p id="r-semvenc-ajuda" class="ajuda">
+        Marque quando não existe uma data certa para pagar (como mesada ou a feira do mês). O dia continua só para
+        posicionar a conta no mês, e o pagamento não aparece como "em dia" ou "com atraso". Desmarcado, o dia acima é o
+        vencimento.
+      </p>
+    </div>
+
+    <div v-if="!unica" class="grade-campos">
       <label class="caixa-marcar">
         <input v-model="form.temFim" type="checkbox" />
         Tem data para acabar
@@ -157,6 +203,9 @@ async function salvar() {
       <p id="r-sozinha-ajuda" class="ajuda">
         Para débito automático e conta de valor fixo: no dia do vencimento ela já entra como paga, com o valor
         previsto, e não fica para conferir. Veio diferente? É só abrir o mês na visão anual e corrigir.
+        <template v-if="form.formaPagamento === 'DEBITO_AUTOMATICO' && !form.confirmarSozinha">
+          Como é débito automático, vale ligar se o valor for sempre o mesmo.
+        </template>
         <template v-if="r?.confirmarSozinha && r.confirmarSozinhaDesde && form.confirmarSozinha">
           Ligada desde {{ dataPorExtenso(r.confirmarSozinhaDesde, true) }}.
         </template>
@@ -217,6 +266,23 @@ async function salvar() {
 .sozinha .ajuda {
   max-width: 52ch;
   padding-left: 1.75rem;
+  font-size: var(--t-xs);
+  line-height: 1.5;
+  color: var(--texto-2);
+}
+
+.ajuda-dia {
+  margin-top: calc(var(--e-2) * -1);
+  font-size: var(--t-xs);
+  line-height: 1.5;
+  color: var(--texto-2);
+}
+
+.ajuda-campo {
+  margin-top: calc(var(--e-2) * -1);
+  padding: var(--e-3) var(--e-4);
+  border-radius: var(--raio);
+  background: var(--areia);
   font-size: var(--t-xs);
   line-height: 1.5;
   color: var(--texto-2);

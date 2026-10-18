@@ -7,7 +7,7 @@ import type { Lancamento, Recorrencia, Tipo } from '../../api/tipos'
 import { mensagemDeErro } from '../../api/http'
 import { sessao } from '../../estado/sessao'
 import { avisar } from '../../estado/avisos'
-import { ESTIMATIVAS, MESES, previstoPelaRegra, anoAtual, competencia, dataPorExtenso, hoje, mesAtual, reais } from '../../util/formato'
+import { ESTIMATIVAS, MESES, previstoPelaRegra, anoAtual, competencia, dataPorExtenso, hoje, mesAtual, reais, situacaoPagamento } from '../../util/formato'
 import { catalogo } from '../../estado/catalogo'
 import PainelLateral from '../PainelLateral.vue'
 import FormLancamento from '../FormLancamento.vue'
@@ -26,7 +26,8 @@ export interface AlvoMes {
 const props = defineProps<{ alvo: AlvoMes | null }>()
 const emit = defineEmits<{ fechar: [] }>()
 
-const MESES_DA_FREQUENCIA = { MENSAL: 1, BIMESTRAL: 2, TRIMESTRAL: 3, SEMESTRAL: 6, ANUAL: 12 } as const
+// UNICA: o fim é o próprio início, então o intervalo não importa (a faixa início–fim já limita a um mês).
+const MESES_DA_FREQUENCIA = { UNICA: 1, MENSAL: 1, BIMESTRAL: 2, TRIMESTRAL: 3, SEMESTRAL: 6, ANUAL: 12 } as const
 
 const itens = ref<Lancamento[]>([])
 const previstas = ref<Recorrencia[]>([])
@@ -305,7 +306,7 @@ async function voltarAPrever(r: Recorrencia) {
                   <span class="item-texto">
                     <span class="descricao">{{ l.descricao }}</span>
                     <span class="meta">
-                      {{ dataPorExtenso(l.data) }}<template v-if="l.parcela"> · parcela {{ l.parcela.numero }}/{{ l.parcela.total }}</template><template v-if="l.recorrenciaId"> · {{ rotuloConfirmacao(l) }}</template><template v-if="l.membro && variasPessoas"> · {{ l.membro.nome }}</template>
+                      {{ dataPorExtenso(l.data) }}<template v-if="l.parcela"> · parcela {{ l.parcela.numero }}/{{ l.parcela.total }}</template><template v-if="l.recorrenciaId"> · {{ rotuloConfirmacao(l) }}</template><template v-if="situacaoPagamento(l.diasAtraso)"> · {{ situacaoPagamento(l.diasAtraso)!.toLowerCase() }}</template><template v-if="l.membro && variasPessoas"> · {{ l.membro.nome }}</template>
                     </span>
                   </span>
                   <span class="num valor" :class="{ receita: alvo.tipo === 'RECEITA' }">{{ reais(l.valor) }}</span>

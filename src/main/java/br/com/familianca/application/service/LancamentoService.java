@@ -15,6 +15,7 @@ import br.com.familianca.domain.model.Lancamento;
 import br.com.familianca.domain.model.Membro;
 import br.com.familianca.domain.model.Parcela;
 import br.com.familianca.domain.model.Recorrencia;
+import br.com.familianca.domain.model.TipoMovimento;
 import br.com.familianca.domain.service.GeradorParcelas;
 import br.com.familianca.domain.vo.Competencia;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -228,7 +229,8 @@ public class LancamentoService implements GerenciarLancamentos {
     }
 
     private Detalhador detalhador() {
-        return new Detalhador(planoContas.listarCategorias(), planoContas.listarGrupos(), acesso.membrosPorId());
+        return new Detalhador(planoContas.listarCategorias(), planoContas.listarGrupos(), acesso.membrosPorId(),
+                recorrencias.listar());
     }
 
     /** Junta categoria, grupo e membro carregados uma vez por chamada. */
@@ -237,16 +239,26 @@ public class LancamentoService implements GerenciarLancamentos {
         private final Map<Long, Categoria> categorias;
         private final Map<Long, Grupo> grupos;
         private final Map<Long, Membro> membros;
+        private final Map<Long, Recorrencia> recorrencias;
 
-        Detalhador(List<Categoria> categorias, List<Grupo> grupos, Map<Long, Membro> membros) {
+        Detalhador(List<Categoria> categorias, List<Grupo> grupos, Map<Long, Membro> membros,
+                   List<Recorrencia> recorrencias) {
             this.categorias = categorias.stream().collect(Collectors.toMap(Categoria::id, Function.identity()));
             this.grupos = grupos.stream().collect(Collectors.toMap(Grupo::id, Function.identity()));
             this.membros = membros;
+            this.recorrencias = recorrencias.stream().collect(Collectors.toMap(Recorrencia::id, Function.identity()));
         }
 
         LancamentoDetalhado detalhar(Lancamento l) {
             Categoria c = categorias.get(l.categoriaId());
-            return new LancamentoDetalhado(l, c, grupos.get(c.grupoId()), membros.get(l.membroId()));
+            Grupo g = grupos.get(c.grupoId());
+            return new LancamentoDetalhado(l, c, g, membros.get(l.membroId()), vencimento(l, g));
+        }
+
+        /** Vencimento da conta que o lançamento pagou: só confirmação de despesa que se repete e tem vencimento. */
+        private LocalDate vencimento(Lancamento l, Grupo g) {
+            Recorrencia r = l.recorrenciaId() != null ? recorrencias.get(l.recorrenciaId()) : null;
+            return r != null && g.tipo() == TipoMovimento.DESPESA ? r.vencimentoEm(l.competenciaRecorrencia()) : null;
         }
 
         Categoria categoria(Long id) {

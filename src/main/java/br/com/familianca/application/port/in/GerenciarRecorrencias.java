@@ -2,6 +2,7 @@ package br.com.familianca.application.port.in;
 
 import br.com.familianca.application.port.in.GerenciarLancamentos.LancamentoDetalhado;
 import br.com.familianca.domain.model.Categoria;
+import br.com.familianca.domain.model.FormaPagamento;
 import br.com.familianca.domain.model.Frequencia;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Membro;
@@ -39,12 +40,26 @@ public interface GerenciarRecorrencias {
     RecorrenciaDetalhada desfazerPulo(Long id, Competencia competencia);
 
     /**
+     * Vencimento diferente só nesta ocorrência (o boleto do mês veio para outro dia), até 2 meses antes ou depois do
+     * mês. Nulo volta ao dia cadastrado. Só conta com vencimento.
+     */
+    RecorrenciaDetalhada ajustarVencimento(Long id, Competencia competencia, LocalDate vencimento);
+
+    /**
      * membroId nulo = o membro logado; fim nulo = sem prazo. confirmarSozinha: as ocorrências que vencem a partir de
-     * hoje viram lançamento sozinhas (só despesa; receita precisa ser conferida).
+     * hoje viram lançamento sozinhas (só despesa; receita precisa ser conferida). semVencimento e formaPagamento:
+     * só despesa (ver {@link Recorrencia}).
      */
     record DadosRecorrencia(Long categoriaId, Long membroId, String descricao, Dinheiro valor, int dia,
                             Frequencia frequencia, Competencia inicio, Competencia fim, String observacao,
-                            boolean confirmarSozinha) {
+                            boolean confirmarSozinha, boolean semVencimento, FormaPagamento formaPagamento) {
+
+        public DadosRecorrencia(Long categoriaId, Long membroId, String descricao, Dinheiro valor, int dia,
+                                Frequencia frequencia, Competencia inicio, Competencia fim, String observacao,
+                                boolean confirmarSozinha) {
+            this(categoriaId, membroId, descricao, valor, dia, frequencia, inicio, fim, observacao, confirmarSozinha,
+                    false, null);
+        }
     }
 
     /**
@@ -59,7 +74,8 @@ public interface GerenciarRecorrencias {
                                 Dinheiro valorNoAno, Dinheiro valorAnualizado, Previsao previsao) {
     }
 
+    /** @param vencimento nulo = conta sem vencimento (ou receita) */
     record OcorrenciaPendente(RecorrenciaDetalhada recorrencia, Competencia competencia, LocalDate data,
-                              Dinheiro valorPrevisto) {
+                              Dinheiro valorPrevisto, LocalDate vencimento) {
     }
 }

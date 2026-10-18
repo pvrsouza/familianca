@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { Check, PencilLine, SkipForward, Undo2 } from 'lucide-vue-next'
+import { CalendarClock, Check, PencilLine, SkipForward, Undo2 } from 'lucide-vue-next'
 import { recorrencias as api } from '../api/servicos'
 import type { Recorrencia } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
-import { competenciaPorExtenso, reais } from '../util/formato'
+import { competenciaPorExtenso, dataPorExtenso, diasEntre, hoje, reais, vencimentoDe } from '../util/formato'
 import CampoValor from './CampoValor.vue'
 import Mensagem from './Mensagem.vue'
 
@@ -31,6 +31,38 @@ const ocupado = ref(false)
 const erro = ref('')
 const mes = computed(() => competenciaPorExtenso(props.competencia))
 
+// ——— Vencimento e data do pagamento (despesa com vencimento) ———
+const vencimento = computed(() => (receita.value ? null : vencimentoDe(props.recorrencia, props.competencia)))
+const debito = computed(() => props.recorrencia.formaPagamento === 'DEBITO_AUTOMATICO')
+const ajustado = computed(() => props.recorrencia.vencimentosAjustados.some((v) => v.competencia === props.competencia))
+// Já venceu: supõe pago no vencimento (corrija se foi depois). Ainda vai vencer: pago hoje.
+const pagoEm = ref(vencimento.value && vencimento.value <= hoje() ? vencimento.value : hoje())
+const atraso = computed(() => (vencimento.value && pagoEm.value ? Math.max(0, diasEntre(vencimento.value, pagoEm.value)) : null))
+const textoAtraso = computed(() => {
+  if (atraso.value == null) return ''
+  if (atraso.value === 0) return 'em dia'
+  return `${atraso.value} ${atraso.value === 1 ? 'dia' : 'dias'} de atraso`
+})
+
+const mudandoVencimento = ref(false)
+const novoVencimento = ref(vencimento.value ?? '')
+
+async function salvarVencimento(valor: string | null) {
+  ocupado.value = true
+  erro.value = ''
+  try {
+    await api.ajustarVencimento(props.recorrencia.id, props.competencia, valor)
+    sessao.avisarMudanca()
+    emit('feito', valor
+      ? `${props.recorrencia.descricao}: em ${mes.value} vence em ${dataPorExtenso(valor)}. Os outros meses continuam no dia ${props.recorrencia.dia}.`
+      : `${props.recorrencia.descricao}: ${mes.value} voltou a vencer no dia ${props.recorrencia.dia}.`)
+  } catch (e) {
+    erro.value = mensagemDeErro(e)
+  } finally {
+    ocupado.value = false
+  }
+}
+
 function abrirOutroValor() {
   valor.value = props.valorPrevisto
   outroValor.value = true
@@ -45,11 +77,13 @@ async function confirmar() {
   erro.value = ''
   try {
     const v = outroValor.value ? valor.value! : props.valorPrevisto
-    await api.confirmar(props.recorrencia.id, props.competencia, outroValor.value ? v : undefined)
+    await api.confirmar(props.recorrencia.id, props.competencia, outroValor.value ? v : undefined,
+      vencimento.value ? pagoEm.value : undefined)
     sessao.avisarMudanca()
     emit('feito', receita.value
       ? `${props.recorrencia.descricao}: ${reais(v)} recebidos em ${mes.value}.`
-      : `${props.recorrencia.descricao} de ${mes.value} confirmada: ${reais(v)}.`)
+      : `${props.recorrencia.descricao} de ${mes.value} confirmada: ${reais(v)}`
+        + (textoAtraso.value ? `, paga ${textoAtraso.value}.` : '.'))
   } catch (e) {
     erro.value = mensagemDeErro(e)
   } finally {
@@ -78,7 +112,48 @@ async function pular() {
 <template>
   <div class="conferir">
     <p v-if="receita" class="pergunta">Chegou? Previsto: <span class="selo selo-previsto num">{{ reais(valorPrevisto) }}</span></p>
-    <p v-else class="pergunta">Previsto: <span class="selo selo-previsto num">{{ reais(valorPrevisto) }}</span></p>
+    <p v-else class="pergunta">
+      Previsto: <span class="selo selo-previsto num">{{ reais(valorPrevisto) }}</span>
+      <span v-if="vencimento" class="vence" :class="{ vencida: vencimento < hoje() }">
+        <CalendarClock aria-hidden="true" />
+        {{ vencimento < hoje() ? 'Venceu' : 'Vence' }} em {{ dataPorExtenso(vencimento) }}<template v-if="ajustado"> (só neste mês)</template>
+      </span>
+    </p>
+
+    <div v-if="vencimento && podeAlterar && !confirmandoPulo" class="pagamento">
+      <template v-if="mudandoVencimento">
+        <label class="rotulo" :for="`venc-${recorrencia.id}-${competencia}`">Vencimento só em {{ mes }}</label>
+        <div class="linha">
+          <input :id="`venc-${recorrencia.id}-${competencia}`" v-model="novoVencimento" class="entrada data" type="date" />
+          <button type="button" class="botao botao-primario botao-pequeno" :disabled="ocupado || !novoVencimento"
+                  @click="salvarVencimento(novoVencimento)">Salvar vencimento</button>
+          <button v-if="ajustado" type="button" class="botao botao-sutil botao-pequeno" :disabled="ocupado"
+                  @click="salvarVencimento(null)">Voltar ao dia {{ recorrencia.dia }}</button>
+          <button type="button" class="botao botao-sutil botao-pequeno" :disabled="ocupado" @click="mudandoVencimento = false">
+            <Undo2 aria-hidden="true" /> Voltar
+          </button>
+        </div>
+        <p class="ajuda">
+          Para quando o boleto deste mês veio com outra data. Muda só {{ mes }}: os outros meses continuam vencendo no
+          dia {{ recorrencia.dia }}. Pode ser até 2 meses antes ou depois.
+        </p>
+      </template>
+      <template v-else>
+        <div class="linha">
+          <label class="rotulo" :for="`pago-${recorrencia.id}-${competencia}`">{{ debito ? 'Debitado em' : 'Pago em' }}</label>
+          <input :id="`pago-${recorrencia.id}-${competencia}`" v-model="pagoEm" class="entrada data" type="date"
+                 :aria-describedby="`pago-ajuda-${recorrencia.id}-${competencia}`" />
+          <span v-if="textoAtraso" class="selo" :class="atraso ? 'selo-atraso' : 'selo-verde'">{{ textoAtraso }}</span>
+          <button type="button" class="botao botao-sutil botao-pequeno" @click="mudandoVencimento = true; novoVencimento = vencimento ?? ''">
+            Vencimento diferente neste mês
+          </button>
+        </div>
+        <p :id="`pago-ajuda-${recorrencia.id}-${competencia}`" class="ajuda">
+          {{ debito ? 'O dia em que o débito saiu da conta.' : 'O dia em que a conta foi paga.' }} Comparado com o
+          vencimento, mostra se foi paga em dia ou com atraso.
+        </p>
+      </template>
+    </div>
 
     <template v-if="!podeAlterar">
       <p class="texto-2 nota">Só {{ recorrencia.membro?.nome ?? 'quem cadastrou' }} ou quem organiza a família confirma.</p>
@@ -208,5 +283,39 @@ async function pular() {
 
 .nota {
   font-size: var(--t-sm);
+}
+
+.vence {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--texto-2);
+}
+
+.vence svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.vence.vencida {
+  color: var(--coral-borda);
+}
+
+.pagamento {
+  display: grid;
+  gap: var(--e-1);
+}
+
+.pagamento .ajuda {
+  font-size: var(--t-xs);
+  line-height: 1.45;
+  color: var(--texto-2);
+}
+
+.data {
+  width: 10.5rem;
+  min-height: 2.25rem;
 }
 </style>

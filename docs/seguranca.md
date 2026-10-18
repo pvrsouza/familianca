@@ -78,6 +78,13 @@ entra no plano no fim deste arquivo.
 | Descrições já usadas (`GET /api/lancamentos/descricoes?q=`): categoria de outra família responde 404, consulta filtrada pela família da sessão, termo até 200 caracteres (422) e no máximo 8 resultados. A busca é JPQL com parâmetros: `unaccent` e `word_similarity` (pg_trgm) entram como funções registradas no Hibernate com modelo fixo, e `%`/`_` digitados são escapados (não viram curinga). As extensões vêm da migration V10 (trusted, criadas pelo dono do banco, sem superusuário) | `LancamentoService`, `FuncoesBusca`, `LancamentoJpaRepository`, `RecorrenciaJpaRepository`, `V10__busca_descricoes.sql` |
 | Testes: senha errada, limite de tentativas, MEMBRO (403), sem login, isolamento entre famílias nas duas rotas | `ApagarDadosApiTest`, `LancamentoApiTest` |
 
+**Vencimentos das contas (2026-10-18):**
+
+| Mudança | Onde |
+|---|---|
+| Vencimento só num mês (`PUT /api/recorrencias/{id}/ocorrencias/{competencia}/vencimento`): mesma permissão das outras ações da ocorrência (MEMBRO só nas próprias), recorrência de outra família = 404, data limitada a 2 meses antes ou depois do mês (domínio), forma de pagamento e "sem vencimento" validados no domínio e no serviço (receita não aceita forma de pagamento) | `RecorrenciaService`, `Recorrencia`, `RecorrenciaController` |
+| Migration V11 só aditiva (colunas com padrão, tabela filha com `on delete cascade`, como `recorrencia_excecao`). Rollback: a versão anterior funciona com o schema, mas não lê a frequência `UNICA`; só voltar de versão sem contas avulsas (anotado na migration) | `V11__vencimentos.sql` |
+
 **MFA e segredos não bloqueiam a primeira versão.** Sem `MFA_CHAVE`, a aplicação sobe com o MFA desligado
 (`GET /api/conta/mfa` → `disponivel: false`, e configurar responde 422). Os segredos fracos só geram aviso no log.
 Para ligar o MFA depois: gerar a chave (`openssl rand -hex 32`), colocar no `.env` do VPS, guardar junto com as

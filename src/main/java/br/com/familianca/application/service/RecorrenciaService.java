@@ -11,6 +11,7 @@ import br.com.familianca.domain.exception.ConflitoException;
 import br.com.familianca.domain.exception.NaoEncontradoException;
 import br.com.familianca.domain.exception.RegraNegocioException;
 import br.com.familianca.domain.model.Categoria;
+import br.com.familianca.domain.model.FormaPagamento;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Lancamento;
 import br.com.familianca.domain.model.Membro;
@@ -29,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -82,7 +84,8 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         Membro membro = validar(dados);
         Recorrencia nova = new Recorrencia(null, dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
                 dados.dia(), dados.frequencia(), dados.inicio(), dados.fim(), dados.observacao(), Set.of(),
-                dados.confirmarSozinha() ? relogio.hoje() : null);
+                dados.confirmarSozinha() ? relogio.hoje() : null, null, dados.semVencimento(),
+                dados.formaPagamento(), Map.of());
         return detalhar(recorrencias.salvar(nova));
     }
 
@@ -99,7 +102,7 @@ public class RecorrenciaService implements GerenciarRecorrencias {
                 : Competencia.de(relogio.hoje());
         Recorrencia editada = new Recorrencia(id, dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
                 dados.dia(), dados.frequencia(), dados.inicio(), dados.fim(), dados.observacao(), atual.puladas(),
-                desde, valorDesde);
+                desde, valorDesde, dados.semVencimento(), dados.formaPagamento(), atual.vencimentosAjustados());
         return detalhar(recorrencias.salvar(editada));
     }
 
@@ -132,7 +135,8 @@ public class RecorrenciaService implements GerenciarRecorrencias {
             for (Competencia c = de; !c.depoisDe(ate); c = c.seguinte()) {
                 if (r.ocorreEm(c) && !r.dataEm(c).isAfter(hoje) && !confirmadas.contains(new Ocorrencia(r.id(), c))) {
                     detalhada = detalhada != null ? detalhada : detalhar(r, d, previsao);
-                    pendentes.add(new OcorrenciaPendente(detalhada, c, r.dataEm(c), previsao.valorEm(r, c)));
+                    pendentes.add(new OcorrenciaPendente(detalhada, c, r.dataEm(c), previsao.valorEm(r, c),
+                            detalhada.grupo().tipo() == TipoMovimento.DESPESA ? r.vencimentoEm(c) : null));
                 }
             }
         }
@@ -175,6 +179,22 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         return detalhar(recorrencias.salvar(r.comPuladas(puladas)));
     }
 
+    @Override
+    public RecorrenciaDetalhada ajustarVencimento(Long id, Competencia competencia, LocalDate vencimento) {
+        obrigatorio(competencia, "competência");
+        Recorrencia r = exigir(id);
+        acesso.exigirPodeAlterar(r.membroId());
+        if (!r.agendadaEm(competencia)) {
+            throw new RegraNegocioException("A recorrência não tem ocorrência em " + competencia);
+        }
+        if (!r.temVencimento()) {
+            throw new RegraNegocioException(r.formaPagamento() == FormaPagamento.CARTAO_CREDITO
+                    ? "Conta cobrada no cartão não tem vencimento próprio: vale o vencimento da fatura"
+                    : "Esta conta está marcada como sem vencimento");
+        }
+        return detalhar(recorrencias.salvar(r.comVencimentoAjustado(competencia, vencimento)));
+    }
+
     /** Recorrência com ocorrência agendada na competência e ainda não confirmada, que o usuário pode alterar. */
     private Recorrencia exigirOcorrencia(Long id, Competencia competencia) {
         obrigatorio(competencia, "competência");
@@ -197,6 +217,9 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         if (dados.confirmarSozinha() && grupo.tipo() != TipoMovimento.DESPESA) {
             throw new RegraNegocioException("Só despesa confirma sozinha: receita que se repete precisa ser conferida");
         }
+        if (dados.formaPagamento() != null && grupo.tipo() != TipoMovimento.DESPESA) {
+            throw new RegraNegocioException("Forma de pagamento é só para despesa: receita não tem conta a pagar");
+        }
         Membro membro = acesso.responsavel(dados.membroId());
         acesso.exigirPodeAlterar(membro.id());
         return membro;
@@ -207,7 +230,8 @@ public class RecorrenciaService implements GerenciarRecorrencias {
     }
 
     private Detalhador detalhador() {
-        return new Detalhador(planoContas.listarCategorias(), planoContas.listarGrupos(), acesso.membrosPorId());
+        return new Detalhador(planoContas.listarCategorias(), planoContas.listarGrupos(), acesso.membrosPorId(),
+                recorrencias.listar());
     }
 
     private RecorrenciaDetalhada detalhar(Recorrencia r) {

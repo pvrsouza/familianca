@@ -4,6 +4,7 @@ import br.com.familianca.application.port.out.DescricaoUsada;
 import br.com.familianca.application.port.out.RecorrenciaRepository;
 import br.com.familianca.application.port.out.UsuarioAtual;
 import br.com.familianca.domain.exception.NaoEncontradoException;
+import br.com.familianca.domain.model.FormaPagamento;
 import br.com.familianca.domain.model.Frequencia;
 import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.vo.Competencia;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -65,6 +67,10 @@ public class RecorrenciaPersistenceAdapter implements RecorrenciaRepository {
         e.valorDesde = r.valorDesde() != null ? r.valorDesde().toString() : null;
         e.puladas.clear();
         r.puladas().forEach(c -> e.puladas.add(c.toString()));
+        e.semVencimento = r.semVencimento();
+        e.formaPagamento = r.formaPagamento() != null ? r.formaPagamento().name() : null;
+        e.vencimentos.clear();
+        r.vencimentosAjustados().forEach((c, v) -> e.vencimentos.put(c.toString(), v));
         return paraDominio(jpa.save(e));
     }
 
@@ -78,7 +84,10 @@ public class RecorrenciaPersistenceAdapter implements RecorrenciaRepository {
                 Frequencia.valueOf(e.frequencia), Competencia.parse(e.inicio),
                 e.fim != null ? Competencia.parse(e.fim) : null, e.observacao,
                 e.puladas.stream().map(Competencia::parse).collect(Collectors.toSet()), e.confirmarSozinhaDesde,
-                e.valorDesde != null ? Competencia.parse(e.valorDesde) : null);
+                e.valorDesde != null ? Competencia.parse(e.valorDesde) : null, e.semVencimento,
+                e.formaPagamento != null ? FormaPagamento.valueOf(e.formaPagamento) : null,
+                e.vencimentos.entrySet().stream().collect(Collectors.toMap(
+                        v -> Competencia.parse(v.getKey()), Map.Entry::getValue)));
     }
 
     @Override

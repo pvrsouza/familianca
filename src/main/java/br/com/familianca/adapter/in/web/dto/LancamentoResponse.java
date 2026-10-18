@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 public record LancamentoResponse(Long id, TipoMovimento tipo, CategoriaRef categoria, GrupoRef grupo,
@@ -20,7 +21,12 @@ public record LancamentoResponse(Long id, TipoMovimento tipo, CategoriaRef categ
                                  String competenciaRecorrencia,
                                  @Schema(description = "Posição na compra parcelada (nulo = à vista).")
                                  ParcelaResponse parcela,
-                                 String observacao) {
+                                 String observacao,
+                                 @Schema(description = "Vencimento da conta que este lançamento pagou (confirmação de "
+                                         + "despesa que se repete e tem vencimento); nulo = não tem.")
+                                 LocalDate vencimento,
+                                 @Schema(description = "Dias pagos depois do vencimento: 0 = em dia; nulo = sem vencimento.")
+                                 Integer diasAtraso) {
 
     public static LancamentoResponse de(LancamentoDetalhado d) {
         Lancamento l = d.lancamento();
@@ -29,7 +35,14 @@ public record LancamentoResponse(Long id, TipoMovimento tipo, CategoriaRef categ
                 l.recorrenciaId(), l.competenciaRecorrencia() != null ? l.competenciaRecorrencia().toString() : null,
                 l.parcela() != null ? new ParcelaResponse(l.parcela().parcelamentoId(), l.parcela().numero(),
                         l.parcela().total()) : null,
-                l.observacao());
+                l.observacao(), d.vencimento(), diasAtraso(l.data(), d.vencimento()));
+    }
+
+    private static Integer diasAtraso(LocalDate pagamento, LocalDate vencimento) {
+        if (vencimento == null) {
+            return null;
+        }
+        return pagamento.isAfter(vencimento) ? (int) ChronoUnit.DAYS.between(vencimento, pagamento) : 0;
     }
 
     public record ParcelaResponse(UUID parcelamentoId, int numero, int total) {
