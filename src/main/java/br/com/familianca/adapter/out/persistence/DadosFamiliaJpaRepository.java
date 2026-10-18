@@ -6,8 +6,9 @@ import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
 /**
- * Exclusões em lote de tudo o que é da família, na ordem das chaves estrangeiras. As exceções das recorrências e os
- * movimentos dos investimentos saem junto (on delete cascade), mas os movimentos vão explicitamente antes.
+ * Exclusões em lote de tudo o que é da família, na ordem das chaves estrangeiras. As exceções das recorrências, os
+ * saldos de cada lugar no mês e os movimentos dos investimentos saem junto (on delete cascade), mas os movimentos vão
+ * explicitamente antes.
  */
 public interface DadosFamiliaJpaRepository extends Repository<FamiliaEntity, Long> {
 
@@ -22,6 +23,10 @@ public interface DadosFamiliaJpaRepository extends Repository<FamiliaEntity, Lon
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from SaldoMesEntity s where s.familiaId = :familiaId")
     int apagarSaldos(@Param("familiaId") Long familiaId);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from LocalSaldoEntity l where l.familiaId = :familiaId")
+    int apagarLocaisSaldo(@Param("familiaId") Long familiaId);
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""

@@ -8,6 +8,7 @@ import br.com.familianca.domain.vo.Dinheiro;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Component
@@ -26,7 +27,10 @@ public class SaldoPersistenceAdapter implements SaldoRepository {
     @Transactional(readOnly = true)
     public List<SaldoMes> listar(int ano) {
         return jpa.findByFamiliaIdAndCompetenciaBetween(usuario.familiaId(), ano + "-01", ano + "-12").stream()
-                .map(e -> new SaldoMes(Competencia.parse(e.competencia), Dinheiro.of(e.valor), e.observacao))
+                .map(e -> new SaldoMes(Competencia.parse(e.competencia), Dinheiro.of(e.valor), e.observacao,
+                        e.dataReferencia, e.porLocal.entrySet().stream()
+                        .map(p -> new SaldoMes.PorLocal(p.getKey(), Dinheiro.of(p.getValue())))
+                        .sorted(Comparator.comparing(SaldoMes.PorLocal::localId)).toList()))
                 .toList();
     }
 
@@ -37,6 +41,8 @@ public class SaldoPersistenceAdapter implements SaldoRepository {
         e.competencia = saldo.competencia().toString();
         e.valor = saldo.valor().valor();
         e.observacao = saldo.observacao();
+        e.dataReferencia = saldo.dataReferencia();
+        saldo.porLocal().forEach(p -> e.porLocal.put(p.localId(), p.valor().valor()));
         jpa.save(e);
         return saldo;
     }

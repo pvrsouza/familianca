@@ -1,0 +1,21 @@
+info:
+  name: Excluir lugar
+  type: http
+  seq: 4
+  tags:
+    - Lugares do saldo
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/api/locais-saldo/1"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  409 se o lugar já entrou no saldo de algum mês: desative.

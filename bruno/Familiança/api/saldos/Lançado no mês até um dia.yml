@@ -1,0 +1,22 @@
+info:
+  name: Lançado no mês até um dia
+  type: http
+  seq: 4
+  tags:
+    - Saldos
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/saldos/movimento?ate=2026-10-18"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Receitas e despesas lançadas do dia 1º do mês até `ate`. A tela usa para mostrar a conta do saldo de um dia
+  (ex.: hoje) para o do dia 1º: saldo do dia − recebido + pago. Só o DONO.

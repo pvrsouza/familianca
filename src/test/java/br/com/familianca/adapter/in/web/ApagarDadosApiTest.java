@@ -23,7 +23,9 @@ class ApagarDadosApiTest extends IntegracaoBase {
         postarERetornarId("/api/recorrencias", """
                 {"categoriaId": %d, "descricao": "Internet", "valor": 99.90, "dia": 10, "frequencia": "MENSAL",
                  "inicio": "2026-01"}""".formatted(categoria("Habitação", "Internet")));
-        mvc.perform(put("/api/saldos/2026-01").contentType(APPLICATION_JSON).content("{\"valor\": 5000}"))
+        Long conta = postarERetornarId("/api/locais-saldo", "{\"nome\": \"Corrente\", \"tipo\": \"CONTA_CORRENTE\"}");
+        mvc.perform(put("/api/saldos/2026-01").contentType(APPLICATION_JSON)
+                        .content("{\"porLocal\": [{\"localId\": %d, \"valor\": 5000}]}".formatted(conta)))
                 .andExpect(status().isOk());
         Long cdb = postarERetornarId("/api/investimentos", "{\"nome\": \"CDB\", \"tipo\": \"RENDA_FIXA\"}");
         mvc.perform(put("/api/investimentos/{id}/movimentos/2026-01", cdb).contentType(APPLICATION_JSON)
@@ -46,7 +48,8 @@ class ApagarDadosApiTest extends IntegracaoBase {
         mvc.perform(post(URL).contentType(APPLICATION_JSON).content("{\"senha\": \"%s\"}".formatted(SENHA_PADRAO)))
                 .andExpect(status().isNoContent());
 
-        for (String tabela : new String[]{"lancamento", "recorrencia", "saldo_mes", "investimento"}) {
+        for (String tabela : new String[]{"lancamento", "recorrencia", "saldo_mes", "saldo_mes_local", "local_saldo",
+                "investimento"}) {
             assertThat(contar(tabela, dono)).as(tabela).isZero();
         }
         assertThat(jdbc.queryForObject("select count(*) from movimento_investimento", Integer.class)).isZero();

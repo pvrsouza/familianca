@@ -1,17 +1,18 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Copy, MessageCircle, Pencil, Trash2 } from 'lucide-vue-next'
-import { familia as api } from '../api/servicos'
-import type { Convite, Membro, Papel } from '../api/tipos'
+import { Copy, MessageCircle, Pencil, Plus, Trash2 } from 'lucide-vue-next'
+import { familia as api, lugaresSaldo } from '../api/servicos'
+import type { Convite, LugarSaldo, Membro, Papel } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { catalogo } from '../estado/catalogo'
 import { avisar } from '../estado/avisos'
-import { dataCurta, dataPorExtenso, primeiroNome } from '../util/formato'
+import { TIPOS_LUGAR_SALDO, dataCurta, dataPorExtenso, primeiroNome } from '../util/formato'
 import Mensagem from '../componentes/Mensagem.vue'
 import PainelLateral from '../componentes/PainelLateral.vue'
 import CampoSenha from '../componentes/CampoSenha.vue'
+import FormLugarSaldo from '../componentes/FormLugarSaldo.vue'
 
 const router = useRouter()
 const f = computed(() => sessao.estado.familia)
@@ -33,6 +34,50 @@ const statusPlano = computed(() => {
   if (a.status === 'ATIVA') return a.validaAte ? `Ativo até ${dataPorExtenso(a.validaAte, true)}` : 'Ativo'
   return 'Cancelado'
 })
+
+// ——— Onde está o dinheiro ———
+// Os lugares do saldo (conta, poupança, cofrinho...). O saldo de cada um se informa no fluxo de caixa; aqui se
+// renomeia, troca o dono, desativa (some dos meses novos, fica nos antigos) ou exclui o que nunca entrou num saldo.
+const lugares = ref<LugarSaldo[]>([])
+const lugarEmEdicao = ref<number | 'novo' | null>(null)
+const erroLugar = ref('')
+
+onMounted(async () => {
+  try {
+    lugares.value = await lugaresSaldo.listar()
+  } catch (e) {
+    erroLugar.value = mensagemDeErro(e)
+  }
+})
+
+const nomeMembro = (id: number | null) => f.value?.membros.find((m) => m.id === id)?.nome ?? null
+
+function lugarSalvo(l: LugarSaldo) {
+  const existe = lugares.value.some((x) => x.id === l.id)
+  lugares.value = existe ? lugares.value.map((x) => (x.id === l.id ? l : x)) : [...lugares.value, l]
+  lugarEmEdicao.value = null
+  avisar(existe ? `${l.nome} atualizado.` : `${l.nome} incluído. O saldo dele se informa no fluxo de caixa.`)
+}
+
+async function alternarLugar(l: LugarSaldo) {
+  erroLugar.value = ''
+  try {
+    lugarSalvo(await lugaresSaldo.atualizar(l.id, { nome: l.nome, tipo: l.tipo, membroId: l.membroId, ativo: !l.ativo }))
+  } catch (e) {
+    erroLugar.value = mensagemDeErro(e)
+  }
+}
+
+async function excluirLugar(l: LugarSaldo) {
+  erroLugar.value = ''
+  try {
+    await lugaresSaldo.remover(l.id)
+    lugares.value = lugares.value.filter((x) => x.id !== l.id)
+    avisar(`${l.nome} excluído.`)
+  } catch (e) {
+    erroLugar.value = mensagemDeErro(e)
+  }
+}
 
 // ——— Nome e meta ———
 const editandoNome = ref(false)
@@ -267,6 +312,53 @@ async function apagarDados() {
           </p>
         </section>
 
+        <section class="secao">
+          <div class="secao-cabecalho">
+            <h2>Onde está o dinheiro</h2>
+            <p>Contas, poupança, dinheiro na mão, cofrinho. Servem para informar o saldo inicial lugar a lugar, no
+              fluxo de caixa.</p>
+          </div>
+          <Mensagem v-if="erroLugar" tipo="erro">{{ erroLugar }}</Mensagem>
+          <ul v-if="lugares.length" class="lista painel">
+            <li v-for="l in lugares" :key="l.id" class="lugar" :class="{ inativo: !l.ativo }">
+              <FormLugarSaldo v-if="lugarEmEdicao === l.id" :lugar="l" :id-base="`lugar-${l.id}`" class="editar-lugar"
+                              @salvo="lugarSalvo" @cancelar="lugarEmEdicao = null" />
+              <template v-else>
+                <span class="quem">
+                  <span class="nome">{{ l.nome }}</span>
+                  <span class="email">
+                    {{ TIPOS_LUGAR_SALDO[l.tipo].rotulo }} · {{ nomeMembro(l.membroId) ?? 'da família toda' }}
+                  </span>
+                </span>
+                <span v-if="!l.ativo" class="selo">desativado</span>
+                <div v-if="dono" class="acoes acoes-membro">
+                  <button type="button" class="botao botao-sutil botao-pequeno" @click="lugarEmEdicao = l.id">
+                    <Pencil aria-hidden="true" /> Editar
+                  </button>
+                  <button type="button" class="botao botao-sutil botao-pequeno" @click="alternarLugar(l)"
+                          :title="l.ativo ? 'Deixa de aparecer nos meses novos; os saldos antigos continuam iguais.' : undefined">
+                    {{ l.ativo ? 'Desativar' : 'Reativar' }}
+                  </button>
+                  <button type="button" class="botao botao-sutil botao-pequeno" :aria-label="`Excluir ${l.nome}`"
+                          title="Só dá para excluir o que nunca entrou num saldo; o resto, desativem."
+                          @click="excluirLugar(l)">
+                    <Trash2 aria-hidden="true" />
+                  </button>
+                </div>
+              </template>
+            </li>
+          </ul>
+          <p v-else-if="lugarEmEdicao !== 'novo'" class="texto-2 vazio-lugares">
+            Nenhum lugar ainda. Cadastrem aqui ou direto no saldo inicial, no fluxo de caixa.
+          </p>
+          <FormLugarSaldo v-if="lugarEmEdicao === 'novo'" id-base="lugar-novo" @salvo="lugarSalvo"
+                          @cancelar="lugarEmEdicao = null" />
+          <button v-else-if="dono" type="button" class="botao botao-sutil botao-pequeno incluir-lugar"
+                  @click="lugarEmEdicao = 'novo'">
+            <Plus aria-hidden="true" /> Incluir lugar
+          </button>
+        </section>
+
         <section v-if="f.convitesPendentes.length" class="secao">
           <h2>Convites esperando resposta</h2>
           <ul class="lista painel">
@@ -339,8 +431,9 @@ async function apagarDados() {
         <section v-if="dono" class="painel painel-corpo apagar">
           <h2>Recomeçar do zero</h2>
           <p class="texto-2">
-            Apaga de vez todo o orçamento da família: lançamentos, recorrências, saldos, investimentos e as categorias
-            criadas por vocês. Serve para recomeçar ou para ter certeza de que os dados saíram daqui.
+            Apaga de vez todo o orçamento da família: lançamentos, recorrências, saldos e lugares do dinheiro,
+            investimentos e as categorias criadas por vocês. Serve para recomeçar ou para ter certeza de que os dados
+            saíram daqui.
           </p>
           <button type="button" class="botao botao-perigo" @click="abrirApagar">
             <Trash2 aria-hidden="true" /> Apagar todos os dados
@@ -424,7 +517,8 @@ async function apagarDados() {
   gap: var(--e-5);
 }
 
-.membro {
+.membro,
+.lugar {
   flex-wrap: wrap;
 }
 
@@ -564,5 +658,20 @@ async function apagarDados() {
     grid-template-columns: 1fr;
   }
 
+}
+.lugar.inativo .nome {
+  color: var(--texto-2);
+}
+
+.editar-lugar {
+  flex: 1;
+}
+
+.incluir-lugar {
+  margin-top: var(--e-3);
+}
+
+.vazio-lugares {
+  font-size: var(--t-sm);
 }
 </style>

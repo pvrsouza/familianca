@@ -1,7 +1,7 @@
 import { api } from './http'
 import type {
   Carteira, Categoria, Convite, ConviteAberto, Estimativa, Familia, FormaPagamento, Frequencia, Grupo, Impacto, Investimento, Lancamento, Membro,
-  Movimento, Natureza, Papel, Pendente, Periodicidade, Recorrencia, Saldo, SituacaoMfa, Tipo, TipoInvestimento,
+  Movimento, Natureza, Papel, Pendente, Periodicidade, Recorrencia, Saldo, MovimentoDoMes, LugarSaldo, TipoLugarSaldo, SituacaoMfa, Tipo, TipoInvestimento,
   UsuarioLogado, VisaoAnual,
 } from './tipos'
 
@@ -152,9 +152,28 @@ export const recorrencias = {
 
 export const saldos = {
   listar: (ano: number) => api.get<Saldo[]>(`/api/saldos?ano=${ano}`),
-  definir: (competencia: string, valor: number, observacao?: string) =>
-    api.put<Saldo>(`/api/saldos/${competencia}`, { valor, observacao: observacao || null }),
+  /**
+   * Sem dataReferencia, o valor é o do dia 1º; com ela, o saldo nesse dia (o fluxo volta até o dia 1º).
+   * Com porLocal, o total é a soma dos lugares e valor é ignorado.
+   */
+  definir: (competencia: string, d: { valor: number | null; porLocal: { localId: number; valor: number }[] | null;
+    observacao?: string; dataReferencia?: string | null }) =>
+    api.put<Saldo>(`/api/saldos/${competencia}`, {
+      valor: d.valor, porLocal: d.porLocal, observacao: d.observacao || null, dataReferencia: d.dataReferencia || null,
+    }),
+  /** Receitas e despesas lançadas do dia 1º do mês até a data. */
+  movimento: (ate: string) => api.get<MovimentoDoMes>(`/api/saldos/movimento?ate=${ate}`),
   remover: (competencia: string) => api.delete(`/api/saldos/${competencia}`),
+}
+
+type DadosLugar = { nome: string; tipo: TipoLugarSaldo; membroId: number | null; ativo?: boolean }
+
+export const lugaresSaldo = {
+  listar: () => api.get<LugarSaldo[]>('/api/locais-saldo'),
+  criar: (d: DadosLugar) => api.post<LugarSaldo>('/api/locais-saldo', d),
+  atualizar: (id: number, d: DadosLugar) => api.put<LugarSaldo>(`/api/locais-saldo/${id}`, d),
+  /** Só se nunca entrou num saldo (409: desativar). */
+  remover: (id: number) => api.delete(`/api/locais-saldo/${id}`),
 }
 
 export const investimentos = {

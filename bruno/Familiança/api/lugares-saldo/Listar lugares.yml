@@ -1,0 +1,18 @@
+info:
+  name: Listar lugares
+  type: http
+  seq: 1
+  tags:
+    - Lugares do saldo
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/locais-saldo"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

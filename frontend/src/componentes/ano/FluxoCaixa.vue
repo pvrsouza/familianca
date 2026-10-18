@@ -1,15 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { Pencil } from 'lucide-vue-next'
-import type { Serie, SeriePercentual, VisaoAnual } from '../../api/tipos'
-import { saldos } from '../../api/servicos'
-import { mensagemDeErro } from '../../api/http'
+import type { LugarSaldo, Saldo, Serie, SeriePercentual, VisaoAnual } from '../../api/tipos'
+import { lugaresSaldo, saldos } from '../../api/servicos'
 import { sessao } from '../../estado/sessao'
-import { avisar } from '../../estado/avisos'
 import { MESES, MESES_CURTOS, competencia, pct, reais, reaisCurtos, variacao } from '../../util/formato'
-import PainelLateral from '../PainelLateral.vue'
-import CampoValor from '../CampoValor.vue'
 import Mensagem from '../Mensagem.vue'
+import PainelSaldo from './PainelSaldo.vue'
 
 // O resumo da planilha: (1) sobra do mês anterior, (2) renda, (3) aplicações, (4) disponível = 1 + 2 − 3,
 // (5) despesas e o fluxo líquido = 4 − 5. A sobra vem do saldo em conta informado ou do mês anterior.
@@ -85,51 +82,41 @@ function pcts(s: SeriePercentual) {
 }
 
 // ——— Saldo em conta ———
+// Informado uma vez (o saldo inicial) e corrigido quando o banco mostra outro valor; nos outros meses a sobra vem
+// sozinha do mês anterior. O painel (PainelSaldo) explica as regras.
 const editando = ref<number | null>(null)
-const valorSaldo = ref<number | null>(null)
-const obsSaldo = ref('')
-const salvando = ref(false)
-const erro = ref('')
 const podeEditar = computed(() => sessao.dono.value)
+const temSaldoInicial = computed(() => r.value.sobraInformada.some(Boolean))
+/** Botão rápido: corrigir o mês atual ou, sem saldo nenhum ainda, informar o inicial. */
+const mesDoBotao = computed(() => (props.mesAtual ?? 1) - 1)
 
-function abrirSaldo(i: number) {
-  editando.value = i
-  valorSaldo.value = r.value.sobraInformada[i] ? r.value.sobraMesAnterior.valores[i] : null
-  obsSaldo.value = ''
-  erro.value = ''
+// Saldos como foram informados (valor, dia e lugares), para o painel e a dica da célula.
+const informados = ref<Saldo[]>([])
+const lugares = ref<LugarSaldo[]>([])
+watch(() => props.visao, async () => {
+  try {
+    ;[informados.value, lugares.value] = await Promise.all([saldos.listar(props.visao.ano), lugaresSaldo.listar()])
+  } catch {
+    informados.value = [] // só a dica da célula deixa de aparecer
+  }
+}, { immediate: true })
+
+/** "2026-10-18" → "18/10" */
+function diaMes(iso: string): string {
+  const [, mes, dia] = iso.split('-')
+  return `${dia}/${mes}`
 }
 
-async function salvarSaldo() {
-  if (editando.value === null || valorSaldo.value === null) {
-    erro.value = 'Informe o saldo somado das contas.'
-    return
+function dicaSaldo(i: number): string | undefined {
+  const s = informados.value.find((x) => x.competencia === competencia(props.visao.ano, i + 1))
+  if (!s || !r.value.sobraInformada[i]) return undefined
+  const partes = [s.dataReferencia
+    ? `Saldo do dia 1º calculado do saldo de ${diaMes(s.dataReferencia)} (${reais(s.valor)}), desfazendo o que foi lançado de 1º até esse dia.`
+    : 'Saldo do dia 1º informado.']
+  if (s.porLocal.length) {
+    partes.push(s.porLocal.map((p) => `${lugares.value.find((l) => l.id === p.localId)?.nome ?? 'Lugar'}: ${reais(p.valor)}`).join(' · '))
   }
-  salvando.value = true
-  try {
-    await saldos.definir(competencia(props.visao.ano, editando.value + 1), valorSaldo.value, obsSaldo.value.trim())
-    avisar(`Saldo de ${MESES[editando.value]} guardado.`)
-    editando.value = null
-    emit('mudou')
-  } catch (e) {
-    erro.value = mensagemDeErro(e)
-  } finally {
-    salvando.value = false
-  }
-}
-
-async function removerSaldo() {
-  if (editando.value === null) return
-  salvando.value = true
-  try {
-    await saldos.remover(competencia(props.visao.ano, editando.value + 1))
-    avisar('Saldo removido. O mês volta a usar a sobra do mês anterior.')
-    editando.value = null
-    emit('mudou')
-  } catch (e) {
-    erro.value = mensagemDeErro(e)
-  } finally {
-    salvando.value = false
-  }
+  return partes.join(' ')
 }
 </script>
 
@@ -159,15 +146,16 @@ async function removerSaldo() {
           <tr class="sobra">
             <th scope="row">
               Sobra do mês anterior
-              <span class="ajuda">ou o saldo em conta informado</span>
+              <span class="ajuda">ou o saldo do dia 1º informado</span>
             </th>
             <td v-for="(v, i) in r.sobraMesAnterior.valores" :key="i" :class="{ atual: mesAtual === i + 1 }">
               <button v-if="podeEditar" type="button" class="celula-editavel" :class="{ informado: r.sobraInformada[i] }"
-                      :aria-label="`Informar o saldo em conta de ${MESES[i]}`" @click="abrirSaldo(i)">
+                      :aria-label="`Informar o saldo em conta do dia 1º de ${MESES[i]}`" :title="dicaSaldo(i)"
+                      @click="editando = i">
                 <span class="num">{{ valor(v, true) }}</span>
                 <Pencil class="lapis" aria-hidden="true" />
               </button>
-              <span v-else class="num" :class="{ informado: r.sobraInformada[i] }">{{ valor(v, true) }}</span>
+              <span v-else class="num" :class="{ informado: r.sobraInformada[i] }" :title="dicaSaldo(i)">{{ valor(v, true) }}</span>
             </td>
             <td class="num">{{ valor(r.sobraMesAnterior.ano, true) }}</td>
           </tr>
@@ -184,10 +172,17 @@ async function removerSaldo() {
         </tbody>
       </table>
     </div>
-    <p class="legenda-saldo">
-      <span class="ponto" aria-hidden="true" /> Mês com saldo em conta informado. Nos outros, a sobra é o fluxo do mês
-      anterior.<template v-if="podeEditar"> Toque num valor da primeira linha para informar o saldo.</template>
-    </p>
+    <div class="legenda-saldo">
+      <p>
+        <span class="ponto" aria-hidden="true" /> Mês com saldo em conta informado, sempre o do dia 1º. Informem o saldo
+        uma vez, no mês em que começaram; depois cada mês começa com a sobra do anterior.<template v-if="podeEditar">
+        Se o banco mostrar outro valor, corrijam: a diferença vale daquele mês em diante.</template>
+      </p>
+      <button v-if="podeEditar" type="button" class="botao botao-sutil botao-pequeno" @click="editando = mesDoBotao">
+        <Pencil aria-hidden="true" />
+        {{ temSaldoInicial ? `Corrigir o saldo de ${MESES[mesDoBotao]}` : 'Informar o saldo inicial' }}
+      </button>
+    </div>
 
     <section class="secao">
       <div class="secao-cabecalho">
@@ -250,28 +245,7 @@ async function removerSaldo() {
       </div>
     </section>
 
-    <PainelLateral :aberto="editando !== null"
-                   :titulo="editando !== null ? `Saldo em conta: ${MESES[editando]}` : ''"
-                   descricao="A soma das contas da família no início do mês. Ela vira a sobra desse mês no fluxo."
-                   @fechar="editando = null">
-      <form v-if="editando !== null" class="formulario" novalidate @submit.prevent="salvarSaldo">
-        <div class="campo">
-          <label for="s-valor">Saldo somado</label>
-          <CampoValor id="s-valor" v-model="valorSaldo" negativo />
-          <span class="ajuda">Pode ser negativo (cheque especial, por exemplo).</span>
-        </div>
-        <div class="campo">
-          <label for="s-obs">Quais contas entraram <span class="texto-2">(opcional)</span></label>
-          <input id="s-obs" v-model="obsSaldo" class="entrada" maxlength="200" placeholder="Ex.: conta corrente + poupança" />
-        </div>
-        <Mensagem v-if="erro" tipo="erro">{{ erro }}</Mensagem>
-        <div class="acoes fim">
-          <button v-if="r.sobraInformada[editando]" type="button" class="botao botao-perigo" :disabled="salvando"
-                  @click="removerSaldo">Remover saldo</button>
-          <button type="submit" class="botao botao-primario" :disabled="salvando">Guardar</button>
-        </div>
-      </form>
-    </PainelLateral>
+    <PainelSaldo :visao="visao" :mes="editando" :informados="informados" @fechar="editando = null" @mudou="emit('mudou')" />
   </div>
 </template>
 
@@ -421,6 +395,18 @@ async function removerSaldo() {
   margin-top: calc(var(--e-2) * -1);
 }
 
+div.legenda-saldo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2) var(--e-4);
+}
+
+div.legenda-saldo p {
+  max-width: 70ch;
+}
+
 .fluxo .secao .legenda-saldo {
   margin-top: var(--e-2);
 }
@@ -433,10 +419,6 @@ async function removerSaldo() {
   border-radius: 50%;
   background: var(--petroleo);
   vertical-align: middle;
-}
-
-.fim {
-  justify-content: flex-end;
 }
 
 @media (max-width: 640px) {

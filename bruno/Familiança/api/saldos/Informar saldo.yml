@@ -7,13 +7,17 @@ info:
 
 http:
   method: PUT
-  url: "{{baseUrl}}/api/saldos/2026-01"
+  url: "{{baseUrl}}/api/saldos/2026-10"
   body:
     type: json
     data: |-
       {
-        "valor": 5000,
-        "observacao": "Conta corrente + PJ"
+        "porLocal": [
+          { "localId": 1, "valor": 95000 },
+          { "localId": 2, "valor": 5000 }
+        ],
+        "observacao": "Conferido no extrato",
+        "dataReferencia": "2026-10-18"
       }
   auth: inherit
 
@@ -23,3 +27,7 @@ settings:
   followRedirects: true
   maxRedirects: 5
   forwardAuthorizationHeader: false
+
+docs: |
+  Saldo lugar a lugar (porLocal): o total é a soma. Para corrigir rápido, mande só "valor". Com dataReferencia, o
+  valor é o saldo nesse dia e o fluxo volta até o dia 1º.

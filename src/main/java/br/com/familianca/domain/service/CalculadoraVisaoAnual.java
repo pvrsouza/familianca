@@ -4,6 +4,7 @@ import br.com.familianca.domain.model.Categoria;
 import br.com.familianca.domain.model.Estimativa;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Lancamento;
+import br.com.familianca.domain.model.MovimentoDoMes;
 import br.com.familianca.domain.model.Natureza;
 import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.model.SaldoMes;
@@ -290,8 +291,15 @@ public final class CalculadoraVisaoAnual {
         SerieMensal receitasVariaveis = somaPorNatureza(receitas, Natureza.VARIAVEL);
         SerieMensal despesasFixas = somaPorNatureza(despesas, Natureza.FIXA);
         SerieMensal despesasVariaveis = somaPorNatureza(despesas, Natureza.VARIAVEL);
+        Map<Long, TipoMovimento> tipoGrupo = e.grupos().stream()
+                .collect(Collectors.toMap(Grupo::id, Grupo::tipo));
+        Map<Long, TipoMovimento> tipoPorCategoria = e.categorias().stream()
+                .filter(c -> tipoGrupo.containsKey(c.grupoId()))
+                .collect(Collectors.toMap(Categoria::id, c -> tipoGrupo.get(c.grupoId())));
+        // Saldo informado de outro dia (ex.: hoje) vira o do dia 1º, desfazendo o lançado de 1º até esse dia.
         Map<Competencia, Dinheiro> saldos = e.saldos().stream()
-                .collect(Collectors.toMap(SaldoMes::competencia, SaldoMes::valor));
+                .collect(Collectors.toMap(SaldoMes::competencia, s -> s.noDiaPrimeiro(s.dataReferencia() == null
+                        ? null : MovimentoDoMes.ate(s.dataReferencia(), e.lancamentos(), tipoPorCategoria))));
 
         SerieMensal sobra = SerieMensal.ZERO;
         List<Boolean> informada = new ArrayList<>();

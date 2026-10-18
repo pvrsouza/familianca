@@ -1,0 +1,30 @@
+info:
+  name: Criar lugar
+  type: http
+  seq: 2
+  tags:
+    - Lugares do saldo
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/locais-saldo"
+  body:
+    type: json
+    data: |-
+      {
+        "nome": "Cofrinho do João",
+        "tipo": "COFRINHO",
+        "membroId": null
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Tipos: CONTA_CORRENTE, POUPANCA, DINHEIRO, COFRINHO, INVESTIMENTO (só o que não está na carteira de
+  investimentos), OUTRO. membroId nulo = da família toda ou de alguém sem acesso. Só o DONO.

@@ -1,0 +1,27 @@
+info:
+  name: Desativar lugar
+  type: http
+  seq: 3
+  tags:
+    - Lugares do saldo
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/locais-saldo/1"
+  body:
+    type: json
+    data: |-
+      {
+        "nome": "Cofrinho do João",
+        "tipo": "COFRINHO",
+        "membroId": null,
+        "ativo": false
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

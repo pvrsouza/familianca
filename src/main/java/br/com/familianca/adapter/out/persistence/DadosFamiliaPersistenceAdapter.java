@@ -24,10 +24,11 @@ public class DadosFamiliaPersistenceAdapter implements DadosFamiliaRepository {
         int lancamentos = jpa.apagarLancamentos(familiaId);
         int recorrencias = jpa.apagarRecorrencias(familiaId);
         int saldos = jpa.apagarSaldos(familiaId);
+        int locaisSaldo = jpa.apagarLocaisSaldo(familiaId);
         jpa.apagarMovimentosInvestimento(familiaId);
         int investimentos = jpa.apagarInvestimentos(familiaId);
         int categorias = jpa.apagarCategorias(familiaId);
         int grupos = jpa.apagarGrupos(familiaId);
-        return new Apagados(lancamentos, recorrencias, saldos, investimentos, grupos, categorias);
+        return new Apagados(lancamentos, recorrencias, saldos, locaisSaldo, investimentos, grupos, categorias);
     }
 }

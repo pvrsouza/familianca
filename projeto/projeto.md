@@ -241,10 +241,36 @@ Pontos de atenção constante na hora de desenvolver.
   (4) saldo disponível = 1 + 2 − 3, (5) despesas, fluxo líquido = 4 − 5.
   - A sobra do mês é o **saldo em conta informado** pela família no início do mês; sem ele, o fluxo líquido do mês
     anterior (o saldo vai sendo carregado).
+  - **O saldo informado vale sempre como o do dia 1º (2026-10-18).** Quem começa no meio do mês costuma ter em mãos o
+    saldo de hoje, que já descontou as contas pagas no mês; informar esse valor como o do dia 1º e lançar as contas
+    pagas desconta tudo duas vezes. Por isso o DONO escolhe "O de hoje" (ou outro dia do mês até hoje) ou "O do dia 1º":
+    - com dia, o sistema guarda o valor e o dia, e o fluxo usa como dia 1º: saldo do dia − receitas lançadas de 1º
+      até o dia + despesas lançadas de 1º até o dia (inclusive). Ex.: 100.000 em 18/10, com 3.000 de contas e 9.000
+      de salário lançados em outubro = 94.000 no dia 1º;
+    - a conta é refeita a cada visão: conta paga no período e lançada depois entra sozinha; o que for lançado para
+      depois do dia não entra;
+    - a tela mostra a conta antes de guardar; mês que ainda não começou só aceita o saldo do dia 1º;
+    - aplicação em investimento não tem dia, então não entra na conta: a tela pede para somá-la ao saldo do dia.
+  - **Saldo inicial e correções (2026-10-18).** A família informa o saldo **uma vez**, no mês em que começa a usar
+    (o "saldo inicial"); nos meses seguintes cada mês começa sozinho com a sobra do anterior. Informar o saldo de um
+    mês depois do inicial é uma **correção**: o painel mostra o valor calculado pelo sistema (a sobra do mês anterior)
+    e a diferença para o valor real, que passa a valer daquele mês em diante. Na tabela, o botão "Corrigir o saldo de
+    <mês atual>" (ou "Informar o saldo inicial") abre o painel direto.
+  - **Saldo lugar a lugar.** O saldo pode ser informado só no total (o jeito rápido de corrigir) ou **lugar a lugar**,
+    o padrão do saldo inicial. Os lugares são cadastrados uma vez e voltam prontos: conta corrente ou digital,
+    poupança, dinheiro na mão, cofrinho, investimento de resgate rápido ou outro. Cada um tem dono opcional (um membro;
+    sem dono = da família toda ou de alguém sem acesso, como o cofrinho de uma criança, com o nome da pessoa no nome
+    do lugar). Com lugares, o total do mês é a soma deles; lugar em branco não entra naquele mês.
+    - Retroativo a qualquer tempo: quem entra na família depois inclui os lugares dele no saldo inicial, com o saldo
+      do mesmo dia, e o saldo inicial é refeito.
+    - Investimento só entra como lugar se **não** for acompanhado na aba Investimentos; senão contaria duas vezes (a
+      tela avisa).
+    - Lugar que já entrou num saldo não pode ser excluído, só desativado: some dos meses novos e continua nos antigos.
+      Em Família, "Onde está o dinheiro" lista os lugares para renomear, trocar o dono, desativar ou excluir.
 - **Apagar todos os dados (2026-10-18):** em Família, "Recomeçar do zero" (só quem organiza) apaga de vez todo o
-  orçamento: lançamentos, recorrências (com meses confirmados e pulados), saldos informados, investimentos e o
-  plano de contas, que volta a ser o padrão de família nova. Ficam a família, as pessoas, os convites, o plano e as
-  contas de cada um. Pede o nome da família digitado e a senha de quem apaga; serve para recomeçar ou para garantir
+  orçamento: lançamentos, recorrências (com meses confirmados e pulados), saldos informados e os lugares do
+  dinheiro, investimentos e o plano de contas, que volta a ser o padrão de família nova. Ficam a família, as
+  pessoas, os convites, o plano e as contas de cada um. Pede o nome da família digitado e a senha de quem apaga; serve para recomeçar ou para garantir
   que os dados saíram do sistema. Fica registrado na auditoria (sem dado pessoal). Não depende do plano.
 - **Por pessoa:** receitas e despesas de cada membro e o peso de cada um no orçamento da família — a clareza do
   impacto de cada um no orçamento do provedor.
@@ -343,4 +369,5 @@ anual. Faturas de cartão ficaram num grupo "Cartões de crédito" (uma categori
 - **Meta de aporte por mês:** a planilha muda o % ao longo do ano (30% → 50%); o sistema tem uma meta só.
 - **Cartões:** as faturas sem detalhe são o maior gasto do ano atual, o que reforça a pendência de cartões.
 - Orçamento planejado × realizado por categoria (meta de gasto).
-- Notas fiscais PJ por cliente e saldo de contas por banco (abas "NF Pjs" e "Saldo CC" da planilha).
+- Notas fiscais PJ por cliente (aba "NF Pjs" da planilha). O saldo por conta (aba "Saldo CC") entrou como saldo
+  lugar a lugar; falta a evolução mês a mês de cada lugar.

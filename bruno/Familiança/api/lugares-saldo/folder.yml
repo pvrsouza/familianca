@@ -1,0 +1,6 @@
+info:
+  name: "lugares-saldo"
+  type: folder
+
+request:
+  auth: inherit

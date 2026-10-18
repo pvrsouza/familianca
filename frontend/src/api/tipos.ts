@@ -273,6 +273,27 @@ export interface Saldo {
   competencia: string
   valor: number
   observacao: string | null
+  /** Dia a que o valor se refere; nulo = já é o do dia 1º. */
+  dataReferencia: string | null
+  /** Saldo de cada lugar (conta, cofrinho...); vazio = só o total. */
+  porLocal: { localId: number; valor: number }[]
+}
+
+export type TipoLugarSaldo = 'CONTA_CORRENTE' | 'POUPANCA' | 'DINHEIRO' | 'COFRINHO' | 'INVESTIMENTO' | 'OUTRO'
+
+/** Onde está o dinheiro da família. membroId nulo = da família toda ou de quem não usa o Familiança. */
+export interface LugarSaldo {
+  id: number
+  nome: string
+  tipo: TipoLugarSaldo
+  membroId: number | null
+  ativo: boolean
+}
+
+export interface MovimentoDoMes {
+  ate: string
+  recebido: number
+  pago: number
 }
 
 export interface Investimento {

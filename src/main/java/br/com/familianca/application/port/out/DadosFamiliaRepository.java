@@ -6,6 +6,7 @@ public interface DadosFamiliaRepository {
     Apagados apagarTudo();
 
     /** Quantos registros saíram de cada parte, para a auditoria. */
-    record Apagados(int lancamentos, int recorrencias, int saldos, int investimentos, int grupos, int categorias) {
+    record Apagados(int lancamentos, int recorrencias, int saldos, int locaisSaldo, int investimentos, int grupos,
+                    int categorias) {
     }
 }

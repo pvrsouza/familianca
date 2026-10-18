@@ -172,8 +172,9 @@ public class FamiliaService implements GerenciarFamilia {
         Apagados apagados = dados.apagarTudo();
         planoContas.criarModelo(familiaId, CatalogoCategorias.padrao());
         log.info("auditoria evento=DADOS_FAMILIA_APAGADOS usuarioId={} familiaId={} lancamentos={} recorrencias={} "
-                        + "saldos={} investimentos={} grupos={} categorias={}", usuario.id(), familiaId,
-                apagados.lancamentos(), apagados.recorrencias(), apagados.saldos(), apagados.investimentos(),
+                        + "saldos={} locaisSaldo={} investimentos={} grupos={} categorias={}", usuario.id(), familiaId,
+                apagados.lancamentos(), apagados.recorrencias(), apagados.saldos(), apagados.locaisSaldo(),
+                apagados.investimentos(),
                 apagados.grupos(), apagados.categorias());
     }
 

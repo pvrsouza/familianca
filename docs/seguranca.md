@@ -85,6 +85,15 @@ entra no plano no fim deste arquivo.
 | Vencimento só num mês (`PUT /api/recorrencias/{id}/ocorrencias/{competencia}/vencimento`): mesma permissão das outras ações da ocorrência (MEMBRO só nas próprias), recorrência de outra família = 404, data limitada a 2 meses antes ou depois do mês (domínio), forma de pagamento e "sem vencimento" validados no domínio e no serviço (receita não aceita forma de pagamento) | `RecorrenciaService`, `Recorrencia`, `RecorrenciaController` |
 | Migration V11 só aditiva (colunas com padrão, tabela filha com `on delete cascade`, como `recorrencia_excecao`). Rollback: a versão anterior funciona com o schema, mas não lê a frequência `UNICA`; só voltar de versão sem contas avulsas (anotado na migration) | `V11__vencimentos.sql` |
 
+**Saldo do dia e saldo lugar a lugar (2026-10-18):**
+
+| Mudança | Onde |
+|---|---|
+| Saldo com dia (`dataReferencia`) e conta do saldo de um dia para o do dia 1º (`GET /api/saldos/movimento`): só DONO, dia dentro do mês e não futuro (422), soma só os lançamentos da família da sessão | `SaldoService`, `SaldoMes`, `MovimentoDoMes`, `SaldoController` |
+| Lugares do saldo (`/api/locais-saldo`): consultar qualquer membro, alterar só DONO; lugar e dono (membro) de outra família = 404; nome obrigatório, até 80 caracteres e sem repetir na família (409); tipo fechado; até 50 lugares por saldo, cada um uma vez; lugar já usado não é excluído (409, desativar) | `LocalSaldoService`, `LocalSaldoController`, `SaldoService`, `SaldoRequest` |
+| Migrations V12 e V13 só aditivas (coluna nula; tabelas novas, valores do mês com `on delete cascade` no saldo). "Apagar todos os dados" também apaga os lugares e seus valores. Rollback anotado nas migrations | `V12__saldo_do_dia.sql`, `V13__locais_saldo.sql`, `DadosFamiliaPersistenceAdapter` |
+| Testes: MEMBRO (403) ao alterar, isolamento entre famílias, apagar dados com lugares | `SaldoApiTest`, `ApagarDadosApiTest` |
+
 **MFA e segredos não bloqueiam a primeira versão.** Sem `MFA_CHAVE`, a aplicação sobe com o MFA desligado
 (`GET /api/conta/mfa` → `disponivel: false`, e configurar responde 422). Os segredos fracos só geram aviso no log.
 Para ligar o MFA depois: gerar a chave (`openssl rand -hex 32`), colocar no `.env` do VPS, guardar junto com as

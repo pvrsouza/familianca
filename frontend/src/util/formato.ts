@@ -184,6 +184,20 @@ export const TIPOS_INVESTIMENTO: Record<string, string> = {
   PREVIDENCIA: 'Previdência', CRIPTO: 'Cripto', OUTRO: 'Outro',
 }
 
+/** Onde está o dinheiro: rótulo, explicação curta e um exemplo de nome. */
+export const TIPOS_LUGAR_SALDO: Record<string, { rotulo: string; explica: string; exemplo: string }> = {
+  CONTA_CORRENTE: { rotulo: 'Conta corrente ou digital', explica: 'Conta no banco ou no aplicativo.', exemplo: 'Ex.: Nubank da Ana' },
+  POUPANCA: { rotulo: 'Poupança', explica: 'O que está guardado na poupança.', exemplo: 'Ex.: Poupança Caixa' },
+  DINHEIRO: { rotulo: 'Dinheiro na mão', explica: 'Dinheiro guardado em casa ou na carteira.', exemplo: 'Ex.: Carteira do Pablo' },
+  COFRINHO: { rotulo: 'Cofrinho', explica: 'O porquinho das crianças também conta.', exemplo: 'Ex.: Cofrinho do João' },
+  INVESTIMENTO: {
+    rotulo: 'Investimento de resgate rápido',
+    explica: 'Só a reserva que vocês não acompanham na aba Investimentos. Se ela já está lá, não incluam aqui: o valor contaria duas vezes.',
+    exemplo: 'Ex.: CDB de liquidez diária',
+  },
+  OUTRO: { rotulo: 'Outro', explica: 'Qualquer outro lugar com dinheiro disponível.', exemplo: 'Ex.: saldo do vale-alimentação' },
+}
+
 export function primeiroNome(nome: string): string {
   return nome.trim().split(/\s+/)[0] ?? nome
 }
