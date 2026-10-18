@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Backend DEV (Postgres local)",
+      "request": "launch",
+      "mainClass": "br.com.familianca.FamiliancaApplication",
+      "projectName": "familianca",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node-terminal",
+      "name": "Frontend DEV (Vite)",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/frontend"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Back + Front DEV",
+      "configurations": ["Backend DEV (Postgres local)", "Frontend DEV (Vite)"],
+      "stopAll": true
+    }
+  ]
+}
