@@ -1,0 +1,284 @@
+# Objetivo
+
+Um sistem aque me permita ter uma visão anual de despesas. Atualmente já realizo meu controle pessoal com uma planilha que me atende super bem, porém queria dar um passo maior nos níveis de controle e de posssibilidades.
+
+O principal objetivo é ser um orcamento familiar, sendo assim, teremos grupos de pessoas alimentando a mesma conta o que dará uma visáo familiar muito boa.
+
+Inicilamente será um produto que eu irei testar e utilizar para controle pessoal familiar mas a ideia, e sempre tenha isso em mente, é que ele vire um produto e que possamos cobrar assinatura para sua utilizacao.
+
+O maior diferencial dele será a visão anual das depesas e o impacto de uma pequena despesa no ano. Eu sempre tive essa dificuldade em outras ferramentas porque eu cadatrava uma despesa mas sempre calculava mentalmente quando aquilo representava. Hoje com essa planilha eu consigo ter uma visão rápida de quanto cada caterogia e grupo de despesa representa no ano.
+
+Alem disso o diferencial é ser uma ferramenta para familia. E nao limitado a ser uma planilha de gastos pessoais. No meu caso mesmo, eu sou o provedor da familia e toda a familia precisa ter clareza do impacto das depesas delas no orcamento do provedor.
+
+
+Vamos dar o nome de Familiança ao sistema. Família + finança + aliança. São três palavras numa só: o “-liança” de família, o “-nança” de finança e a ideia de aliança, ou seja, a família unida em torno do orçamento. Combina exatamente com o que você descreveu: o provedor e a família alinhados, cada um ciente do impacto dos seus gastos.
+
+Soa natural em português, como se a palavra já existisse.
+Não passa a ideia de controle, e sim de pacto.
+Uma frase possível: “Familiança: o orçamento é de todos.”
+Domínios: familianca.com.br ✅, familianca.com ✅, familianca.app ✅, livres nas três extensões.
+
+# Onde se inspirar
+- Irei passar a planilha que eu uso atualmente para que sirva de base. projeto/Orçamento Familiar.xlsx
+- Seguir a mesma formula do ../controle-alugueis
+  - Mesma stack
+  - Mesma estrutuda de ambiente de desenvolvimento com Dev Container
+  - Mesma estrutura de containers
+  - Mesma Arquitetura — Hexagonal (Ports & Adapters)
+  - Vamos seguir com o deploy na mesma vps já utilizada no controle de alugueis
+  - Mesma logica de seguranca de usuários
+
+# regras de negocio
+- Obter inicilamente as regras da planilha informada
+- O sistema deve permitir a inclusao, remocao e desativaáo de cagetorias e grupos de categorias das despesas e receitas.
+- Sempre que uma conta nova for criada, vamos decidir quais categorias básicas devem ser criadas. Já para facilitar a experiencia do usuário
+- O sistema será multi usuário poderemos ter mais de um
+
+# Rules
+- Nunca commit a planilha que estou fornecendo como inpiracao. Ela tem dados pessoais. Só use para que possamos contruir a solução.
+- usar o skill do REA se for necessário
+- usar skill do impecable quando entramos na fase de frontend
+- Esse arquivo será nosso principal documento de projeto, então tudo que for criado serja registrado aqui automaticamente. Isso nao inclui os documentos tecnicos ( deploy, detalhes de arquitetura, readme, ambiente de desenvolvimento, deploy em producao ,etc) que estarão em documentos separados. Aqui será o projeto em alto nível (regras de negocio, pendencias, planos futuros etc.). 
+
+
+# Pontos de atenção
+Pontos de atenção constante na hora de desenvolver.
+- Futuramente teremos assinatura para utilizacao do servico em mar aberto. Entáo sempre que for criar uma estrutura nova pensar nisso, visto que geralmente em assinatura de servicos dessa forma, as funcionalidades são separadas por planos. Tenha sempre isso em foco desde o comeco do desenolvimento para já estarmos preparados para esse momento de comecar a cobrar e integrar com pagamento recorrente.
+- Pensar que futuramente teremos um sistema mobile consumindo nosso backend.
+- **Segurança em todo desenvolvimento.** Toda funcionalidade nova (backend, front, infra) é avaliada contra os 13
+  requisitos mínimos (HTTPS, senhas com hash, MFA, rate limit, validação de inputs, sanitização, SQL injection,
+  migrations, rollback, controle de acesso, expiração de sessão, secrets, CORS) e aplica os que forem pertinentes.
+  O checklist prático está em [`docs/seguranca.md`](../docs/seguranca.md), seção "Checklist para cada
+  desenvolvimento". O que ficar de fora entra no plano do mesmo arquivo, e nunca é esquecido.
+
+
+
+---
+
+# Andamento
+
+| Fase | Situação |
+|---|---|
+| Backend — fase 1 (núcleo, visão anual, família, investimentos, PJ) | ✅ Implementado e testado (2026-10-17) |
+| Coleção do Bruno + Swagger para testar tudo pela API | ✅ |
+| Marca e identidade visual v1 ([`marca.md`](marca.md)) | ✅ Definida (2026-10-17); validar com famílias e criar o logo |
+| Frontend v1 em Vue (skill impeccable) — todas as telas do backend | ✅ Implementado (2026-10-17); validar com a família |
+| Carga da planilha real (2022–2026) pela API, na família do provedor (ambiente local) | ✅ Feita (2026-10-17); totais conferem com a planilha |
+| Deploy no VPS do controle-alugueis | ⏳ Infra pronta (`infra/deploy`), guia e subida pendentes |
+| Assinatura paga (gateway de pagamento recorrente) | 📋 Futuro |
+| App mobile | 📋 Futuro (backend já preparado) |
+
+# Decisões tomadas
+
+- **Lançamentos + recorrência** (não uma grade valor × mês como a planilha): cada receita/despesa é um lançamento
+  com data, valor, categoria e a pessoa a quem pertence. O que se repete é uma **recorrência**, que aparece como
+  **prevista** no ano inteiro até ser confirmada. Assim a visão anual fica completa desde janeiro, como na planilha,
+  e ainda sabemos quem gastou o quê.
+- **Família = conta.** Cadastro público: quem se cadastra cria a família e vira **DONO**; os demais entram por
+  **convite** (link). Por enquanto cada pessoa participa de uma única família.
+- **Papéis na família:** DONO (gerencia membros, convites, categorias, saldos, investimentos e assinatura; altera
+  qualquer lançamento) e MEMBRO (lança e altera só os próprios e vê o orçamento inteiro da família).
+- **Fase 1 inclui** inflação familiar, saldo/fluxo de caixa, investimentos e despesas PJ, além do núcleo.
+- **Front em Vue 3** (2026-10-17), servido pelo próprio Spring Boot (mesma origem). A tela principal é a **visão
+  anual em formato de planilha** ("planilha viva"): grupos que abrem em categorias, 12 meses, total, média, % e rank,
+  com 12 barras do ano no cabeçalho (despesa confirmada cheia, prevista tracejada em coral, traço verde da renda). No
+  celular, as 12 barras viram o seletor de mês.
+- **Nomes dos papéis na tela:** DONO aparece como "organiza" e MEMBRO como "participa" (a marca evita "dono" e
+  "chefe da casa").
+- **Planos desde o início** (ver "Planos e assinatura"): toda funcionalidade nova que puder ser vendida separada
+  entra como um recurso de plano.
+
+# Regras de negócio
+
+## Família, pessoas e acesso
+- Cadastro: nome, e-mail (login, único na plataforma) e senha de 12 a 64 caracteres. A família nasce com o nome
+  informado ou "Família de <primeiro nome>", com as categorias padrão e no **plano completo em teste por 30 dias**.
+- Convite: o DONO informa o e-mail e o papel; o sistema gera um link de uso único, válido por 7 dias, para enviar
+  por WhatsApp/e-mail. Quem abre o link cria a conta (nome e senha) com o e-mail do convite e já entra na família.
+  Não dá para convidar quem já tem conta ou já tem convite pendente; convite expirado pode ser refeito.
+- Pessoas na família = membros ativos + convites pendentes, limitadas pelo plano.
+- Remover um membro o **inativa**: ele não entra mais, mas os lançamentos dele continuam no histórico da família.
+- Ninguém remove nem muda o próprio papel, e a família sempre tem pelo menos um DONO ativo.
+- Mudar o papel ou remover alguém encerra as sessões abertas dessa pessoa.
+- Todos da família veem tudo da família; nenhuma família vê nada de outra.
+
+## Categorias (plano de contas)
+- Estrutura da planilha: **tipo** (receita/despesa) → **grupo** com natureza **fixa** ou **variável** (ex.:
+  Habitação, Saúde, Transporte, Despesas temporárias) → **categoria** (ex.: Supermercado, Plano de saúde).
+- Categorias básicas criadas em toda família nova (baseadas na planilha, sem dados pessoais):
+  - Receitas fixas: Salário, Benefícios, Aluguéis recebidos, Pensão e auxílios, Outras.
+  - Receitas variáveis: 13º, Férias, Bônus e PLR, Trabalhos extras, Dividendos e rendimentos, Reembolsos, Outras.
+  - Despesas fixas: Habitação, Saúde, Transporte, Despesas pessoais, Educação, Lazer, Outras despesas fixas.
+  - Despesas temporárias e variáveis: manutenção da casa e do veículo, médicos esporádicos, viagens, presentes,
+    utilidades domésticas, material de escritório, correios, outros.
+- O DONO inclui, edita, move (dentro do mesmo tipo), **desativa** e **exclui** grupos e categorias. Desativar
+  impede novos lançamentos e preserva o histórico; excluir só vale sem uso (grupo sem categorias; categoria sem
+  lançamentos e recorrências). Nomes não se repetem no mesmo tipo (grupo) ou grupo (categoria).
+- **Categoria recorrente (2026-10-17):** a categoria pode ser marcada como "repete todo mês" (ex.: aluguel,
+  telefone, salário). Ao lançar nela, o "Repetir no ano" já vem marcado: o lançamento vira uma recorrência a partir do
+  mês da data, esse mês entra confirmado (se a data já passou) e os próximos aparecem como previstos. Dá para
+  desmarcar e lançar só uma vez. As categorias padrão de família nova já vêm marcadas (salário, benefícios,
+  aluguéis, aluguel/financiamento, condomínio, energia, água, gás, internet, telefone, serviços domésticos, planos de
+  saúde e odontológico, financiamento do veículo, academia, mesadas, escola, pós, tarifas, assinaturas, serviços
+  digitais; no modelo PJ, INSS, contador e pró-labore). Famílias que já existiam começam com tudo desmarcado.
+  Categoria calculada por alíquota não pode ser recorrente.
+- **Tela de categorias (2026-10-17):** abas Despesas/Receitas, busca por nome, "Mostrar desativadas", os grupos à
+  esquerda e as categorias do grupo escolhido à direita (no celular, o grupo abre numa tela própria).
+- **Categoria no lançamento (2026-10-17):** o campo de categoria (lançamento e recorrência) tem busca pelo nome da
+  categoria ou do grupo, sem diferenciar acento. Sem resultado igual, o DONO cria a categoria ali mesmo, escolhendo o
+  grupo, e ela já fica escolhida; se existe uma desativada com o mesmo nome, ele a reativa em vez de duplicar. O
+  MEMBRO vê que deve pedir a quem organiza.
+- Item "Cartão de crédito X" da planilha não virou categoria: no sistema o gasto é lançado na categoria do que foi
+  comprado (ver pendência sobre cartões).
+
+## Lançamentos
+- Contam no mês da data. Valor sempre positivo; o tipo vem do grupo da categoria.
+- Cada lançamento pertence a uma pessoa da família (padrão: quem lança). MEMBRO só lança em nome próprio.
+- **Compra parcelada:** valor total dividido em 2 a 60 parcelas mensais a partir da data da 1ª; os centavos da
+  divisão vão para a 1ª parcela. Dá para excluir uma parcela ou a compra inteira.
+- Categoria desativada ou calculada por alíquota não recebe lançamento.
+
+## Recorrências
+- Receita ou despesa que se repete: mensal, bimestral, trimestral, semestral ou anual, a partir de um mês de
+  início, até um mês de fim (opcional), num dia do mês (31 vira o último dia em meses curtos).
+- Cada ocorrência aparece como **prevista** na visão anual até ser **confirmada** (vira lançamento com o valor e a
+  data reais) ou **pulada** (não houve naquele mês). Excluir a confirmação volta a ocorrência para prevista.
+- **Confirma sozinha** (por recorrência, só despesa, 2026-10-17): para débito automático e conta de valor fixo. O
+  que vence a partir do dia em que a opção foi ligada vira lançamento sozinho, com o valor e a data previstos (o que
+  já tinha vencido continua para conferir). Valor diferente: edita-se o lançamento. Excluir essa confirmação marca o
+  mês como pulado ("não houve"), senão ela voltaria a ser confirmada. Receita nunca confirma sozinha. Conta que varia
+  (energia, água) fica desligada e segue pedindo conferência. A confirmação roda nas consultas da própria família
+  (visão anual, lançamentos, recorrências), sem tarefa agendada; categoria desativada ou pessoa inativa ficam nas
+  pendentes.
+- **Receita recorrente pode não acontecer** (2026-10-17): a conferência de uma receita pergunta "chegou?" (Recebi o
+  valor previsto / Veio outro valor / Não recebi) e a renda prevista aparece à parte no resumo do ano. Despesa
+  recorrente segue com "confirmar o valor" ou "pular o mês". Na lista de pendentes, receitas e contas ficam separadas.
+- **Pular o mês pede confirmação (2026-10-17)** e explica o que acontece: o valor sai do ano, nada é lançado e os
+  outros meses continuam. Para desfazer, "Voltar a prever" aparece no próprio mês (clicando na célula da visão
+  anual) e no topo da recorrência, em Recorrências, que mostra na lista o mês pulado.
+- "Pendentes": ocorrências dos últimos 12 meses que já venceram e ainda não foram confirmadas nem puladas.
+- Editar a recorrência muda as ocorrências não confirmadas. Com ocorrências confirmadas não dá para excluir:
+  define-se o fim.
+- Cada recorrência mostra quanto pesa no ano atual e num ano cheio (ex.: R$ 39,90/mês = R$ 478,80/ano).
+
+## Visão anual (o diferencial)
+- **Atalho do valor (2026-10-17):** clicar no valor de uma categoria num mês abre o que forma aquele valor:
+  lançamentos (editar, excluir ou desfazer a confirmação) e previstos (confirmar ou pular). Com um lançamento só,
+  abre direto a edição; com o mês vazio, abre o "Lançar" com a categoria e a data preenchidas.
+- **Rank:** posição da categoria pelo total do ano, 1º = a que mais pesa, contada à parte para receitas e
+  despesas. Mostrado como "1º", com explicação e exemplo do próprio ano no cabeçalho da coluna.
+- **Esconder valores (olho na barra):** troca todo valor em reais por "•••••" em todas as telas, para usar em
+  público ou mostrar a tela sem expor números. Fica guardado só no navegador de cada pessoa; percentuais, rank e o
+  formato das barras continuam visíveis.
+- **Centavos (2026-10-17):** as tabelas do ano (visão anual, fluxo de caixa, por pessoa, carteira) mostram o valor
+  arredondado para o real por padrão; "Mostrar centavos" (na tabela ou em Minha conta) mostra o valor exato. Como o
+  olho, fica guardado só no navegador de cada pessoa.
+- **Estimativa dos próximos meses (2026-10-17):** despesa que não se repete (não recorrente, não calculada) ganha,
+  nos meses depois do atual, uma estimativa a partir dos meses que já passaram no ano: **média**, **maior mês**,
+  **menor mês** ou **não estimar**. A família escolhe a regra padrão (começa pela média, inclusive nas famílias que
+  já existiam) e cada categoria pode seguir a família ou ter a sua (em Categorias). Regras:
+  - Conta a partir do primeiro mês do ano com algum lançamento da família (antes disso ela não usava o app); a
+    média inclui os meses zerados dessa janela.
+  - O mês atual não é estimado (está em andamento); anos passados e futuros também não.
+  - Cada mês recebe só o que falta para chegar na estimativa: o que já foi lançado (parcelas) ou está previsto por
+    recorrência é descontado. Lançou o gasto real, ele ocupa o lugar da estimativa.
+  - A estimativa aparece como previsto (coral tracejado), entra nos totais, no fluxo de caixa e na inflação, e fica
+    fora da visão por pessoa (não é de ninguém). Receitas não são estimadas.
+  - Clicar no mês estimado explica o valor e de onde veio a regra.
+- O ano mês a mês, com total e média, para cada categoria, grupo, receitas e despesas. Cada valor separa
+  **realizado** (lançamentos) e **previsto** (recorrências).
+- Para cada categoria e grupo: **participação** no total de receitas/despesas do ano e **ranking** das categorias
+  (a coluna RANK da planilha).
+- **Inflação** de cada grupo e **inflação familiar** (despesas totais): variação mês a mês e acumulada no ano,
+  composta como na planilha. Diferença: mês zerado não entra como −100%, fica sem variação.
+- **Fluxo de caixa** no formato da planilha: (1) sobra do mês anterior, (2) renda total, (3) aplicações,
+  (4) saldo disponível = 1 + 2 − 3, (5) despesas, fluxo líquido = 4 − 5.
+  - A sobra do mês é o **saldo em conta informado** pela família no início do mês; sem ele, o fluxo líquido do mês
+    anterior (o saldo vai sendo carregado).
+- **Por pessoa:** receitas e despesas de cada membro e o peso de cada um no orçamento da família — a clareza do
+  impacto de cada um no orçamento do provedor.
+- **Simulação de impacto:** quanto um gasto representa no ano (único, diário, por dia útil, semanal, quinzenal,
+  mensal… anual): valor no ano, em 5 e 10 anos, % da renda e das despesas da família e quantos dias de renda ele
+  consome. Ex.: "R$ 15,00 por dia útil = R$ 3.780,00 no ano (4,2% da renda, 15,3 dias de renda)".
+
+## Investimentos (recurso de plano)
+- Carteira da família; por mês e investimento: aporte (negativo = resgate), rentabilidade do mês (%) e,
+  opcionalmente, o saldo do extrato, que prevalece sobre o calculado.
+- Saldo do mês = saldo anterior + rendimento (rentabilidade × saldo anterior) + aporte.
+- Os aportes entram no fluxo de caixa como "aplicação total no mês"; os rendimentos são a "renda dos
+  investimentos". **Grau de independência financeira** = renda dos investimentos ÷ despesas fixas.
+- **Meta de aporte** da família (% do que sobra no mês, renda − despesas) gera o "aporte previsto" de cada mês.
+- Rentabilidade da carteira por mês e acumulada no ano.
+
+## Despesas PJ (recurso de plano)
+- Receitas marcadas como **tributáveis** (ex.: notas fiscais emitidas) formam a base de cálculo.
+- Despesas com **alíquota** (Simples/DAS, ISS, PIS, IRPJ, CSLL) são calculadas todo mês como % das receitas
+  tributáveis do mês; não recebem lançamentos.
+- Grupo da **empresa** mostra o peso sobre as receitas tributáveis (o "% despesa fixa" da planilha).
+- Modelo PJ pronto (receita tributável + grupo da empresa com os impostos e custos fixos), aplicado sob demanda.
+
+# Planos e assinatura
+
+| Plano | Pessoas na família | Recursos |
+|---|---|---|
+| Gratuito | 2 | Núcleo: orçamento, recorrências, visão anual, inflação, fluxo de caixa, visão por pessoa, impacto |
+| Família | 6 | + Investimentos |
+| Premium | 12 | + Despesas PJ |
+
+- Família nova: Premium em teste por 30 dias. Assinatura vencida ou cancelada volta ao Gratuito (os dados ficam;
+  o recurso só fica indisponível).
+- Enquanto não há cobrança integrada, o ADMIN da plataforma ajusta a assinatura das famílias pela API.
+- Preços e nomes dos planos são provisórios.
+- **Segurança (2026-10-17):** avaliado contra os 13 requisitos mínimos ([`docs/seguranca.md`](../docs/seguranca.md)).
+  Entraram na v1: verificação em duas etapas **opcional** por aplicativo autenticador (com códigos de recuperação),
+  sessão de no máximo 12 h, limite geral de requisições, limpeza de texto livre e aviso de segredos fracos em
+  produção. MFA e segredos **não bloqueiam** a subida: sem `MFA_CHAVE` o MFA fica desligado; segredo fraco só avisa.
+
+# Pendências e planos futuros
+
+- **Segurança:** fases 1 a 3 do plano em [`docs/seguranca.md`](../docs/seguranca.md). Antes do deploy: script com
+  backup e rollback, tela do MFA no front. Antes de abrir para clientes: MFA obrigatório para ADMIN e e-mail
+  transacional. Depende de infra: gerenciador de segredos e rotação.
+- **Frontend — próximos passos** (v1 pronta; contexto em [`PRODUCT.md`](../PRODUCT.md)):
+  - Usar no dia a dia da família e ajustar as telas com o que aparecer.
+  - **Inflação da família no ano**: o acumulado inclui os meses futuros, que só têm o previsto (sem os gastos
+    variáveis), e por isso aparece muito negativo (ex.: −27,8%). Decidir se o acumulado vai só até o mês atual.
+  - Modo escuro (a marca prevê; tons a definir), tela de administração das famílias (hoje só pela API) e
+    landing page em familianca.com.br.
+  - Logo final: o front usa um símbolo provisório de 12 barras (`frontend/src/componentes/Marca.vue`).
+- **Marca:** validar com 5 a 8 famílias, depositar o pedido de registro de "Familiança" no INPI (classes 9 e 36;
+  busca de 2026-10-17 sem nenhum registro igual ou parecido) e finalizar o logo com um designer. Domínio
+  familianca.com.br já registrado.
+- **Deploy** no VPS do controle-alugueis: escrever o guia (`deploy_vps.md`), domínio (familianca.com.br /
+  .app), proxy, backup.
+- **Cobrança recorrente:** integração com gateway de pagamento, webhooks atualizando a assinatura, página de planos.
+- **E-mail:** enviar o convite por e-mail (hoje o link é copiado e compartilhado), confirmação de e-mail no cadastro
+  e "esqueci minha senha".
+- **App mobile:** ligar a sessão por header (`X-Auth-Token`) já preparada e o login do app.
+- **Uma pessoa em mais de uma família** (hoje é uma só) e "sair da família".
+- **Cartões de crédito:** forma de pagamento/cartão no lançamento e visão da fatura (a planilha controla faturas).
+- **Reajuste de recorrência a partir de um mês** (hoje editar o valor muda todas as ocorrências não confirmadas).
+- **Importar a planilha** (xlsx) de anos anteriores para o histórico. Já testado com um script fora do repositório
+  que usa só a API (2026-10-17, ver "Aprendizados da carga da planilha"). Como produto, precisa de uma rota de
+  importação em lote: pela API comum foram ~1.500 chamadas, 6 min com o teto de 300 req/min.
+
+## Aprendizados da carga da planilha (2026-10-17)
+
+Carga feita só pela API (cadastro de categorias, lançamentos, recorrências com confirmação e pulo, parcelados,
+saldos e investimentos). Renda, despesas e sobra do mês conferem com a planilha mês a mês nos 5 anos. Como foi
+mapeado: anos fechados viram lançamentos; no ano atual, o que se repete virou recorrência (meses passados
+confirmados com o valor real, futuros previstos) e pagamentos anuais (IPTU, IPVA, seguros) viraram recorrência
+anual. Faturas de cartão ficaram num grupo "Cartões de crédito" (uma categoria por cartão), por falta do detalhe.
+
+- **Bug — saldo informado vira rendimento:** no 1º mês de um investimento (ou num salto de saldo), a diferença
+  entre o saldo do extrato e o calculado conta toda como rendimento. Abrir a carteira com o saldo atual gera uma
+  "renda dos investimentos" do tamanho do saldo e um grau de independência irreal. Proposta: saldo inicial
+  separado (sem rendimento) e, num salto, perguntar se foi aporte ou rendimento.
+- **Alíquota com vigência:** o DAS da planilha varia de ~7,7% a ~10% das notas ao longo dos anos; com uma alíquota
+  única o histórico ficaria errado, então o DAS foi lançado valor a valor (a categoria perdeu a alíquota).
+- **Inflação mensal com gasto concentrado** (fatura grande, IR, reforma) oscila de −70% a +260% e não ajuda;
+  avaliar inflação só das despesas fixas/recorrentes ou média móvel de 12 meses (soma-se à pendência do acumulado).
+- **Meta de aporte por mês:** a planilha muda o % ao longo do ano (30% → 50%); o sistema tem uma meta só.
+- **Cartões:** as faturas sem detalhe são o maior gasto do ano atual, o que reforça a pendência de cartões.
+- Orçamento planejado × realizado por categoria (meta de gasto).
+- Notas fiscais PJ por cliente e saldo de contas por banco (abas "NF Pjs" e "Saldo CC" da planilha).
