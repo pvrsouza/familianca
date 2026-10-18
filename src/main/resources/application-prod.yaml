@@ -1,0 +1,26 @@
+# Ativado em produção (SPRING_PROFILES_ACTIVE=prod), atrás de um proxy reverso que termina o TLS (Caddy).
+server:
+  # Lê X-Forwarded-For/Proto do proxy: IP real (limite de login, auditoria) e HTTPS (cookie Secure, HSTS).
+  # Só é seguro com a aplicação acessível apenas pelo proxy (porta 8080 não publicada).
+  forward-headers-strategy: framework
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 5
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+management:
+  endpoint:
+    health:
+      show-details: never
+familianca:
+  seguranca:
+    # Sem MFA_CHAVE, o MFA fica desligado (a chave de desenvolvimento do application.yaml nunca vale aqui).
+    mfa:
+      chave: ${MFA_CHAVE:}
+    sessao:
+      cookie-seguro: true
+    hsts: true

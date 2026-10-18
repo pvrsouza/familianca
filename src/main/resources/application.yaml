@@ -1,0 +1,85 @@
+spring:
+  application:
+    name: familianca
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/familianca}
+    username: ${DB_USER:familianca}
+    password: ${DB_PASSWORD:familianca}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    locations: classpath:db/migration
+    # Usuário separado com permissão de DDL só para as migrations (ver README, "Usuários do banco").
+    # Sem FLYWAY_USER, usa o mesmo usuário da aplicação (ambiente local).
+    user: ${FLYWAY_USER:${DB_USER:familianca}}
+    password: ${FLYWAY_PASSWORD:${DB_PASSWORD:familianca}}
+  session:
+    # Tabelas versionadas no Flyway (V1), não criadas pelo Spring Session.
+    jdbc:
+      initialize-schema: never
+    timeout: ${SESSAO_TIMEOUT_WEB:30m}
+
+server:
+  port: 8080
+  error:
+    include-stacktrace: never
+    include-message: never
+
+# /actuator/health é público; os demais endpoints expostos exigem ADMIN (SecurityConfig).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+      roles: ADMIN
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+    # O Swagger lê o cookie XSRF-TOKEN e envia o header X-XSRF-TOKEN (login pelo próprio Swagger funciona).
+    csrf:
+      enabled: true
+
+familianca:
+  assinatura:
+    # Família nova começa no plano completo, em teste, por estes dias.
+    dias-teste: ${ASSINATURA_DIAS_TESTE:30}
+  convites:
+    # Link devolvido ao criar um convite: <url-base>/<token>. Validade do convite.
+    url-base: ${CONVITE_URL_BASE:http://localhost:5174/convite}
+    validade: ${CONVITE_VALIDADE:7d}
+  seguranca:
+    sessao:
+      # false só em desenvolvimento local por HTTP; o perfil prod liga.
+      cookie-seguro: ${SESSAO_COOKIE_SEGURO:false}
+      timeout-web: ${SESSAO_TIMEOUT_WEB:30m}
+      timeout-mobile: ${SESSAO_TIMEOUT_MOBILE:30d}
+      # App mobile: aceitar o id de sessão no header X-Auth-Token. Ver SessaoConfig.
+      token-header-habilitado: ${SESSAO_TOKEN_HEADER:false}
+      # Tempo máximo desde o login, mesmo com uso contínuo (a inatividade é o timeout-web).
+      duracao-maxima: ${SESSAO_DURACAO_MAXIMA:12h}
+    login:
+      max-tentativas: ${LOGIN_MAX_TENTATIVAS:5}
+      janela: ${LOGIN_JANELA:15m}
+    # Teto de requisições por IP em toda a /api (429 com Retry-After).
+    limite-api:
+      max-requisicoes: ${API_MAX_REQUISICOES:300}
+      janela: ${API_JANELA:1m}
+    # Verificação em duas etapas (TOTP). A chave cifra os segredos no banco. Em produção vem só de MFA_CHAVE
+    # (application-prod.yaml); sem ela, o MFA fica desligado e o resto funciona.
+    mfa:
+      emissor: Familiança
+      chave: ${MFA_CHAVE:chave-local-de-desenvolvimento-nao-use-em-producao}
+    # Origens do front que podem chamar a API de outro domínio (separadas por vírgula). Vazio = mesma origem.
+    cors-origens: ${FRONTEND_ORIGIN:}
+    hsts: false
+    # Opcional: ADMIN da plataforma criado no startup só se não existe nenhum usuário.
+    admin-inicial:
+      nome: ${ADMIN_NOME:Administrador}
+      email: ${ADMIN_EMAIL:}
+      senha: ${ADMIN_PASSWORD:}

@@ -1,0 +1,29 @@
+target/
+*.dump
+backups/
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+.DS_Store
+.claude/settings.local.json
+
+# Planilhas de referência têm dados pessoais: nunca versionar.
+*.xlsx
+*.xls
+*.ods
+
+# Segredos locais
+.env
+.env.prod
+bruno/**/.env
+
+# Front
+frontend/node_modules/
+frontend/dist/
+src/main/resources/static/
+
+# Capturas e rascunhos da skill impeccable (só para revisão local)
+.impeccable/review/
+.impeccable/mocks/
