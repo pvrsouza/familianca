@@ -6,6 +6,7 @@ import { recorrencias, visao as apiVisao } from '../api/servicos'
 import type { CategoriaVisao, Pendente, Tipo, VisaoAnual } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
+import { guia } from '../estado/guia'
 import { MESES, anoAtual, mesAtual, reais, variacao } from '../util/formato'
 import { useMidia } from '../util/midia'
 import TabelaAno from '../componentes/ano/TabelaAno.vue'
@@ -86,8 +87,9 @@ const inflacao = computed(() => dados.value?.resumo.inflacaoFamiliar.ano ?? null
 const tempo = computed(() => (ano.value < anoAtual() ? 'passado' : ano.value > anoAtual() ? 'futuro' : 'atual'))
 
 // ——— Como começar ———
-// Guia de quem está chegando (ou recomeçou do zero): aparece no ano corrente enquanto falta o saldo inicial ou o ano
-// está em branco. O saldo vem primeiro porque é o ponto de partida do fluxo; o painel dele abre aqui mesmo.
+// Guia de quem está chegando (ou recomeçou do zero), no ano corrente. O saldo inicial é obrigatório (pode ser zero ou
+// negativo) porque é o ponto de partida do fluxo; o painel dele abre aqui mesmo. Os outros passos podem ser pulados
+// (guardado no navegador). O guia some quando nada mais está pendente.
 const temSaldo = computed(() => !!dados.value?.resumo.sobraInformada.some(Boolean))
 const realizadas = computed(() =>
   dados.value ? dados.value.despesas.grupos.reduce((s, g) => s + g.realizado.reduce((a, b) => a + b, 0), 0) : 0,
@@ -96,51 +98,77 @@ const temFamilia = computed(() => {
   const f = sessao.estado.familia
   return !!f && (f.membros.filter((m) => m.ativo).length > 1 || f.convitesPendentes.length > 0)
 })
-const mostrarGuia = computed(() => tempo.value === 'atual' && !!dados.value && (!temSaldo.value || vazio.value))
 const saldoAberto = ref<number | null>(null)
+const familiaId = computed(() => sessao.estado.familia?.id ?? 0)
 
 interface Passo {
+  id: string
   titulo: string
   texto: string
   feito: boolean
+  /** O saldo inicial não se pula. */
+  obrigatorio: boolean
+  pulado: boolean
   acao?: { rotulo: string; para?: string; abrir?: () => void }
 }
 const passos = computed<Passo[]>(() => {
   const mes = mesAtual()
-  const nomeMes = MESES[mes - 1]
   const dono = sessao.dono.value
-  return [
+  const pulado = (id: string) => guia.pulado(familiaId.value, id)
+  const lista: Passo[] = [
     {
+      id: 'saldo',
       titulo: 'Informar quanto vocês têm hoje',
-      texto: dono
-        ? `O saldo de ${nomeMes}: contas, poupança, dinheiro na mão, cofrinho. É o ponto de partida; depois cada mês começa sozinho com a sobra do anterior.`
-        : 'O saldo inicial é informado por quem organiza a família. Ele é o ponto de partida do fluxo de caixa.',
+      texto: temSaldo.value
+        ? 'Feito. Para conferir ou corrigir, abram a aba Fluxo de caixa: o saldo fica na primeira linha.'
+        : dono
+          ? `O saldo de ${MESES[mes - 1]}: contas, poupança, dinheiro na mão, cofrinho. Mesmo que seja zero ou negativo. É o ponto de partida: depois cada mês começa sozinho com a sobra do anterior.`
+          : 'O saldo inicial é informado por quem organiza a família. Ele é o ponto de partida do fluxo de caixa.',
       feito: temSaldo.value,
-      acao: dono ? { rotulo: 'Informar saldo', abrir: () => (saldoAberto.value = mes - 1) } : undefined,
+      obrigatorio: true,
+      pulado: false,
+      acao: temSaldo.value
+        ? { rotulo: 'Conferir', abrir: () => trocarAba('fluxo') }
+        : dono ? { rotulo: 'Informar saldo', abrir: () => (saldoAberto.value = mes - 1) } : undefined,
     },
     {
+      id: 'recorrencias',
       titulo: 'Cadastrar o que se repete',
       texto: 'Salário, aluguel, escola, plano de saúde. Aparecem como previstos em todos os meses seguintes.',
       feito: !vazio.value,
+      obrigatorio: false,
+      pulado: pulado('recorrencias'),
       acao: { rotulo: 'Cadastrar', para: '/recorrencias?nova=1' },
     },
     {
+      id: 'lancamento',
       titulo: 'Lançar um gasto do dia a dia',
       texto: 'Mercado, farmácia, combustível. Inclusive o que já pagaram este mês.',
       feito: realizadas.value > 0.004,
+      obrigatorio: false,
+      pulado: pulado('lancamento'),
       acao: { rotulo: 'Lançar', para: '/lancamentos?novo=1' },
     },
-    ...(dono
-      ? [{
-          titulo: 'Trazer a família',
-          texto: 'Cada um lança o seu e todos veem o mesmo quadro.',
-          feito: temFamilia.value,
-          acao: { rotulo: 'Convidar', para: '/familia' },
-        }]
-      : []),
   ]
+  if (dono) {
+    lista.push({
+      id: 'familia',
+      titulo: 'Trazer a família',
+      texto: 'Cada um lança o seu e todos veem o mesmo quadro.',
+      feito: temFamilia.value,
+      obrigatorio: false,
+      pulado: pulado('familia'),
+      acao: { rotulo: 'Convidar', para: '/familia' },
+    })
+  }
+  return lista
 })
-const proximo = computed(() => passos.value.findIndex((p) => !p.feito))
+const pendente = (p: Passo) => !p.feito && !p.pulado
+const mostrarGuia = computed(() => tempo.value === 'atual' && !!dados.value && passos.value.some(pendente))
+function pular(p: Passo, sim: boolean) {
+  guia.pular(familiaId.value, p.id, sim)
+}
+const proximo = computed(() => passos.value.findIndex(pendente))
 </script>
 
 <template>
@@ -207,26 +235,38 @@ const proximo = computed(() => passos.value.findIndex((p) => !p.feito))
         <div>
           <h2 id="comeco-titulo">{{ bemvindo ? 'Tudo pronto. O ano de vocês começa aqui.' : 'Como começar' }}</h2>
           <p>
-            Comecem pelo saldo: quanto a família tem hoje, somando tudo. Depois, o que se repete e o dia a dia. Este
-            guia some quando o saldo estiver informado e o ano tiver os primeiros valores.
+            Comecem pelo saldo: quanto a família tem hoje, somando tudo. Ele é o único passo obrigatório; os outros
+            podem ser feitos agora ou pulados. Este guia some quando não houver mais nada pendente.
           </p>
         </div>
         <ol class="passos">
-          <li v-for="(p, i) in passos" :key="p.titulo" :class="{ feito: p.feito, proximo: i === proximo }">
+          <li v-for="(p, i) in passos" :key="p.id"
+              :class="{ feito: p.feito, pulado: p.pulado && !p.feito, proximo: i === proximo }">
             <span class="numero" aria-hidden="true">
               <Check v-if="p.feito" />
               <template v-else>{{ i + 1 }}</template>
             </span>
             <div>
-              <strong>{{ p.titulo }}<span v-if="p.feito" class="sr"> (feito)</span></strong>
+              <strong>
+                {{ p.titulo }}
+                <span v-if="p.obrigatorio && !p.feito" class="selo selo-petroleo marca">obrigatório</span>
+                <span v-else-if="p.pulado && !p.feito" class="selo marca">pulado</span>
+                <span v-if="p.feito" class="sr"> (feito)</span>
+              </strong>
               <span>{{ p.texto }}</span>
             </div>
-            <template v-if="!p.feito && p.acao">
-              <RouterLink v-if="p.acao.para" :to="p.acao.para" class="botao botao-pequeno"
-                          :class="{ 'botao-primario': i === proximo }">{{ p.acao.rotulo }}</RouterLink>
-              <button v-else type="button" class="botao botao-pequeno" :class="{ 'botao-primario': i === proximo }"
-                      @click="p.acao.abrir?.()">{{ p.acao.rotulo }}</button>
-            </template>
+            <div v-if="p.acao || (!p.obrigatorio && !p.feito)" class="acoes-passo">
+              <template v-if="p.acao">
+                <RouterLink v-if="p.acao.para && !p.feito" :to="p.acao.para" class="botao botao-pequeno"
+                            :class="{ 'botao-primario': i === proximo }">{{ p.acao.rotulo }}</RouterLink>
+                <button v-else-if="p.acao.abrir" type="button" class="botao botao-pequeno"
+                        :class="{ 'botao-primario': i === proximo, 'botao-sutil': p.feito }"
+                        @click="p.acao.abrir()">{{ p.acao.rotulo }}</button>
+              </template>
+              <button v-if="!p.obrigatorio && !p.feito" type="button" class="botao botao-sutil botao-pequeno"
+                      :aria-label="p.pulado ? `Voltar a mostrar: ${p.titulo}` : `Pular: ${p.titulo}`"
+                      @click="pular(p, !p.pulado)">{{ p.pulado ? 'Desfazer' : 'Pular' }}</button>
+            </div>
           </li>
         </ol>
       </section>
@@ -242,8 +282,8 @@ const proximo = computed(() => passos.value.findIndex((p) => !p.feito))
     </template>
 
     <PainelMes :alvo="alvo" @fechar="alvo = null" />
-    <PainelSaldo v-if="dados" :visao="dados" :mes="saldoAberto" :informados="[]" @fechar="saldoAberto = null"
-                 @mudou="carregar" />
+    <PainelSaldo v-if="dados" :visao="dados" :mes="saldoAberto" :informados="[]" fora-do-fluxo
+                 @fechar="saldoAberto = null" @mudou="carregar" />
   </div>
 </template>
 
@@ -385,6 +425,26 @@ const proximo = computed(() => passos.value.findIndex((p) => !p.feito))
   text-decoration-color: var(--pedra-forte);
 }
 
+.passos .acoes-passo {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--e-1);
+}
+
+.marca {
+  margin-left: var(--e-1);
+  vertical-align: 0.1em;
+  font-size: var(--t-xs);
+}
+
+.pulado strong,
+.pulado > div > span {
+  color: var(--texto-2);
+}
+
 .passos li.proximo {
   background: var(--papel);
   box-shadow: inset 0 0 0 1px var(--petroleo);
@@ -427,6 +487,17 @@ const proximo = computed(() => passos.value.findIndex((p) => !p.feito))
 
   .passos li {
     flex-wrap: wrap;
+  }
+
+  .passos li > div:not(.acoes-passo) {
+    flex-basis: calc(100% - 1.75rem - var(--e-3));
+  }
+
+  /* No celular as ações descem para uma linha própria, alinhadas com o texto. */
+  .passos .acoes-passo {
+    width: 100%;
+    justify-content: flex-start;
+    padding-left: calc(1.75rem + var(--e-3));
   }
 }
 </style>

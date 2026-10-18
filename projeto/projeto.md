@@ -270,10 +270,15 @@ Pontos de atenção constante na hora de desenvolver.
 - **Como começar (2026-10-18).** O saldo de hoje é o primeiro passo de quem chega:
   - na tela de entrar, "Como funciona, em 5 passos": (1) informar quanto têm hoje, (2) cadastrar o que se repete,
     (3) lançar e marcar o que foi pago, (4) ver o ano inteiro, (5) trazer a família;
-  - em "O ano de vocês", o guia "Como começar" aparece no ano corrente enquanto falta o saldo inicial ou o ano está em
-    branco (inclusive depois de "Recomeçar do zero"). Passos: informar o saldo (abre o painel do saldo ali mesmo, só
-    para quem organiza), cadastrar o que se repete, lançar um gasto e trazer a família (só quem organiza). Cada passo
-    feito aparece marcado; o próximo fica em destaque. O guia some quando há saldo e o ano tem valores.
+  - em "O ano de vocês", o guia "Como começar" aparece no ano corrente enquanto houver passo pendente (inclusive
+    depois de "Recomeçar do zero"):
+    - **Informar o saldo** é o único passo **obrigatório** (zero e negativo valem). Abre o painel do saldo ali
+      mesmo, só para quem organiza. Depois de guardar, o aviso e o próprio passo dizem que dá para conferir ou
+      corrigir na aba Fluxo de caixa (botão "Conferir").
+    - Cadastrar o que se repete, lançar um gasto e trazer a família (só quem organiza) podem ser **pulados**, com
+      "Desfazer". O pulo fica guardado no navegador, por família.
+    - Cada passo feito aparece marcado e o próximo pendente em destaque. O guia some quando nada mais está pendente
+      (feito ou pulado).
 - **Apagar todos os dados (2026-10-18):** em Família, "Recomeçar do zero" (só quem organiza) apaga de vez todo o
   orçamento: lançamentos, recorrências (com meses confirmados e pulados), saldos informados e os lugares do
   dinheiro, investimentos e o plano de contas, que volta a ser o padrão de família nova. Ficam a família, as

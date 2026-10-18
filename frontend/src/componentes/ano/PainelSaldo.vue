@@ -17,7 +17,8 @@ import FormLugarSaldo from '../FormLugarSaldo.vue'
 // corrige um mês quando o banco mostra outro valor: a diferença vale daquele mês em diante.
 // O saldo vale sempre como o do dia 1º; quem tem em mãos o de hoje informa esse, e o sistema volta até o dia 1º
 // desfazendo o que foi lançado de 1º até hoje (o servidor guarda o valor com o dia e refaz a conta a cada visão).
-const props = defineProps<{ visao: VisaoAnual; mes: number | null; informados: Saldo[] }>()
+/** foraDoFluxo: aberto pelo guia "Como começar"; o aviso ao guardar diz onde conferir depois. */
+const props = defineProps<{ visao: VisaoAnual; mes: number | null; informados: Saldo[]; foraDoFluxo?: boolean }>()
 const emit = defineEmits<{ fechar: []; mudou: [] }>()
 
 type ModoDia = 'dia1' | 'outroDia'
@@ -174,7 +175,8 @@ async function salvar() {
       observacao: obs.value.trim(),
       dataReferencia: modoDia.value === 'outroDia' ? dataSaldo.value : null,
     })
-    avisar(inicio !== null ? `Saldo do dia 1º de ${mes} guardado: ${reais(inicio)}.` : `Saldo de ${mes} guardado.`)
+    const guardado = inicio !== null ? `Saldo do dia 1º de ${mes} guardado: ${reais(inicio)}.` : `Saldo de ${mes} guardado.`
+    avisar(props.foraDoFluxo ? `${guardado} Para conferir ou corrigir, abram a aba Fluxo de caixa.` : guardado)
     emit('mudou')
     emit('fechar')
   } catch (e) {
@@ -268,7 +270,7 @@ async function remover() {
           <Plus aria-hidden="true" /> Incluir lugar
         </button>
         <p class="ajuda">
-          Deixem em branco o que não entra neste mês.<template v-if="inicial"> Alguém entrou na família depois? Incluam
+          Deixem em branco o que não entra neste mês; zero e negativo valem.<template v-if="inicial"> Alguém entrou na família depois? Incluam
           aqui os lugares dessa pessoa com o saldo do mesmo dia: o saldo inicial é refeito com eles.</template>
         </p>
         <p class="total-lugares">
@@ -280,7 +282,8 @@ async function remover() {
       <div v-else class="campo">
         <label for="s-valor">Saldo somado {{ quando }}</label>
         <CampoValor id="s-valor" v-model="valorTotal" negativo />
-        <span class="ajuda">Todo o dinheiro da família junto. Pode ser negativo (cheque especial, por exemplo).</span>
+        <span class="ajuda">Todo o dinheiro da família junto. Pode ser zero, ou negativo (cheque especial, por
+          exemplo).</span>
       </div>
 
       <section v-if="modoDia === 'outroDia' && movimento" class="conta-saldo" aria-labelledby="s-conta" aria-live="polite">
