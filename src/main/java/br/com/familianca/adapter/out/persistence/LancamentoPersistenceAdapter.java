@@ -1,5 +1,6 @@
 package br.com.familianca.adapter.out.persistence;
 
+import br.com.familianca.application.port.out.DescricaoUsada;
 import br.com.familianca.application.port.out.LancamentoRepository;
 import br.com.familianca.application.port.out.UsuarioAtual;
 import br.com.familianca.domain.exception.NaoEncontradoException;
@@ -7,6 +8,7 @@ import br.com.familianca.domain.model.Lancamento;
 import br.com.familianca.domain.model.Parcela;
 import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Dinheiro;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -92,6 +94,19 @@ public class LancamentoPersistenceAdapter implements LancamentoRepository {
     @Transactional(readOnly = true)
     public boolean existeDaRecorrencia(Long recorrenciaId) {
         return jpa.existsByRecorrenciaId(recorrenciaId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> descricoesMaisUsadas(Long categoriaId, int limite) {
+        return jpa.descricoesMaisUsadas(usuario.familiaId(), categoriaId, PageRequest.of(0, limite));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DescricaoUsada> buscarDescricoes(Long categoriaId, String termo, int limite) {
+        return jpa.buscarDescricoes(usuario.familiaId(), categoriaId, termo, FuncoesBusca.contem(termo),
+                FuncoesBusca.minimo(termo), PageRequest.of(0, limite));
     }
 
     private LancamentoEntity paraEntidade(Lancamento l) {

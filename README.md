@@ -109,6 +109,15 @@ sempre pela família do usuário logado (`UsuarioAtual.familiaId()`, que vem da 
 responde 404, como se não existisse. As exceções explícitas são o cadastro e o aceite de convite (antes do login) e
 a administração da plataforma.
 
+### Busca de descrições (pg_trgm)
+
+A sugestão de descrição ao lançar busca no Postgres, sem serviço externo: `unaccent` ignora acentos e `pg_trgm`
+(`word_similarity`) acha o termo pela metade ou com erro de digitação. As duas extensões vêm com o Postgres e são
+criadas pela migration `V10` (trusted desde o PG 13: o dono do banco cria sem superusuário). No JPQL elas aparecem
+como `sem_acento(...)` e `semelhanca(termo, texto)`, registradas com tipo em `FuncoesBusca` (sem SQL nativo). Sem
+índice por enquanto: a busca já é limitada a uma categoria de uma família; com muito volume, avaliar um índice GIN
+de trigramas sobre uma coluna normalizada.
+
 ### Planos e recursos (assinatura)
 
 `Plano` (GRATUITO, FAMILIA, PREMIUM) define o limite de pessoas e os `Recurso`s liberados (INVESTIMENTOS,

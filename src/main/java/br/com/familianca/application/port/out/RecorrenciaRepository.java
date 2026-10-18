@@ -15,4 +15,7 @@ public interface RecorrenciaRepository {
     Recorrencia salvar(Recorrencia recorrencia);
 
     void remover(Long id);
+
+    /** Descrições das recorrências da categoria que contêm o termo ou se parecem com ele (sem acento, minúsculo). */
+    List<DescricaoUsada> buscarDescricoes(Long categoriaId, String termo, int limite);
 }

@@ -73,7 +73,8 @@ class RecorrenciaApiTest extends IntegracaoBase {
         mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-10/pulo", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.puladas[0]").value("2026-10"))
-                .andExpect(jsonPath("$.valorNoAno").value(223.60));
+                // ago e set pelo cadastrado (55,90); nov e dez pela média das confirmações (55,90 e 59,90 = 57,90).
+                .andExpect(jsonPath("$.valorNoAno").value(227.60));
         mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-10/confirmacao", id))
                 .andExpect(status().isUnprocessableEntity());
         mvc.perform(get("/api/recorrencias/pendentes")).andExpect(jsonPath("$", hasSize(0)));
@@ -148,5 +149,51 @@ class RecorrenciaApiTest extends IntegracaoBase {
         Long id = streaming();
         mvc.perform(delete("/api/recorrencias/{id}", id)).andExpect(status().isNoContent());
         mvc.perform(get("/api/recorrencias/{id}", id)).andExpect(status().isNotFound());
+    }
+
+    /** Hoje = 17/out/2026. DAS cadastrado em 3.000 desde julho, confirmado com valores diferentes de jul a set. */
+    @Test
+    void contaDeValorVariavelPrevistaPelaRegra() throws Exception {
+        Long das = postarERetornarId("/api/recorrencias", """
+                {"categoriaId": %d, "descricao": "DAS", "valor": 3000, "dia": 20, "frequencia": "MENSAL",
+                 "inicio": "2026-07"}""".formatted(categoria("Outras despesas fixas", "Tarifas bancárias")));
+        for (String[] c : new String[][]{{"2026-07", "3184.15"}, {"2026-08", "4959.84"}, {"2026-09", "1511.61"}}) {
+            mvc.perform(post("/api/recorrencias/{id}/ocorrencias/{c}/confirmacao", das, c[0])
+                    .contentType(APPLICATION_JSON).content("{\"valor\": %s}".formatted(c[1])))
+                    .andExpect(status().isCreated());
+        }
+        // Média das três confirmações: 3.218,53, do mês atual em diante.
+        mvc.perform(get("/api/recorrencias/{id}", das))
+                .andExpect(jsonPath("$.valor").value(3000))
+                .andExpect(jsonPath("$.valorPrevisto").value(3218.53))
+                .andExpect(jsonPath("$.previstoPor").value("MEDIA"))
+                .andExpect(jsonPath("$.confirmacoesNaPrevisao").value(3));
+        mvc.perform(get("/api/visao-anual/2026"))
+                .andExpect(jsonPath("$.despesas.grupos[?(@.nome == 'Outras despesas fixas')].categorias[?(@.nome == 'Tarifas bancárias')].previsto[9]")
+                        .value(3218.53))
+                .andExpect(jsonPath("$.despesas.grupos[?(@.nome == 'Outras despesas fixas')].categorias[?(@.nome == 'Tarifas bancárias')].previsto[11]")
+                        .value(3218.53));
+
+        // Mudar a regra recalcula na hora (nada fica gravado).
+        mvc.perform(put("/api/familia/estimativa").contentType(APPLICATION_JSON).content("{\"estimativa\": \"MAXIMO\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/recorrencias/{id}", das)).andExpect(jsonPath("$.valorPrevisto").value(4959.84));
+        // Confirmar sem informar o valor usa o previsto pela regra.
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-10/confirmacao", das))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.valor").value(4959.84));
+
+        // Reajuste do valor cadastrado: as confirmações de antes deixam de contar e vale o novo valor.
+        mvc.perform(put("/api/recorrencias/{id}", das).contentType(APPLICATION_JSON).content("""
+                        {"categoriaId": %d, "descricao": "DAS", "valor": 3500, "dia": 20, "frequencia": "MENSAL",
+                         "inicio": "2026-07"}""".formatted(categoria("Outras despesas fixas", "Tarifas bancárias"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valorPrevisto").value(3500))
+                .andExpect(jsonPath("$.previstoPor").doesNotExist());
+
+        // Categoria sem estimativa: vale o cadastrado.
+        mvc.perform(put("/api/familia/estimativa").contentType(APPLICATION_JSON).content("{\"estimativa\": \"NENHUMA\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/recorrencias/{id}", das)).andExpect(jsonPath("$.valorPrevisto").value(3500));
     }
 }

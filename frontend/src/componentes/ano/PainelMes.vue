@@ -7,7 +7,7 @@ import type { Lancamento, Recorrencia, Tipo } from '../../api/tipos'
 import { mensagemDeErro } from '../../api/http'
 import { sessao } from '../../estado/sessao'
 import { avisar } from '../../estado/avisos'
-import { ESTIMATIVAS, MESES, anoAtual, competencia, dataPorExtenso, hoje, mesAtual, reais } from '../../util/formato'
+import { ESTIMATIVAS, MESES, previstoPelaRegra, anoAtual, competencia, dataPorExtenso, hoje, mesAtual, reais } from '../../util/formato'
 import { catalogo } from '../../estado/catalogo'
 import PainelLateral from '../PainelLateral.vue'
 import FormLancamento from '../FormLancamento.vue'
@@ -177,6 +177,16 @@ function conferido(mensagem: string) {
   carregar(false)
 }
 
+/** Do mês atual em diante, a recorrência de valor variável é prevista pela regra (média, maior ou menor confirmação). */
+function usaEstimativa(r: Recorrencia) {
+  const a = props.alvo
+  return !!a && !!r.previstoPor && (a.ano > anoAtual() || (a.ano === anoAtual() && a.mes >= mesAtual()))
+}
+
+function previstoDe(r: Recorrencia) {
+  return usaEstimativa(r) ? r.valorPrevisto : r.valor
+}
+
 function podeAlterarRecorrencia(r: Recorrencia) {
   return sessao.dono.value || r.membro?.id === sessao.estado.usuario?.membroId
 }
@@ -248,7 +258,10 @@ async function voltarAPrever(r: Recorrencia) {
             <ul class="lista">
               <li v-for="r in previstas" :key="r.id" class="prevista">
                 <span class="descricao">{{ r.descricao }}</span>
-                <ConferirOcorrencia :recorrencia="r" :competencia="comp" :valor-previsto="r.valor" @feito="conferido" />
+                <p v-if="usaEstimativa(r)" class="texto-2 nota-pulo">
+                  Cadastrada em {{ reais(r.valor) }}; prevista {{ previstoPelaRegra(r.previstoPor!, r.confirmacoesNaPrevisao) }}.
+                </p>
+                <ConferirOcorrencia :recorrencia="r" :competencia="comp" :valor-previsto="previstoDe(r)" @feito="conferido" />
               </li>
             </ul>
           </section>

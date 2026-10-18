@@ -129,6 +129,13 @@ export const ESTIMATIVAS: Record<string, { rotulo: string; como: string }> = {
   NENHUMA: { rotulo: 'Não estimar', como: 'sem estimativa' },
 }
 
+/** "pela média de 3 confirmações" (recorrência de valor variável prevista pela regra). */
+export function previstoPelaRegra(regra: string, confirmacoes: number): string {
+  if (confirmacoes === 1) return 'pela única confirmação do ano'
+  const qual = regra === 'MAXIMO' ? 'pela maior' : regra === 'MINIMO' ? 'pela menor' : 'pela média'
+  return `${qual} das ${confirmacoes} confirmações do ano`
+}
+
 export const TIPOS_INVESTIMENTO: Record<string, string> = {
   RENDA_FIXA: 'Renda fixa', TESOURO: 'Tesouro Direto', POUPANCA: 'Poupança', ACOES: 'Ações', FUNDOS: 'Fundos',
   PREVIDENCIA: 'Previdência', CRIPTO: 'Cripto', OUTRO: 'Outro',

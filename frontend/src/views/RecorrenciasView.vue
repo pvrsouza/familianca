@@ -7,7 +7,7 @@ import type { Pendente, Recorrencia, Tipo } from '../api/tipos'
 import { ErroApi, mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { avisar } from '../estado/avisos'
-import { FREQUENCIAS, competenciaCurta, competenciaPorExtenso, reais } from '../util/formato'
+import { FREQUENCIAS, competenciaCurta, competenciaPorExtenso, previstoPelaRegra, reais } from '../util/formato'
 import PainelLateral from '../componentes/PainelLateral.vue'
 import FormRecorrencia from '../componentes/FormRecorrencia.vue'
 import ConferirOcorrencia from '../componentes/ConferirOcorrencia.vue'
@@ -207,6 +207,9 @@ async function desfazerPulo(c: string) {
                     {{ reais(r.valor) }} {{ FREQUENCIAS[r.frequencia].por }}
                   </span>
                   <span class="peso-ano">= {{ reais(r.valorAnualizado) }} por ano<template v-if="r.valorNoAno !== r.valorAnualizado"> · {{ reais(r.valorNoAno) }} em {{ r.ano }}</template></span>
+                  <span v-if="r.previstoPor" class="peso-ano previsto-regra">
+                    previsto <span class="selo selo-previsto">{{ reais(r.valorPrevisto) }}</span> {{ previstoPelaRegra(r.previstoPor, r.confirmacoesNaPrevisao) }}
+                  </span>
                 </span>
               </component>
             </li>
@@ -360,6 +363,11 @@ async function desfazerPulo(c: string) {
 .peso-linha {
   font-weight: 700;
   white-space: nowrap;
+}
+
+.previsto-regra {
+  display: block;
+  margin-top: var(--e-1);
 }
 
 .peso-ano {

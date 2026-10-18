@@ -39,6 +39,8 @@ export const familia = {
   remover: (membroId: number) => api.delete(`/api/familia/membros/${membroId}`),
   convidar: (email: string, papel: Papel) => api.post<Convite>('/api/familia/convites', { email, papel }),
   cancelarConvite: (id: number) => api.delete(`/api/familia/convites/${id}`),
+  /** Sem volta: apaga o orçamento inteiro e recria as categorias padrão. Só quem organiza, com a senha. */
+  apagarDados: (senha: string) => api.post<void>('/api/familia/dados/apagamento', { senha }),
 }
 
 export interface DadosGrupo {
@@ -108,6 +110,9 @@ export const lancamentos = {
   atualizar: (id: number, d: DadosLancamento) => api.put<Lancamento>(`/api/lancamentos/${id}`, d),
   remover: (id: number, todasAsParcelas = false) =>
     api.delete(`/api/lancamentos/${id}${todasAsParcelas ? '?todasAsParcelas=true' : ''}`),
+  /** Sem termo: as 3 descrições mais usadas na categoria. Com termo: as que contêm parte dele ou se parecem com ele. */
+  descricoes: (categoriaId: number, q?: string) =>
+    api.get<string[]>(`/api/lancamentos/descricoes${consulta({ categoriaId, q })}`),
 }
 
 export interface DadosRecorrencia {

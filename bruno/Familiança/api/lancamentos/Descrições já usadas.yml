@@ -1,0 +1,22 @@
+info:
+  name: Descrições já usadas
+  type: http
+  seq: 7
+  tags:
+    - Lançamentos
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/lancamentos/descricoes?categoriaId=1&q=merc"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Sem `q`: as 3 descrições mais usadas na categoria. Com `q`: até 8 que contêm parte do termo ou se parecem com
+  ele (sem acento, maiúscula ou erro de digitação), nos lançamentos e recorrências da categoria.

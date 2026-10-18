@@ -7,8 +7,9 @@ import { ErroApi, mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { catalogo } from '../estado/catalogo'
 import { avisar } from '../estado/avisos'
-import { ESTIMATIVAS, pct } from '../util/formato'
+import { ESTIMATIVAS, MESES, mesAtual, pct } from '../util/formato'
 import Mensagem from '../componentes/Mensagem.vue'
+import SelosCategoria from '../componentes/SelosCategoria.vue'
 
 // Plano de contas em duas colunas: os grupos do tipo à esquerda e as categorias do grupo escolhido à direita. A
 // busca atravessa os grupos do tipo. No celular, a lista de grupos abre o grupo numa tela própria.
@@ -146,6 +147,11 @@ async function salvarGrupo(g: Grupo) {
 async function salvarCategoria(c: Categoria) {
   if (!form.nome.trim()) return
   const movida = form.grupoId !== c.grupoId
+  const novaRegra = form.estimativa !== (c.estimativa ?? 'FAMILIA')
+  const regraVale = form.estimativa === 'FAMILIA' ? estimativaFamilia.value : form.estimativa
+  const msg = novaRegra
+    ? `${form.nome.trim()} atualizada. Os previstos dela já foram recalculados ${ESTIMATIVAS[regraVale].como}.`
+    : movida ? 'Categoria movida.' : 'Categoria atualizada.'
   if (await executar(() => api.atualizar(c.id, {
     ...dadosDe(c),
     grupoId: form.grupoId, nome: form.nome.trim(),
@@ -153,7 +159,7 @@ async function salvarCategoria(c: Categoria) {
     aliquota: temPj.value ? form.aliquota : c.aliquota,
     recorrente: form.aliquota == null ? form.recorrente : false,
     estimativa: form.estimativa,
-  }), movida ? 'Categoria movida.' : 'Categoria atualizada.'))
+  }), msg))
     editando.value = null
 }
 
@@ -220,16 +226,33 @@ async function criarGrupo() {
 const estimativaFamilia = computed<Estimativa>(() => sessao.estado.familia?.estimativa ?? 'MEDIA')
 const opcoesEstimativa: Estimativa[] = ['MEDIA', 'MAXIMO', 'MINIMO', 'NENHUMA']
 
-async function definirEstimativa(e: Estimativa) {
-  if (e === estimativaFamilia.value) return
+// Mudar a regra recalcula na hora todos os previstos que seguem a família: antes, explica o que muda.
+const estimativaPendente = ref<Estimativa | null>(null)
+const aplicandoEstimativa = ref(false)
+const mesAgora = MESES[mesAtual() - 1]
+const mesSeguinte = mesAtual() < 12 ? MESES[mesAtual()] : null
+
+function pedirEstimativa(e: Estimativa) {
+  estimativaPendente.value = e === estimativaFamilia.value ? null : e
+}
+
+async function definirEstimativa() {
+  const e = estimativaPendente.value
+  if (!e) return
+  aplicandoEstimativa.value = true
   erroAcao.value = ''
   try {
     const f = await apiFamilia.definirEstimativa(e)
     if (sessao.estado.familia) sessao.estado.familia.estimativa = f.estimativa
+    estimativaPendente.value = null
     sessao.avisarMudanca()
-    avisar(e === 'NENHUMA' ? 'Os próximos meses deixam de ser estimados.' : `Os próximos meses agora são estimados ${ESTIMATIVAS[e].como}.`)
+    avisar(e === 'NENHUMA'
+      ? 'Regra aplicada: os previstos voltaram ao valor cadastrado e os próximos meses deixam de ser estimados.'
+      : `Regra aplicada: os previstos do ano já foram recalculados ${ESTIMATIVAS[e].como}.`)
   } catch (err) {
     erroAcao.value = mensagemDeErro(err)
+  } finally {
+    aplicandoEstimativa.value = false
   }
 }
 
@@ -307,16 +330,47 @@ const rotuloNatureza = (n: Natureza) => (n === 'FIXA' ? 'fixa' : 'variável')
         <div class="estimativa-texto">
           <h2 id="titulo-estimativa">Estimativa dos próximos meses</h2>
           <p class="texto-2">
-            Despesas que não se repetem (supermercado, farmácia, combustível) ganham uma estimativa nos meses que
-            faltam do ano, a partir dos meses que já passaram. Aparece como previsto, e o que for lançado no mês
-            ocupa o lugar dela. Cada categoria pode seguir esta regra ou ter a sua.
+            Os previstos das despesas seguem esta regra, a partir do que já aconteceu no ano: contas que se repetem
+            com valor variável (DAS, energia) são previstas pelas confirmações; despesas que não se repetem
+            (supermercado, farmácia) ganham uma estimativa nos meses que faltam. Os previstos não ficam gravados:
+            são refeitos sempre que algo muda (um lançamento, uma confirmação, a regra). Cada categoria pode seguir
+            esta regra ou ter a sua.
           </p>
         </div>
         <div v-if="dono" class="segmentos" role="group" aria-label="Regra da família para estimar">
-          <button v-for="e in opcoesEstimativa" :key="e" type="button" :aria-pressed="estimativaFamilia === e"
-                  @click="definirEstimativa(e)">{{ ESTIMATIVAS[e].rotulo }}</button>
+          <button v-for="e in opcoesEstimativa" :key="e" type="button"
+                  :aria-pressed="(estimativaPendente ?? estimativaFamilia) === e"
+                  @click="pedirEstimativa(e)">{{ ESTIMATIVAS[e].rotulo }}</button>
         </div>
         <p v-else class="selo">{{ ESTIMATIVAS[estimativaFamilia].rotulo }}</p>
+
+        <div v-if="estimativaPendente" class="confirmar-regra" role="group" aria-labelledby="titulo-confirmar-regra">
+          <p id="titulo-confirmar-regra" class="confirmar-titulo">
+            Mudar de "{{ ESTIMATIVAS[estimativaFamilia].rotulo }}" para "{{ ESTIMATIVAS[estimativaPendente].rotulo }}"?
+            Todos os previstos que seguem a família são recalculados agora:
+          </p>
+          <ul v-if="estimativaPendente !== 'NENHUMA'">
+            <li>contas que se repetem com valor variável: de {{ mesAgora }} em diante,
+              {{ estimativaPendente === 'MEDIA' ? 'pela média' : estimativaPendente === 'MAXIMO' ? 'pela maior' : 'pela menor' }}
+              das confirmações do ano;</li>
+            <li v-if="mesSeguinte">despesas que não se repetem: de {{ mesSeguinte }} em diante,
+              {{ ESTIMATIVAS[estimativaPendente].como }};</li>
+            <li>categorias com regra própria, contas que confirmam sozinhas e tudo o que já foi lançado ou confirmado
+              não mudam.</li>
+          </ul>
+          <ul v-else>
+            <li>contas que se repetem voltam a ser previstas pelo valor cadastrado;</li>
+            <li>despesas que não se repetem deixam de ter estimativa nos próximos meses;</li>
+            <li>categorias com regra própria e tudo o que já foi lançado ou confirmado não mudam.</li>
+          </ul>
+          <div class="acoes">
+            <button type="button" class="botao botao-primario botao-pequeno" :disabled="aplicandoEstimativa" @click="definirEstimativa">
+              {{ aplicandoEstimativa ? 'Recalculando…' : 'Mudar e recalcular' }}
+            </button>
+            <button type="button" class="botao botao-sutil botao-pequeno" :disabled="aplicandoEstimativa"
+                    @click="estimativaPendente = null">Cancelar</button>
+          </div>
+        </div>
       </section>
 
       <div class="layout" :class="{ aberto: grupoAberto || !!termo }">
@@ -403,6 +457,13 @@ const rotuloNatureza = (n: Natureza) => (n === 'FIXA' ? 'fixa' : 'variável')
             <span><strong>Repete todo mês</strong>: ao lançar nesta categoria, o lançamento já vem marcado para repetir
               no ano (como aluguel, telefone ou salário) e os próximos meses aparecem como previstos.</span>
           </p>
+          <p v-if="linhas.length" class="legenda-selos texto-2">
+            Selos ao lado do nome, também na visão do ano: <SelosCategoria :categoria="{ recorrente: true }" /> repete
+            todo mês · <SelosCategoria :categoria="{ tributavel: true }" /> tributável ·
+            <SelosCategoria :categoria="{ calculada: true, aliquota: null }" /> calculada por alíquota ·
+            <SelosCategoria :categoria="{ estimativa: 'MEDIA' }" tipo="DESPESA" /> estimativa própria. Passe o mouse
+            (ou toque) num selo para ver o que ele quer dizer.
+          </p>
 
           <ul v-if="linhas.length" class="lista categorias">
             <li v-for="{ c, g } in linhas" :key="c.id" :class="{ inativo: !c.ativa }">
@@ -421,6 +482,11 @@ const rotuloNatureza = (n: Natureza) => (n === 'FIXA' ? 'fixa' : 'variável')
                     <option v-for="e in opcoesEstimativa" :key="e" :value="e">{{ ESTIMATIVAS[e].rotulo }}</option>
                   </select>
                 </label>
+                <p v-if="g.tipo === 'DESPESA' && !c.calculada && !form.recorrente && form.estimativa !== (c.estimativa ?? 'FAMILIA')"
+                   class="ajuda aviso-regra">
+                  Ao salvar, os previstos desta categoria são recalculados
+                  {{ ESTIMATIVAS[form.estimativa === 'FAMILIA' ? estimativaFamilia : form.estimativa].como }}.
+                </p>
                 <label v-if="temPj && g.tipo === 'DESPESA' && g.empresa" class="aliquota">
                   <span>Alíquota %</span>
                   <input v-model.number="form.aliquota" class="entrada num" type="number" min="0" max="100" step="0.01" />
@@ -436,7 +502,7 @@ const rotuloNatureza = (n: Natureza) => (n === 'FIXA' ? 'fixa' : 'variável')
 
               <template v-else>
                 <span class="categoria">
-                  <span class="nome">{{ c.nome }}</span>
+                  <span class="nome">{{ c.nome }} <SelosCategoria :categoria="c" :tipo="g.tipo" /></span>
                   <button v-if="termo" type="button" class="no-grupo" @click="escolherGrupo(g)">em {{ g.nome }}</button>
                 </span>
                 <span class="marcas">
@@ -542,6 +608,36 @@ const rotuloNatureza = (n: Natureza) => (n === 'FIXA' ? 'fixa' : 'variável')
   max-width: 72ch;
   margin-top: var(--e-1);
   font-size: var(--t-sm);
+}
+
+.confirmar-regra {
+  flex-basis: 100%;
+  display: grid;
+  gap: var(--e-2);
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  background: var(--areia);
+  font-size: var(--t-sm);
+}
+
+.confirmar-titulo {
+  font-weight: 600;
+}
+
+.confirmar-regra ul {
+  display: grid;
+  gap: var(--e-1);
+  margin: 0;
+  padding-left: var(--e-5);
+  color: var(--texto-2);
+  line-height: 1.45;
+}
+
+.aviso-regra {
+  flex-basis: 100%;
+  font-size: var(--t-xs);
+  color: var(--texto-2);
 }
 
 .estimar {
@@ -846,6 +942,13 @@ const rotuloNatureza = (n: Natureza) => (n === 'FIXA' ? 'fixa' : 'variável')
 .repete .caixa-marcar {
   font-size: var(--t-sm);
   white-space: nowrap;
+}
+
+.legenda-selos {
+  padding: var(--e-3) var(--e-5);
+  font-size: var(--t-xs);
+  line-height: 1.8;
+  border-bottom: 1px solid var(--linha);
 }
 
 .selo-repete {

@@ -31,6 +31,12 @@ public interface GerenciarFamilia {
 
     void cancelarConvite(Long conviteId);
 
+    /**
+     * Apaga todo o orçamento (lançamentos, recorrências, saldos, investimentos e o plano de contas) e recria as
+     * categorias padrão, para recomeçar do zero. Pessoas, convites e assinatura ficam. Confere a senha de quem pede.
+     */
+    void apagarDados(String senha);
+
     record FamiliaDetalhe(Familia familia, Plano planoEmVigor, List<Membro> membros, List<Convite> convitesPendentes) {
     }
 

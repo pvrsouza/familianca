@@ -35,6 +35,8 @@ public class RecorrenciaEntity {
     String fim;
     String observacao;
     LocalDate confirmarSozinhaDesde;
+    /** Competência (AAAA-MM) da última mudança de valor; nulo = desde sempre. */
+    String valorDesde;
     /** Competências puladas (AAAA-MM). */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "recorrencia_excecao", joinColumns = @JoinColumn(name = "recorrencia_id"))

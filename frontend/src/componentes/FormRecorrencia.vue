@@ -6,6 +6,7 @@ import { mensagemDeErro } from '../api/http'
 import { catalogo } from '../estado/catalogo'
 import { sessao } from '../estado/sessao'
 import { FREQUENCIAS, anoAtual, mesAtual, competencia, dataPorExtenso, reais } from '../util/formato'
+import CampoDescricao from './CampoDescricao.vue'
 import CampoValor from './CampoValor.vue'
 import Mensagem from './Mensagem.vue'
 import SeletorCategoria from './SeletorCategoria.vue'
@@ -92,10 +93,17 @@ async function salvar() {
     </div>
 
     <div class="campo">
+      <label for="r-categoria">Categoria</label>
+      <SeletorCategoria id="r-categoria" v-model="form.categoriaId" :tipo="form.tipo"
+                        :invalido="tentou && !form.categoriaId" />
+      <span v-if="tentou && !form.categoriaId" class="erro-campo">Escolha a categoria.</span>
+    </div>
+
+    <div class="campo">
       <label for="r-descricao">Descrição</label>
-      <input id="r-descricao" v-model="form.descricao" class="entrada" maxlength="200" required
-             :placeholder="form.tipo === 'RECEITA' ? 'Ex.: salário' : 'Ex.: escola, condomínio, streaming'"
-             :aria-invalid="(tentou && !form.descricao.trim()) || undefined" />
+      <CampoDescricao id="r-descricao" v-model="form.descricao" :categoria-id="form.categoriaId"
+                      :placeholder="form.tipo === 'RECEITA' ? 'Ex.: salário' : 'Ex.: escola, condomínio, streaming'"
+                      :invalido="tentou && !form.descricao.trim()" />
       <span v-if="tentou && !form.descricao.trim()" class="erro-campo">Dê um nome para reconhecer depois.</span>
     </div>
 
@@ -116,13 +124,6 @@ async function salvar() {
     <p v-if="noAno" class="peso num">
       {{ reais(form.valor) }} {{ FREQUENCIAS[form.frequencia].por }} = <strong>{{ reais(noAno) }} no ano</strong>
     </p>
-
-    <div class="campo">
-      <label for="r-categoria">Categoria</label>
-      <SeletorCategoria id="r-categoria" v-model="form.categoriaId" :tipo="form.tipo"
-                        :invalido="tentou && !form.categoriaId" />
-      <span v-if="tentou && !form.categoriaId" class="erro-campo">Escolha a categoria.</span>
-    </div>
 
     <div class="grade-campos duas">
       <div class="campo">

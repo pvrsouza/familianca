@@ -2,8 +2,11 @@ package br.com.familianca.application.service;
 
 import br.com.familianca.application.port.in.GerenciarFamilia;
 import br.com.familianca.application.port.out.ConviteRepository;
+import br.com.familianca.application.port.out.DadosFamiliaRepository;
+import br.com.familianca.application.port.out.DadosFamiliaRepository.Apagados;
 import br.com.familianca.application.port.out.FamiliaRepository;
 import br.com.familianca.application.port.out.MembroRepository;
+import br.com.familianca.application.port.out.PlanoContasRepository;
 import br.com.familianca.application.port.out.Relogio;
 import br.com.familianca.application.port.out.SessoesUsuario;
 import br.com.familianca.application.port.out.UsuarioAtual;
@@ -19,9 +22,13 @@ import br.com.familianca.domain.model.Membro;
 import br.com.familianca.domain.model.PapelFamilia;
 import br.com.familianca.domain.model.Plano;
 import br.com.familianca.domain.model.Usuario;
+import br.com.familianca.domain.service.CatalogoCategorias;
 import br.com.familianca.domain.vo.Percentual;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +42,8 @@ import static br.com.familianca.domain.Validacoes.obrigatorio;
 @PreAuthorize("hasRole('DONO')")
 public class FamiliaService implements GerenciarFamilia {
 
+    private static final Logger log = LoggerFactory.getLogger(FamiliaService.class);
+
     private final AcessoFamilia acesso;
     private final UsuarioAtual usuarioAtual;
     private final FamiliaRepository familias;
@@ -44,11 +53,15 @@ public class FamiliaService implements GerenciarFamilia {
     private final SessoesUsuario sessoes;
     private final Relogio relogio;
     private final Duration validadeConvite;
+    private final DadosFamiliaRepository dados;
+    private final PlanoContasRepository planoContas;
+    private final PasswordEncoder senhas;
 
     public FamiliaService(AcessoFamilia acesso, UsuarioAtual usuarioAtual, FamiliaRepository familias,
                           MembroRepository membros, ConviteRepository convites, UsuarioRepository usuarios,
                           SessoesUsuario sessoes, Relogio relogio,
-                          @Value("${familianca.convites.validade:7d}") Duration validadeConvite) {
+                          @Value("${familianca.convites.validade:7d}") Duration validadeConvite,
+                          DadosFamiliaRepository dados, PlanoContasRepository planoContas, PasswordEncoder senhas) {
         this.acesso = acesso;
         this.usuarioAtual = usuarioAtual;
         this.familias = familias;
@@ -58,6 +71,9 @@ public class FamiliaService implements GerenciarFamilia {
         this.sessoes = sessoes;
         this.relogio = relogio;
         this.validadeConvite = validadeConvite;
+        this.dados = dados;
+        this.planoContas = planoContas;
+        this.senhas = senhas;
     }
 
     @Override
@@ -144,6 +160,21 @@ public class FamiliaService implements GerenciarFamilia {
                 .orElseThrow(() -> new NaoEncontradoException("Convite", conviteId));
         convite.cancelar();
         convites.salvar(convite);
+    }
+
+    @Override
+    public void apagarDados(String senha) {
+        Usuario usuario = usuarios.buscarPorId(usuarioAtual.id()).orElseThrow();
+        if (senha == null || !senhas.matches(senha, usuario.senhaHash())) {
+            throw new RegraNegocioException("Senha incorreta");
+        }
+        Long familiaId = usuarioAtual.familiaId();
+        Apagados apagados = dados.apagarTudo();
+        planoContas.criarModelo(familiaId, CatalogoCategorias.padrao());
+        log.info("auditoria evento=DADOS_FAMILIA_APAGADOS usuarioId={} familiaId={} lancamentos={} recorrencias={} "
+                        + "saldos={} investimentos={} grupos={} categorias={}", usuario.id(), familiaId,
+                apagados.lancamentos(), apagados.recorrencias(), apagados.saldos(), apagados.investimentos(),
+                apagados.grupos(), apagados.categorias());
     }
 
     private Membro exigirMembro(Long membroId) {

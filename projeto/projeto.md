@@ -128,6 +128,11 @@ Pontos de atenção constante na hora de desenvolver.
   categoria ou do grupo, sem diferenciar acento. Sem resultado igual, o DONO cria a categoria ali mesmo, escolhendo o
   grupo, e ela já fica escolhida; se existe uma desativada com o mesmo nome, ele a reativa em vez de duplicar. O
   MEMBRO vê que deve pedir a quem organiza.
+- **Selos da categoria (2026-10-18):** ao lado do nome, na visão anual (computador e celular) e em Categorias,
+  selos de uma letra mostram o jeito da categoria: **R** recorrente (repete todo mês), **T** tributável, **C**
+  calculada por alíquota e **E** estimativa própria (regra diferente da família; só em despesa que não se repete).
+  Passar o mouse mostra a explicação completa; no celular, tocar no selo mostra a explicação num aviso. Sem selo =
+  categoria comum (não recorrente). Em Categorias há a legenda dos selos.
 - Item "Cartão de crédito X" da planilha não virou categoria: no sistema o gasto é lançado na categoria do que foi
   comprado (ver pendência sobre cartões).
 
@@ -137,6 +142,14 @@ Pontos de atenção constante na hora de desenvolver.
 - **Compra parcelada:** valor total dividido em 2 a 60 parcelas mensais a partir da data da 1ª; os centavos da
   divisão vão para a 1ª parcela. Dá para excluir uma parcela ou a compra inteira.
 - Categoria desativada ou calculada por alíquota não recebe lançamento.
+- **Descrição sugerida (2026-10-18):** ao lançar (e ao cadastrar recorrência), a categoria vem antes da descrição.
+  Escolhida a categoria, o campo vazio mostra as **3 descrições mais comuns** dela como sugestão direta. Ao
+  digitar (a partir de 2 letras), o sistema **busca** em todos os lançamentos e recorrências da categoria as
+  descrições que contêm parte do termo ou se parecem com ele, sem ligar para acento, maiúscula ou erro de
+  digitação ("acogue" acha "Açougue", "merc" acha "Mercadinho do bairro" e "Supermercado atacadão"); as que começam
+  com o termo vêm primeiro, até 8, com o trecho encontrado em destaque. Escrever uma existente de outro jeito mostra
+  "Já existe X" com um botão para usar a já escrita. Objetivo: a família chamar a mesma coisa pelo mesmo nome, mesmo
+  com o histórico grande.
 
 ## Recorrências
 - Receita ou despesa que se repete: mensal, bimestral, trimestral, semestral ou anual, a partir de um mês de
@@ -185,16 +198,34 @@ Pontos de atenção constante na hora de desenvolver.
   - A estimativa aparece como previsto (coral tracejado), entra nos totais, no fluxo de caixa e na inflação, e fica
     fora da visão por pessoa (não é de ninguém). Receitas não são estimadas.
   - Clicar no mês estimado explica o valor e de onde veio a regra.
+  - **Contas que se repetem com valor variável** (DAS, energia, 2026-10-17): o previsto de cada ocorrência do mês
+    atual em diante segue a mesma regra, aplicada às confirmações daquela recorrência no ano (média, maior ou menor
+    valor confirmado), em vez do valor cadastrado. Sem confirmação no ano, vale o cadastrado. Ficam de fora receitas
+    e contas que confirmam sozinhas (valor fixo). Confirmar sem informar o valor usa esse previsto. Mudar o valor
+    cadastrado (reajuste) zera a base: só as confirmações a partir daquele mês contam.
+  - **Nada é gravado:** os previstos são calculados a cada consulta. Mudar a regra (da família ou da categoria),
+    editar um lançamento ou confirmar um mês recalcula tudo na hora. A tela pede confirmação antes de trocar a
+    regra da família e explica o que vai ser recalculado.
 - O ano mês a mês, com total e média, para cada categoria, grupo, receitas e despesas. Cada valor separa
   **realizado** (lançamentos) e **previsto** (recorrências).
 - Para cada categoria e grupo: **participação** no total de receitas/despesas do ano e **ranking** das categorias
   (a coluna RANK da planilha).
 - **Inflação** de cada grupo e **inflação familiar** (despesas totais): variação mês a mês e acumulada no ano,
   composta como na planilha. Diferença: mês zerado não entra como −100%, fica sem variação.
+  - **Na primeira tela (2026-10-18), como na planilha:** a tabela do ano mostra a linha "Inflação da família" logo
+    abaixo de Despesas e uma linha "Inflação" sob cada grupo de despesa aberto, com a acumulada do ano na coluna
+    Total (alta em coral, queda em verde, itálico quando a variação usa valor previsto). "Mostrar inflação" liga e
+    desliga as linhas (vem ligado; guardado só no navegador). No celular, o resumo do mês mostra a inflação do mês e
+    a do ano, e cada grupo de despesa a do mês.
 - **Fluxo de caixa** no formato da planilha: (1) sobra do mês anterior, (2) renda total, (3) aplicações,
   (4) saldo disponível = 1 + 2 − 3, (5) despesas, fluxo líquido = 4 − 5.
   - A sobra do mês é o **saldo em conta informado** pela família no início do mês; sem ele, o fluxo líquido do mês
     anterior (o saldo vai sendo carregado).
+- **Apagar todos os dados (2026-10-18):** em Família, "Recomeçar do zero" (só quem organiza) apaga de vez todo o
+  orçamento: lançamentos, recorrências (com meses confirmados e pulados), saldos informados, investimentos e o
+  plano de contas, que volta a ser o padrão de família nova. Ficam a família, as pessoas, os convites, o plano e as
+  contas de cada um. Pede o nome da família digitado e a senha de quem apaga; serve para recomeçar ou para garantir
+  que os dados saíram do sistema. Fica registrado na auditoria (sem dado pessoal). Não depende do plano.
 - **Por pessoa:** receitas e despesas de cada membro e o peso de cada um no orçamento da família — a clareza do
   impacto de cada um no orçamento do provedor.
 - **Simulação de impacto:** quanto um gasto representa no ano (único, diário, por dia útil, semanal, quinzenal,
@@ -243,6 +274,9 @@ Pontos de atenção constante na hora de desenvolver.
   - Usar no dia a dia da família e ajustar as telas com o que aparecer.
   - **Inflação da família no ano**: o acumulado inclui os meses futuros, que só têm o previsto (sem os gastos
     variáveis), e por isso aparece muito negativo (ex.: −27,8%). Decidir se o acumulado vai só até o mês atual.
+    Agora que a inflação está na tabela principal, o **mês em andamento** também chama atenção: no começo do mês
+    quase nada foi lançado e a variação fica muito negativa (ex.: −93%), seguida de um salto no mês seguinte.
+    Avaliar não calcular a variação do mês atual (como a estimativa, que não estima o mês em andamento).
   - Modo escuro (a marca prevê; tons a definir), tela de administração das famílias (hoje só pela API) e
     landing page em familianca.com.br.
   - Logo final: o front usa um símbolo provisório de 12 barras (`frontend/src/componentes/Marca.vue`).
@@ -256,6 +290,8 @@ Pontos de atenção constante na hora de desenvolver.
   e "esqueci minha senha".
 - **App mobile:** ligar a sessão por header (`X-Auth-Token`) já preparada e o login do app.
 - **Uma pessoa em mais de uma família** (hoje é uma só) e "sair da família".
+- **Excluir a conta e a família inteira** (LGPD): hoje dá para apagar o orçamento ("Recomeçar do zero"); falta
+  excluir pessoas, convites, família e contas, com confirmação por e-mail, e exportar os dados antes.
 - **Cartões de crédito:** forma de pagamento/cartão no lançamento e visão da fatura (a planilha controla faturas).
 - **Reajuste de recorrência a partir de um mês** (hoje editar o valor muda todas as ocorrências não confirmadas).
 - **Importar a planilha** (xlsx) de anos anteriores para o histórico. Já testado com um script fora do repositório

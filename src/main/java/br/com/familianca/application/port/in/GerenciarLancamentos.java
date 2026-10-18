@@ -34,6 +34,13 @@ public interface GerenciarLancamentos {
 
     int anoAtual();
 
+    /**
+     * Descrições já usadas na categoria, para sugerir ao lançar e evitar nomes diferentes para a mesma coisa. Sem
+     * termo: as 3 mais comuns. Com termo: as que contêm parte dele ou se parecem com ele (sem ligar para acento,
+     * maiúscula ou erro de digitação), nos lançamentos e recorrências. Sem repetir variações da mesma descrição.
+     */
+    List<String> descricoesUsadas(Long categoriaId, String termo);
+
     record Filtro(LocalDate de, LocalDate ate, Long categoriaId, Long grupoId, Long membroId, TipoMovimento tipo) {
     }
 

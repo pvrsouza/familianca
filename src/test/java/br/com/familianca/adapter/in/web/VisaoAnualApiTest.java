@@ -68,6 +68,10 @@ class VisaoAnualApiTest extends IntegracaoBase {
                 .andExpect(jsonPath("$.despesas.grupos[0].nome").value("Habitação"))
                 .andExpect(jsonPath("$.despesas.grupos[0].participacao").value(40))
                 .andExpect(jsonPath("$.despesas.grupos[0].categorias[?(@.nome == 'Supermercado')].rank").value(2))
+                // Marcas da categoria para os selos da tabela (recorrente, tributável, regra própria).
+                .andExpect(jsonPath("$.receitas.grupos[0].categorias[?(@.nome == 'Salário')].recorrente").value(true))
+                .andExpect(jsonPath("$.despesas.grupos[0].categorias[?(@.nome == 'Supermercado')].recorrente").value(false))
+                .andExpect(jsonPath("$.despesas.grupos[0].categorias[?(@.nome == 'Supermercado')].tributavel").value(false))
                 .andExpect(jsonPath("$.despesas.grupos[?(@.nome == 'Despesas pessoais')].categorias[?(@.nome == 'Vestuário')].rank")
                         .value(1))
                 .andExpect(jsonPath("$.membros", hasSize(2)))

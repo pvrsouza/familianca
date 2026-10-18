@@ -2,12 +2,15 @@
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ChevronRight, Info } from 'lucide-vue-next'
-import type { Bloco, CategoriaVisao, GrupoVisao, Tipo, VisaoAnual } from '../../api/tipos'
-import { MESES, MESES_CURTOS, ordinal, pct, reais, reaisCurtos } from '../../util/formato'
+import type { Bloco, CategoriaVisao, GrupoVisao, SeriePercentual, Tipo, VisaoAnual } from '../../api/tipos'
+import { MESES, MESES_CURTOS, ordinal, pct, reais, reaisCurtos, variacao } from '../../util/formato'
 import { centavos } from '../../estado/centavos'
+import { inflacao } from '../../estado/inflacao'
+import SelosCategoria from '../SelosCategoria.vue'
 
 // A planilha viva: grupos que abrem em categorias, 12 meses, total, média, % do ano e rank. Acima dos meses, a
 // copa do ano: uma barra por mês com a despesa realizada (cheia), a prevista (tracejada) e o traço da renda.
+// Como na planilha, a inflação da família fica sob as despesas e a de cada grupo de despesa sob o grupo.
 const props = defineProps<{ visao: VisaoAnual; mesAtual: number | null }>()
 const emit = defineEmits<{ abrir: [categoria: CategoriaVisao, tipo: Tipo, mes: number] }>()
 
@@ -129,6 +132,37 @@ const topoDespesas = computed(() =>
     .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0)),
 )
 
+/** Variação do mês com o anterior; com previsto no mês ou no anterior, ela também é prevista. */
+function inflacaoPrevista(previsto: number[], i: number): boolean {
+  return previsto[i] > 0.004 || (i > 0 && previsto[i - 1] > 0.004)
+}
+
+function textoInflacao(nome: string, serie: SeriePercentual, previsto: number[], i: number): string {
+  const v = serie.valores[i]
+  if (v == null) return `${nome}, ${MESES[i]}: sem variação (mês sem despesa ou sem o mês anterior para comparar)`
+  const sentido = v > 0 ? 'subiram' : v < 0 ? 'caíram' : 'ficaram iguais'
+  const comparado = i > 0 ? `em relação a ${MESES[i - 1]}` : 'em relação a dezembro do ano anterior'
+  return `${nome}, ${MESES[i]}: as despesas ${sentido} ${v !== 0 ? variacao(v) + ' ' : ''}${comparado}`
+    + (inflacaoPrevista(previsto, i) ? '. Inclui valores previstos: muda quando forem confirmados' : '')
+}
+
+function textoInflacaoAno(nome: string, serie: SeriePercentual): string {
+  return serie.ano == null
+    ? `${nome}: sem inflação no ano`
+    : `${nome}: inflação acumulada no ano, composta mês a mês, de ${variacao(serie.ano)}`
+}
+
+function classesInflacao(v: number | null, previsto: number[], i: number) {
+  return {
+    ...classesCelula(i),
+    sobe: v != null && v > 0.05,
+    desce: v != null && v < -0.05,
+    'infl-prev': inflacaoPrevista(previsto, i),
+  }
+}
+
+const previstoDespesas = computed(() => previstoDoBloco(props.visao.despesas))
+
 function linkCategoria(c: CategoriaVisao): string {
   return `/lancamentos?categoriaId=${c.id}&ano=${props.visao.ano}`
 }
@@ -144,6 +178,9 @@ function linkCategoria(c: CategoriaVisao): string {
     <div class="acoes">
       <label v-if="temOcultas" class="caixa-marcar">
         <input v-model="mostrarVazias" type="checkbox" /> Mostrar categorias sem valor no ano
+      </label>
+      <label class="caixa-marcar" title="Linhas com quanto as despesas variaram de um mês para o outro: da família e de cada grupo">
+        <input type="checkbox" :checked="inflacao.ligada.value" @change="inflacao.alternar()" /> Mostrar inflação
       </label>
       <label class="caixa-marcar" title="Sem centavos, os valores aparecem arredondados para o real mais próximo">
         <input type="checkbox" :checked="centavos.ligados.value" @change="centavos.alternar()" /> Mostrar centavos
@@ -213,6 +250,22 @@ function linkCategoria(c: CategoriaVisao): string {
           <td />
         </tr>
 
+        <tr v-if="b.chave === 'DESPESA' && inflacao.ligada.value && b.bloco.total.ano !== 0" class="linha-inflacao inflacao-familia">
+          <th scope="row">
+            <button type="button" class="explicar explicar-inflacao" popovertarget="explica-inflacao"
+                    aria-label="Inflação da família: o que é">
+              Inflação da família <Info aria-hidden="true" />
+            </button>
+          </th>
+          <td v-for="(v, i) in visao.resumo.inflacaoFamiliar.valores" :key="i" class="num"
+              :class="classesInflacao(v, previstoDespesas, i)" :title="textoInflacao('Família', visao.resumo.inflacaoFamiliar, previstoDespesas, i)"
+              @mouseenter="realce = i">{{ variacao(v) }}</td>
+          <td class="num total" :title="textoInflacaoAno('Família', visao.resumo.inflacaoFamiliar)">
+            {{ variacao(visao.resumo.inflacaoFamiliar.ano) }}
+          </td>
+          <td colspan="3" class="nota-inflacao">no ano</td>
+        </tr>
+
         <tr v-if="b.bloco.grupos.length === 0" class="linha-vazia">
           <td :colspan="17">Nenhum grupo de {{ b.titulo.toLowerCase() }} ainda.</td>
         </tr>
@@ -234,10 +287,17 @@ function linkCategoria(c: CategoriaVisao): string {
             <td />
           </tr>
           <template v-if="!fechados.has(g.id)">
+            <tr v-if="b.chave === 'DESPESA' && inflacao.ligada.value && g.total.ano !== 0" class="linha-inflacao">
+              <th scope="row"><span class="rotulo-inflacao">Inflação</span></th>
+              <td v-for="(v, i) in g.inflacao.valores" :key="i" class="num" :class="classesInflacao(v, g.previsto, i)"
+                  :title="textoInflacao(g.nome, g.inflacao, g.previsto, i)" @mouseenter="realce = i">{{ variacao(v) }}</td>
+              <td class="num total" :title="textoInflacaoAno(g.nome, g.inflacao)">{{ variacao(g.inflacao.ano) }}</td>
+              <td colspan="3" />
+            </tr>
             <tr v-for="c in categoriasVisiveis(g)" :key="c.id" class="linha-categoria" :class="{ inativo: !c.ativa }">
               <th scope="row">
                 <RouterLink :to="linkCategoria(c)" class="nome-categoria">{{ c.nome }}</RouterLink>
-                <span v-if="c.calculada" class="selo">{{ pct(c.aliquota, 2) }}</span>
+                <SelosCategoria class="selos" :categoria="c" :tipo="b.chave" />
                 <span v-if="!c.ativa" class="selo">desativada</span>
               </th>
               <td v-for="(v, i) in c.total.valores" :key="i" class="num" :class="classesCelula(i, c.previsto[i])"
@@ -288,6 +348,23 @@ function linkCategoria(c: CategoriaVisao): string {
       </template>
     </p>
     <button type="button" class="botao botao-pequeno" popovertarget="explica-rank" popovertargetaction="hide">Entendi</button>
+  </div>
+
+  <div id="explica-inflacao" popover class="explicacao">
+    <h3>Inflação da família</h3>
+    <p>
+      Quanto as despesas de vocês variaram de um mês para o outro, como na planilha. <strong>+5%</strong> em março quer
+      dizer que março custou 5% a mais que fevereiro. Cada grupo de despesa tem a sua linha logo abaixo do nome.
+    </p>
+    <p>
+      Na coluna <strong>Total</strong> fica a inflação acumulada no ano, composta mês a mês. Mês sem despesa fica sem
+      variação (não conta como −100%), e o que tem valor previsto aparece em itálico: muda quando for confirmado.
+    </p>
+    <p v-if="visao.resumo.inflacaoFamiliar.ano != null" class="exemplo">
+      Em {{ visao.ano }}, a inflação da família no ano está em
+      <strong class="num">{{ variacao(visao.resumo.inflacaoFamiliar.ano) }}</strong>.
+    </p>
+    <button type="button" class="botao botao-pequeno" popovertarget="explica-inflacao" popovertargetaction="hide">Entendi</button>
   </div>
 </template>
 
@@ -658,8 +735,64 @@ tbody + tbody .linha-tipo td {
   text-decoration: underline;
 }
 
-.linha-categoria .selo {
+.linha-categoria .selos {
   margin-left: var(--e-2);
+}
+
+/* Inflação: linhas mais baixas e discretas, como a linha "Inflação" sob cada grupo da planilha. */
+.linha-inflacao th,
+.linha-inflacao td {
+  height: 2rem;
+  font-size: var(--t-xs);
+  color: var(--texto-2);
+}
+
+.linha-inflacao th {
+  padding-left: calc(var(--e-4) + 1.5rem);
+  font-weight: 500;
+}
+
+.rotulo-inflacao {
+  font-style: italic;
+}
+
+.linha-inflacao td.sobe {
+  color: var(--coral-borda);
+}
+
+.linha-inflacao td.desce {
+  color: var(--verde);
+}
+
+.linha-inflacao td.infl-prev {
+  font-style: italic;
+}
+
+.linha-inflacao td.total {
+  font-weight: 700;
+}
+
+.inflacao-familia th,
+.inflacao-familia td {
+  height: 2.25rem;
+  font-weight: 600;
+  background: var(--areia);
+}
+
+.inflacao-familia th {
+  padding-left: var(--e-2);
+  color: var(--texto);
+}
+
+.inflacao-familia .explicar-inflacao {
+  justify-content: flex-start;
+  width: auto;
+  font-weight: 600;
+}
+
+.nota-inflacao {
+  text-align: left;
+  font-weight: 400 !important;
 }
 
 .inativo th,

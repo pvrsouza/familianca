@@ -1,10 +1,12 @@
 package br.com.familianca.application.service;
 
 import br.com.familianca.application.port.in.GerenciarLancamentos;
+import br.com.familianca.application.port.out.DescricaoUsada;
 import br.com.familianca.application.port.out.LancamentoRepository;
 import br.com.familianca.application.port.out.PlanoContasRepository;
 import br.com.familianca.application.port.out.RecorrenciaRepository;
 import br.com.familianca.application.port.out.Relogio;
+import br.com.familianca.domain.Validacoes;
 import br.com.familianca.domain.exception.NaoEncontradoException;
 import br.com.familianca.domain.exception.RegraNegocioException;
 import br.com.familianca.domain.model.Categoria;
@@ -12,21 +14,26 @@ import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Lancamento;
 import br.com.familianca.domain.model.Membro;
 import br.com.familianca.domain.model.Parcela;
+import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.service.GeradorParcelas;
 import br.com.familianca.domain.vo.Competencia;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static br.com.familianca.domain.Validacoes.obrigatorio;
 
@@ -36,6 +43,11 @@ import static br.com.familianca.domain.Validacoes.obrigatorio;
 public class LancamentoService implements GerenciarLancamentos {
 
     private static final GeradorParcelas GERADOR = new GeradorParcelas();
+    /** Sem nada digitado: só as mais comuns, como sugestão direta. */
+    private static final int SUGESTOES_DIRETAS = 3;
+    /** Digitando: o que bate com o termo, das mais parecidas para as menos. */
+    private static final int MAXIMO_ENCONTRADAS = 8;
+    private static final int TERMO_MAXIMO = 200;
 
     private final LancamentoRepository lancamentos;
     private final PlanoContasRepository planoContas;
@@ -150,6 +162,55 @@ public class LancamentoService implements GerenciarLancamentos {
     @Override
     public int anoAtual() {
         return relogio.hoje().getYear();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> descricoesUsadas(Long categoriaId, String termo) {
+        planoContas.buscarCategoria(obrigatorio(categoriaId, "categoria"))
+                .orElseThrow(() -> new NaoEncontradoException("Categoria não encontrada: " + categoriaId));
+        String busca = termo == null ? "" : chaveDescricao(Validacoes.limpar(termo));
+        if (busca.length() > TERMO_MAXIMO) {
+            throw new RegraNegocioException("A busca pode ter no máximo " + TERMO_MAXIMO + " caracteres");
+        }
+        return busca.isEmpty() ? maisComuns(categoriaId) : buscar(categoriaId, busca);
+    }
+
+    /** As mais lançadas; recorrência ainda sem lançamento completa a lista. */
+    private List<String> maisComuns(Long categoriaId) {
+        Map<String, String> unicas = new LinkedHashMap<>();
+        lancamentos.descricoesMaisUsadas(categoriaId, SUGESTOES_DIRETAS * 2)
+                .forEach(d -> unicas.putIfAbsent(chaveDescricao(d), d));
+        recorrencias.listar().stream()
+                .filter(r -> r.categoriaId().equals(categoriaId))
+                .map(Recorrencia::descricao)
+                .sorted()
+                .forEach(d -> unicas.putIfAbsent(chaveDescricao(d), d));
+        return unicas.values().stream().limit(SUGESTOES_DIRETAS).toList();
+    }
+
+    /**
+     * Começa com o termo primeiro, depois a mais parecida (pg_trgm) e, no empate, a mais usada. Variações da mesma
+     * descrição (maiúsculas, acento, espaço) viram uma só: fica a mais usada.
+     */
+    private List<String> buscar(Long categoriaId, String busca) {
+        Map<String, DescricaoUsada> unicas = new LinkedHashMap<>();
+        Stream.concat(lancamentos.buscarDescricoes(categoriaId, busca, MAXIMO_ENCONTRADAS * 2).stream(),
+                        recorrencias.buscarDescricoes(categoriaId, busca, MAXIMO_ENCONTRADAS * 2).stream())
+                .forEach(d -> unicas.merge(chaveDescricao(d.descricao()), d,
+                        (a, b) -> a.usos() >= b.usos() ? a : b));
+        Comparator<DescricaoUsada> relevancia = Comparator
+                .comparing((DescricaoUsada d) -> !chaveDescricao(d.descricao()).startsWith(busca))
+                .thenComparing(DescricaoUsada::semelhanca, Comparator.reverseOrder())
+                .thenComparing(DescricaoUsada::usos, Comparator.reverseOrder());
+        return unicas.values().stream().sorted(relevancia).limit(MAXIMO_ENCONTRADAS)
+                .map(DescricaoUsada::descricao).toList();
+    }
+
+    /** "Mercado", "mercado " e "Mércado" são a mesma descrição. */
+    private static String chaveDescricao(String descricao) {
+        return Normalizer.normalize(descricao.trim(), Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+                .replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
     }
 
     /** Categoria lançável e membro ativo; MEMBRO só lança em nome próprio. */

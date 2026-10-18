@@ -2,7 +2,9 @@
 import { computed, ref } from 'vue'
 import { ChevronRight } from 'lucide-vue-next'
 import type { CategoriaVisao, GrupoVisao, Tipo, VisaoAnual } from '../../api/tipos'
-import { MESES, MESES_CURTOS, ordinal, pct, reais } from '../../util/formato'
+import { MESES, MESES_CURTOS, ordinal, pct, reais, variacao } from '../../util/formato'
+import { inflacao } from '../../estado/inflacao'
+import SelosCategoria from '../SelosCategoria.vue'
 
 // No celular a tabela larga vira o mês escolhido: as 12 barras da copa são o seletor de mês.
 const props = defineProps<{ visao: VisaoAnual; mesAtual: number | null }>()
@@ -22,6 +24,7 @@ const escala = computed(() => Math.max(1, ...renda.value, ...props.visao.despesa
 const rendaMes = computed(() => props.visao.receitas.total.valores[mes.value])
 const despesaMes = computed(() => props.visao.despesas.total.valores[mes.value])
 const sobraMes = computed(() => rendaMes.value - despesaMes.value)
+const inflacaoMes = computed(() => props.visao.resumo.inflacaoFamiliar.valores[mes.value])
 
 const blocos = computed(() => [
   { titulo: 'Receitas', grupos: props.visao.receitas.grupos, receita: true },
@@ -76,6 +79,14 @@ function escolherComTeclado(e: KeyboardEvent) {
           <dt>{{ sobraMes < 0 ? 'Faltou' : 'Sobra' }}</dt>
           <dd class="num" :class="{ negativo: sobraMes < 0 }">{{ reais(Math.abs(sobraMes)) }}</dd>
         </div>
+        <div v-if="inflacao.ligada.value" class="inflacao"
+             :title="'Quanto as despesas variaram em relação ao mês anterior. No ano, a inflação acumulada (composta).'">
+          <dt>Inflação</dt>
+          <dd class="num">
+            {{ variacao(inflacaoMes) }}
+            <span class="texto-2">· {{ variacao(visao.resumo.inflacaoFamiliar.ano) }} no ano</span>
+          </dd>
+        </div>
       </dl>
       <p v-if="prevista[mes] > 0.004" class="nota">
         <span class="selo selo-previsto">{{ reais(prevista[mes]) }} previsto</span> ainda não confirmado
@@ -93,13 +104,16 @@ function escolherComTeclado(e: KeyboardEvent) {
             <span class="valores">
               <span class="num valor" :class="{ prev: g.previsto[mes] > 0.004 }">{{ reais(g.total.valores[mes]) }}</span>
               <span class="num ano">{{ reais(g.total.ano) }} no ano · {{ pct(g.participacao) }}</span>
+              <span v-if="!b.receita && inflacao.ligada.value && g.inflacao.valores[mes] != null" class="num ano">
+                inflação {{ variacao(g.inflacao.valores[mes]) }}
+              </span>
             </span>
           </button>
           <ul v-if="abertos.has(g.id)" class="categorias">
             <li v-for="c in g.categorias.filter((c) => c.total.ano !== 0)" :key="c.id">
               <button type="button" class="categoria" :disabled="c.calculada"
                       @click="emit('abrir', c, b.receita ? 'RECEITA' : 'DESPESA', mes + 1)">
-                <span class="nome">{{ c.nome }}</span>
+                <span class="nome">{{ c.nome }} <SelosCategoria :categoria="c" :tipo="b.receita ? 'RECEITA' : 'DESPESA'" /></span>
                 <span class="valores">
                   <span class="num valor" :class="{ prev: c.previsto[mes] > 0.004 }">{{ reais(c.total.valores[mes]) }}</span>
                   <span class="num ano">{{ reais(c.total.ano) }} no ano<template v-if="c.rank"> · {{ ordinal(c.rank) }} do ano</template></span>
@@ -248,6 +262,14 @@ dd {
 
 .negativo {
   color: var(--erro);
+}
+
+.inflacao dd {
+  font-size: var(--t-sm);
+}
+
+.inflacao .texto-2 {
+  font-size: var(--t-xs);
 }
 
 .nota {

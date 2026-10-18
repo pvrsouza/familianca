@@ -1,5 +1,8 @@
 package br.com.familianca.adapter.in.web;
 
+import br.com.familianca.adapter.in.seguranca.LimiteTentativasLogin;
+import br.com.familianca.adapter.in.seguranca.UsuarioAutenticado;
+import br.com.familianca.adapter.in.web.dto.ApagarDadosRequest;
 import br.com.familianca.adapter.in.web.dto.ConviteRequest;
 import br.com.familianca.adapter.in.web.dto.ConviteResponse;
 import br.com.familianca.adapter.in.web.dto.EstimativaRequest;
@@ -14,9 +17,11 @@ import br.com.familianca.domain.model.PapelFamilia;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,11 +42,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class FamiliaController {
 
     private final GerenciarFamilia familia;
+    private final LimiteTentativasLogin limite;
     private final String urlConvite;
 
-    public FamiliaController(GerenciarFamilia familia,
+    public FamiliaController(GerenciarFamilia familia, LimiteTentativasLogin limite,
                              @Value("${familianca.convites.url-base:http://localhost:5174/convite}") String urlConvite) {
         this.familia = familia;
+        this.limite = limite;
         this.urlConvite = urlConvite;
     }
 
@@ -102,5 +109,26 @@ public class FamiliaController {
     @Operation(summary = "Cancelar convite pendente")
     public void cancelarConvite(@PathVariable Long id) {
         familia.cancelarConvite(id);
+    }
+
+    @PostMapping("/dados/apagamento")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Apagar todos os dados da família", description = """
+            Apaga, sem volta, todo o orçamento da família: lançamentos, recorrências, saldos informados,
+            investimentos e o plano de contas (que volta a ser o padrão de família nova). Pessoas, convites e
+            assinatura continuam. Só DONO, com a própria senha; senha errada conta no mesmo limite de tentativas do
+            login (5 em 15 minutos, depois 429).""")
+    @ApiResponse(responseCode = "204", description = "Dados apagados; categorias padrão recriadas")
+    @ApiResponse(responseCode = "422", description = "Senha incorreta")
+    @ApiResponse(responseCode = "429", description = "Muitas tentativas")
+    public void apagarDados(@Valid @RequestBody ApagarDadosRequest corpo,
+                            @AuthenticationPrincipal UsuarioAutenticado usuario, HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        if (!limite.tentar(ip, usuario.email())) {
+            throw new TentativasExcedidasException(limite.segundosParaNovaTentativa());
+        }
+        // Senha errada lança exceção antes de liberar: a tentativa fica contada.
+        familia.apagarDados(corpo.senha());
+        limite.liberar(ip, usuario.email());
     }
 }

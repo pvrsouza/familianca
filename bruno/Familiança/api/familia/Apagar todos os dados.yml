@@ -1,0 +1,28 @@
+info:
+  name: Apagar todos os dados
+  type: http
+  seq: 8
+  tags:
+    - Família
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/familia/dados/apagamento"
+  body:
+    type: json
+    data: |-
+      {
+        "senha": "{{process.env.LOGIN_SENHA}}"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  SEM VOLTA. Apaga lançamentos, recorrências, saldos, investimentos e o plano de contas (volta o padrão).
+  Pessoas, convites e assinatura ficam. Só DONO, com a própria senha (limite de tentativas do login).

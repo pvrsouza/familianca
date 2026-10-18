@@ -59,6 +59,19 @@ public class LancamentoController {
                 .map(LancamentoResponse::de).toList();
     }
 
+    @GetMapping("/descricoes")
+    @Operation(summary = "Descrições já usadas na categoria", description = """
+            Para sugerir ao lançar e evitar nomes diferentes para a mesma coisa. Sem `q`: as 3 descrições mais
+            usadas na categoria. Com `q`: até 8 descrições dos lançamentos e recorrências da categoria que contêm
+            parte do termo ou se parecem com ele (sem ligar para acento, maiúscula ou erro de digitação: "mercdo"
+            acha "Mercado do mês"), as que começam com o termo primeiro. Variações da mesma descrição viram uma.""")
+    @ApiResponse(responseCode = "404", description = "Categoria não encontrada")
+    @ApiResponse(responseCode = "422", description = "Termo com mais de 200 caracteres")
+    public List<String> descricoes(@RequestParam Long categoriaId,
+                                   @Parameter(description = "Parte da descrição digitada") @RequestParam(required = false) String q) {
+        return lancamentos.descricoesUsadas(categoriaId, q);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Buscar lançamento")
     @ApiResponse(responseCode = "404", description = "Lançamento não encontrado")

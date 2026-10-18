@@ -70,6 +70,14 @@ entra no plano no fim deste arquivo.
 | Sem `v-html`; fontes e QR code locais (nada de serviço externo; a `uri` do MFA carrega o segredo) | `frontend/src` |
 | Imagem compila o front num estágio Node e não leva source maps | `docker/app.Dockerfile`, `frontend/vite.config.ts` |
 
+**Apagar os dados da família e sugestão de descrições (2026-10-18):**
+
+| Mudança | Onde |
+|---|---|
+| "Apagar todos os dados" (`POST /api/familia/dados/apagamento`): só DONO (`@PreAuthorize`), pede a senha de novo (ação sem volta), senha errada conta no limite do login (429), apaga só pela família da sessão (nunca por id vindo da requisição), exclusão em lote só com JPQL parametrizado e evento `DADOS_FAMILIA_APAGADOS` na auditoria (ids e contagens, sem dado pessoal). `ApagarDadosRequest` não expõe a senha no `toString`. No front, além da senha, digitar o nome da família | `FamiliaService`, `FamiliaController`, `DadosFamiliaPersistenceAdapter`, `FamiliaView` |
+| Descrições já usadas (`GET /api/lancamentos/descricoes?q=`): categoria de outra família responde 404, consulta filtrada pela família da sessão, termo até 200 caracteres (422) e no máximo 8 resultados. A busca é JPQL com parâmetros: `unaccent` e `word_similarity` (pg_trgm) entram como funções registradas no Hibernate com modelo fixo, e `%`/`_` digitados são escapados (não viram curinga). As extensões vêm da migration V10 (trusted, criadas pelo dono do banco, sem superusuário) | `LancamentoService`, `FuncoesBusca`, `LancamentoJpaRepository`, `RecorrenciaJpaRepository`, `V10__busca_descricoes.sql` |
+| Testes: senha errada, limite de tentativas, MEMBRO (403), sem login, isolamento entre famílias nas duas rotas | `ApagarDadosApiTest`, `LancamentoApiTest` |
+
 **MFA e segredos não bloqueiam a primeira versão.** Sem `MFA_CHAVE`, a aplicação sobe com o MFA desligado
 (`GET /api/conta/mfa` → `disponivel: false`, e configurar responde 422). Os segredos fracos só geram aviso no log.
 Para ligar o MFA depois: gerar a chave (`openssl rand -hex 32`), colocar no `.env` do VPS, guardar junto com as
@@ -102,7 +110,7 @@ conseguir entrar (falha fechada) até a chave voltar.
 | Sessões ativas | 11 | Listar as sessões do usuário (Spring Session já indexa por usuário) e oferecer "sair de todos os dispositivos". |
 | Senhas vazadas | 2 | Recusar senha que aparece em vazamentos (Have I Been Pwned por k-anonymity: só os 5 primeiros caracteres do SHA-1 saem do servidor). |
 | Algoritmo de hash migrável | 2 | Trocar para `DelegatingPasswordEncoder` (prefixo `{bcrypt}`) para poder adotar Argon2 depois, re-hashando no login. |
-| LGPD | — | Exportar os dados da família e excluir a conta. |
+| LGPD | — | Exportar os dados da família e excluir a conta (o orçamento já pode ser apagado em "Recomeçar do zero"; falta excluir pessoas, família e contas, e confirmar por e-mail). |
 
 ### Fase 3 — depende de infraestrutura 🔒
 

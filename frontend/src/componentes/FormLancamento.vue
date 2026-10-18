@@ -6,6 +6,7 @@ import { mensagemDeErro } from '../api/http'
 import { catalogo } from '../estado/catalogo'
 import { sessao } from '../estado/sessao'
 import { FREQUENCIAS, competenciaPorExtenso, hoje, reais } from '../util/formato'
+import CampoDescricao from './CampoDescricao.vue'
 import CampoValor from './CampoValor.vue'
 import Mensagem from './Mensagem.vue'
 import SeletorCategoria from './SeletorCategoria.vue'
@@ -133,18 +134,18 @@ async function salvar() {
     </div>
 
     <div class="campo">
-      <label for="l-descricao">Descrição</label>
-      <input id="l-descricao" v-model="form.descricao" class="entrada" maxlength="200" required
-             :placeholder="form.tipo === 'RECEITA' ? 'Ex.: salário de outubro' : 'Ex.: mercado da semana'"
-             :aria-invalid="(tentou && !form.descricao.trim()) || undefined" />
-      <span v-if="tentou && !form.descricao.trim()" class="erro-campo">Conte o que foi, em poucas palavras.</span>
-    </div>
-
-    <div class="campo">
       <label for="l-categoria">Categoria</label>
       <SeletorCategoria id="l-categoria" v-model="form.categoriaId" :tipo="form.tipo"
                         :invalido="tentou && !form.categoriaId" />
       <span v-if="tentou && !form.categoriaId" class="erro-campo">Escolha a categoria.</span>
+    </div>
+
+    <div class="campo">
+      <label for="l-descricao">Descrição</label>
+      <CampoDescricao id="l-descricao" v-model="form.descricao" :categoria-id="form.categoriaId"
+                      :placeholder="form.tipo === 'RECEITA' ? 'Ex.: salário de outubro' : 'Ex.: mercado da semana'"
+                      :invalido="tentou && !form.descricao.trim()" />
+      <span v-if="tentou && !form.descricao.trim()" class="erro-campo">Conte o que foi, em poucas palavras.</span>
     </div>
 
     <div class="grade-campos duas">

@@ -20,10 +20,12 @@ import static br.com.familianca.domain.Validacoes.opcional;
  * - puladas: competências em que não houve a ocorrência.
  * - confirmarSozinhaDesde: data em que a família ligou a confirmação automática (débito automático, conta de valor
  *   fixo); as ocorrências que vencem a partir dela viram lançamento sozinhas, com o valor previsto. Nulo = desligada.
+ * - valorDesde: competência em que o valor cadastrado mudou pela última vez. A estimativa do previsto só considera as
+ *   confirmações a partir dela (um reajuste não é desfeito pela média dos meses de antes). Nulo = desde sempre.
  */
 public record Recorrencia(Long id, Long categoriaId, Long membroId, String descricao, Dinheiro valor, int dia,
                           Frequencia frequencia, Competencia inicio, Competencia fim, String observacao,
-                          Set<Competencia> puladas, LocalDate confirmarSozinhaDesde) {
+                          Set<Competencia> puladas, LocalDate confirmarSozinhaDesde, Competencia valorDesde) {
 
     public Recorrencia {
         obrigatorio(categoriaId, "categoria");
@@ -47,6 +49,13 @@ public record Recorrencia(Long id, Long categoriaId, Long membroId, String descr
         }
         observacao = opcional(observacao);
         puladas = puladas == null ? Set.of() : Set.copyOf(puladas);
+    }
+
+    public Recorrencia(Long id, Long categoriaId, Long membroId, String descricao, Dinheiro valor, int dia,
+                       Frequencia frequencia, Competencia inicio, Competencia fim, String observacao,
+                       Set<Competencia> puladas, LocalDate confirmarSozinhaDesde) {
+        this(id, categoriaId, membroId, descricao, valor, dia, frequencia, inicio, fim, observacao, puladas,
+                confirmarSozinhaDesde, null);
     }
 
     /** Se a agenda da recorrência tem ocorrência na competência (pulada ou não). */
@@ -97,6 +106,6 @@ public record Recorrencia(Long id, Long categoriaId, Long membroId, String descr
 
     public Recorrencia comPuladas(Set<Competencia> novas) {
         return new Recorrencia(id, categoriaId, membroId, descricao, valor, dia, frequencia, inicio, fim, observacao,
-                novas, confirmarSozinhaDesde);
+                novas, confirmarSozinhaDesde, valorDesde);
     }
 }

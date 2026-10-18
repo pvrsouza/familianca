@@ -35,4 +35,10 @@ public interface LancamentoRepository {
     boolean existeOcorrencia(Long recorrenciaId, Competencia competencia);
 
     boolean existeDaRecorrencia(Long recorrenciaId);
+
+    /** Descrições distintas já lançadas na categoria, as mais usadas primeiro. */
+    List<String> descricoesMaisUsadas(Long categoriaId, int limite);
+
+    /** Descrições da categoria que contêm o termo ou se parecem com ele; termo já sem acento e minúsculo. */
+    List<DescricaoUsada> buscarDescricoes(Long categoriaId, String termo, int limite);
 }

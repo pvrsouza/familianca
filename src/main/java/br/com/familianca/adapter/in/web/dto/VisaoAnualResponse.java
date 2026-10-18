@@ -2,6 +2,7 @@ package br.com.familianca.adapter.in.web.dto;
 
 import br.com.familianca.application.port.in.ConsultarVisaoAnual.VisaoAnualDetalhada;
 import br.com.familianca.domain.model.Categoria;
+import br.com.familianca.domain.model.Estimativa;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Membro;
 import br.com.familianca.domain.model.Natureza;
@@ -104,6 +105,12 @@ public record VisaoAnualResponse(int ano, List<String> meses, Resumo resumo, Blo
     }
 
     public record CategoriaVisao(Long id, String nome, boolean ativa, boolean calculada, BigDecimal aliquota,
+                                 @Schema(description = "Costuma se repetir: ao lançar, já sugere repetir no ano.")
+                                 boolean recorrente,
+                                 @Schema(description = "Receita que entra na base de cálculo das despesas PJ.")
+                                 boolean tributavel,
+                                 @Schema(description = "Regra própria de estimativa; nulo = segue a da família.")
+                                 Estimativa estimativa,
                                  Serie total, List<BigDecimal> realizado, List<BigDecimal> previsto,
                                  @Schema(description = "Parte do previsto que é estimativa (média, máximo ou mínimo "
                                          + "dos meses que já passaram), para despesas que não se repetem.")
@@ -115,7 +122,7 @@ public record VisaoAnualResponse(int ano, List<String> meses, Resumo resumo, Blo
         static CategoriaVisao de(LinhaCategoria l) {
             Categoria c = l.categoria();
             return new CategoriaVisao(c.id(), c.nome(), c.ativa(), c.calculada(), Valores.valor(c.aliquota()),
-                    Serie.de(l.total()), Valores.meses(l.realizado()), Valores.meses(l.previsto()),
+                    c.recorrente(), c.tributavel(), c.estimativa(), Serie.de(l.total()), Valores.meses(l.realizado()), Valores.meses(l.previsto()),
                     Valores.meses(l.estimado()), Valores.valor(l.participacao()), l.rank());
         }
     }

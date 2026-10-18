@@ -50,11 +50,21 @@ public final class CalculadoraVisaoAnual {
      * @param metaAporte         % da sobra (renda − despesas) que a família quer investir; nulo = sem meta
      * @param estimativaFamilia  regra padrão da família para estimar os próximos meses
      * @param hoje               data de referência: só o ano corrente é estimado, a partir do mês seguinte
+     * @param previsao           valor previsto de cada ocorrência das recorrências (estimado pela regra ou cadastrado)
      */
     public record Entrada(int ano, List<Grupo> grupos, List<Categoria> categorias, List<Lancamento> lancamentos,
                           List<Recorrencia> recorrencias, Set<Ocorrencia> confirmadas, List<SaldoMes> saldos,
                           SerieMensal aplicacoes, SerieMensal rendaInvestimentos, Percentual metaAporte,
-                          Estimativa estimativaFamilia, LocalDate hoje) {
+                          Estimativa estimativaFamilia, LocalDate hoje, PrevisaoRecorrencias previsao) {
+
+        /** Recorrências sempre pelo valor cadastrado. */
+        public Entrada(int ano, List<Grupo> grupos, List<Categoria> categorias, List<Lancamento> lancamentos,
+                       List<Recorrencia> recorrencias, Set<Ocorrencia> confirmadas, List<SaldoMes> saldos,
+                       SerieMensal aplicacoes, SerieMensal rendaInvestimentos, Percentual metaAporte,
+                       Estimativa estimativaFamilia, LocalDate hoje) {
+            this(ano, grupos, categorias, lancamentos, recorrencias, confirmadas, saldos, aplicacoes,
+                    rendaInvestimentos, metaAporte, estimativaFamilia, hoje, PrevisaoRecorrencias.nenhuma());
+        }
 
         /** Sem estimativa dos próximos meses. */
         public Entrada(int ano, List<Grupo> grupos, List<Categoria> categorias, List<Lancamento> lancamentos,
@@ -93,8 +103,9 @@ public final class CalculadoraVisaoAnual {
                 if (e.confirmadas().contains(new Ocorrencia(r.id(), comp))) {
                     continue;
                 }
-                previsto.merge(c.id(), SerieMensal.ZERO.comMes(comp.numeroMes(), r.valor()), SerieMensal::somar);
-                somarMembro(porMembro, r.membroId(), grupos.get(c.grupoId()).tipo(), comp.numeroMes(), r.valor());
+                Dinheiro valor = e.previsao().valorEm(r, comp);
+                previsto.merge(c.id(), SerieMensal.ZERO.comMes(comp.numeroMes(), valor), SerieMensal::somar);
+                somarMembro(porMembro, r.membroId(), grupos.get(c.grupoId()).tipo(), comp.numeroMes(), valor);
             }
         }
 

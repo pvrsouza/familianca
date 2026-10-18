@@ -6,6 +6,7 @@ import br.com.familianca.domain.model.Frequencia;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Membro;
 import br.com.familianca.domain.model.Recorrencia;
+import br.com.familianca.domain.service.PrevisaoRecorrencias.Previsao;
 import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Dinheiro;
 
@@ -50,10 +51,15 @@ public interface GerenciarRecorrencias {
      * @param valorNoAno      valor × ocorrências no ano atual (sem as puladas)
      * @param valorAnualizado quanto pesa num ano cheio (valor × vezes por ano)
      */
+    /**
+     * @param valorNoAno valor previsto de cada ocorrência do ano (confirmadas pelo valor previsto), sem as puladas
+     * @param previsao   estimativa do valor das próximas ocorrências pela regra; nula = vale o valor cadastrado
+     */
     record RecorrenciaDetalhada(Recorrencia recorrencia, Categoria categoria, Grupo grupo, Membro membro, int ano,
-                                Dinheiro valorNoAno, Dinheiro valorAnualizado) {
+                                Dinheiro valorNoAno, Dinheiro valorAnualizado, Previsao previsao) {
     }
 
-    record OcorrenciaPendente(RecorrenciaDetalhada recorrencia, Competencia competencia, LocalDate data) {
+    record OcorrenciaPendente(RecorrenciaDetalhada recorrencia, Competencia competencia, LocalDate data,
+                              Dinheiro valorPrevisto) {
     }
 }

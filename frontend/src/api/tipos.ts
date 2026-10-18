@@ -142,6 +142,11 @@ export interface Recorrencia {
   confirmarSozinha: boolean
   /** AAAA-MM-DD: vale para o que vence a partir daí. */
   confirmarSozinhaDesde: string | null
+  /** Previsto das ocorrências do mês atual em diante: a estimativa pela regra ou o valor cadastrado. */
+  valorPrevisto: number
+  /** Regra que gerou o valorPrevisto; nulo = valor cadastrado. */
+  previstoPor: Estimativa | null
+  confirmacoesNaPrevisao: number
 }
 
 export interface Pendente {
@@ -168,6 +173,10 @@ export interface CategoriaVisao {
   ativa: boolean
   calculada: boolean
   aliquota: number | null
+  recorrente: boolean
+  tributavel: boolean
+  /** Regra própria para estimar os próximos meses; nulo = segue a família. */
+  estimativa: Estimativa | null
   total: Serie
   realizado: number[]
   previsto: number[]

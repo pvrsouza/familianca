@@ -57,6 +57,63 @@ class LancamentoApiTest extends IntegracaoBase {
     }
 
     @Test
+    void sugereAsMaisComunsEBuscaPeloQueSeDigita() throws Exception {
+        lancar("Habitação", "Supermercado", "Feira", "80", "2026-09-01");
+        lancar("Habitação", "Supermercado", "Feira", "90", "2026-09-08");
+        lancar("Habitação", "Supermercado", "Mercado do mês", "850", "2026-09-05");
+        lancar("Habitação", "Supermercado", "mercado do mes ", "700", "2026-10-05");
+        lancar("Habitação", "Supermercado", "Mercado do mês", "900", "2026-10-06");
+        lancar("Habitação", "Supermercado", "Padaria", "30", "2026-10-07");
+        lancar("Habitação", "Supermercado", "Hortifruti 100%", "45", "2026-10-07");
+        lancar("Habitação", "Supermercado", "Açougue", "120", "2026-10-08");
+        lancar("Habitação", "Energia", "Conta de luz", "200", "2026-10-06");
+        Long supermercado = categoria("Habitação", "Supermercado");
+        postarERetornarId("/api/recorrencias", """
+                {"categoriaId": %d, "descricao": "Supermercado atacadão", "valor": 400, "dia": 10,
+                 "frequencia": "MENSAL", "inicio": "2026-01"}""".formatted(supermercado));
+        String url = "/api/lancamentos/descricoes";
+        String id = supermercado.toString();
+
+        // Sem termo: só as 3 mais comuns; variações de maiúscula, acento e espaço contam como a mesma.
+        mvc.perform(get(url).param("categoriaId", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(3)))
+                .andExpect(jsonPath("$[0]").value("Mercado do mês"))
+                .andExpect(jsonPath("$[1]").value("Feira"));
+
+        // Parte do termo, sem acento nem maiúscula; o que começa com o termo vem antes; recorrência entra.
+        mvc.perform(get(url).param("categoriaId", id).param("q", "MERC"))
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0]").value("Mercado do mês"))
+                .andExpect(jsonPath("$[1]").value("Supermercado atacadão"));
+        mvc.perform(get(url).param("categoriaId", id).param("q", "acou"))
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0]").value("Açougue"));
+        // Erro de digitação (pg_trgm).
+        mvc.perform(get(url).param("categoriaId", id).param("q", "mercdo"))
+                .andExpect(jsonPath("$[0]").value("Mercado do mês"));
+        mvc.perform(get(url).param("categoriaId", id).param("q", "padara"))
+                .andExpect(jsonPath("$[0]").value("Padaria"));
+        // % e _ são texto, não curinga.
+        mvc.perform(get(url).param("categoriaId", id).param("q", "%"))
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0]").value("Hortifruti 100%"));
+        mvc.perform(get(url).param("categoriaId", id).param("q", "xyzw"))
+                .andExpect(jsonPath("$", hasSize(0)));
+        mvc.perform(get(url).param("categoriaId", id).param("q", "a".repeat(201)))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(get(url).param("categoriaId", categoria("Habitação", "Gás").toString()))
+                .andExpect(jsonPath("$", hasSize(0)));
+
+        // Categoria de outra família: 404, sem vazar as descrições.
+        Membro outro = criarFamilia("outro@teste.com", Plano.PREMIUM);
+        mvc.perform(get(url).param("categoriaId", categoria(outro, "Habitação", "Supermercado").toString())
+                        .param("q", "merc"))
+                .andExpect(status().isNotFound());
+        mvc.perform(get(url)).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void compraParcelada() throws Exception {
         String corpo = mvc.perform(post("/api/lancamentos/parcelados").contentType(APPLICATION_JSON).content("""
                         {"categoriaId": %d, "descricao": "Geladeira", "valorTotal": 3000.10, "parcelas": 3,

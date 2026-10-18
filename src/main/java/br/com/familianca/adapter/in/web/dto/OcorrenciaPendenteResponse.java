@@ -10,6 +10,6 @@ public record OcorrenciaPendenteResponse(String competencia, LocalDate data, Big
 
     public static OcorrenciaPendenteResponse de(OcorrenciaPendente p) {
         return new OcorrenciaPendenteResponse(p.competencia().toString(), p.data(),
-                p.recorrencia().recorrencia().valor().valor(), RecorrenciaResponse.de(p.recorrencia()));
+                p.valorPrevisto().valor(), RecorrenciaResponse.de(p.recorrencia()));
     }
 }

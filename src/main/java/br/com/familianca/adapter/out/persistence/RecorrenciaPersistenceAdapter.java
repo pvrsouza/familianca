@@ -1,5 +1,6 @@
 package br.com.familianca.adapter.out.persistence;
 
+import br.com.familianca.application.port.out.DescricaoUsada;
 import br.com.familianca.application.port.out.RecorrenciaRepository;
 import br.com.familianca.application.port.out.UsuarioAtual;
 import br.com.familianca.domain.exception.NaoEncontradoException;
@@ -7,6 +8,7 @@ import br.com.familianca.domain.model.Frequencia;
 import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Dinheiro;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,6 +62,7 @@ public class RecorrenciaPersistenceAdapter implements RecorrenciaRepository {
         e.fim = r.fim() != null ? r.fim().toString() : null;
         e.observacao = r.observacao();
         e.confirmarSozinhaDesde = r.confirmarSozinhaDesde();
+        e.valorDesde = r.valorDesde() != null ? r.valorDesde().toString() : null;
         e.puladas.clear();
         r.puladas().forEach(c -> e.puladas.add(c.toString()));
         return paraDominio(jpa.save(e));
@@ -74,6 +77,14 @@ public class RecorrenciaPersistenceAdapter implements RecorrenciaRepository {
         return new Recorrencia(e.id, e.categoriaId, e.membroId, e.descricao, Dinheiro.of(e.valor), e.dia,
                 Frequencia.valueOf(e.frequencia), Competencia.parse(e.inicio),
                 e.fim != null ? Competencia.parse(e.fim) : null, e.observacao,
-                e.puladas.stream().map(Competencia::parse).collect(Collectors.toSet()), e.confirmarSozinhaDesde);
+                e.puladas.stream().map(Competencia::parse).collect(Collectors.toSet()), e.confirmarSozinhaDesde,
+                e.valorDesde != null ? Competencia.parse(e.valorDesde) : null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DescricaoUsada> buscarDescricoes(Long categoriaId, String termo, int limite) {
+        return jpa.buscarDescricoes(usuario.familiaId(), categoriaId, termo, FuncoesBusca.contem(termo),
+                FuncoesBusca.minimo(termo), PageRequest.of(0, limite));
     }
 }

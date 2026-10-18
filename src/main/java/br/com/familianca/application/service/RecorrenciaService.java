@@ -17,6 +17,7 @@ import br.com.familianca.domain.model.Membro;
 import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.model.TipoMovimento;
 import br.com.familianca.domain.service.CalculadoraVisaoAnual.Ocorrencia;
+import br.com.familianca.domain.service.PrevisaoRecorrencias;
 import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Dinheiro;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -44,16 +45,18 @@ public class RecorrenciaService implements GerenciarRecorrencias {
     private final AcessoFamilia acesso;
     private final Relogio relogio;
     private final ConfirmacaoAutomatica confirmacaoAutomatica;
+    private final PrevisaoFamilia previsaoFamilia;
 
     public RecorrenciaService(RecorrenciaRepository recorrencias, LancamentoRepository lancamentos,
                               PlanoContasRepository planoContas, AcessoFamilia acesso, Relogio relogio,
-                              ConfirmacaoAutomatica confirmacaoAutomatica) {
+                              ConfirmacaoAutomatica confirmacaoAutomatica, PrevisaoFamilia previsaoFamilia) {
         this.recorrencias = recorrencias;
         this.lancamentos = lancamentos;
         this.planoContas = planoContas;
         this.acesso = acesso;
         this.relogio = relogio;
         this.confirmacaoAutomatica = confirmacaoAutomatica;
+        this.previsaoFamilia = previsaoFamilia;
     }
 
     @Override
@@ -61,15 +64,17 @@ public class RecorrenciaService implements GerenciarRecorrencias {
     public List<RecorrenciaDetalhada> listar() {
         confirmacaoAutomatica.processar();
         Detalhador d = detalhador();
-        return recorrencias.listar().stream()
+        List<Recorrencia> lista = recorrencias.listar();
+        PrevisaoRecorrencias previsao = previsaoFamilia.calcular(lista);
+        return lista.stream()
                 .sorted(Comparator.comparing(Recorrencia::descricao, String.CASE_INSENSITIVE_ORDER))
-                .map(r -> detalhar(r, d)).toList();
+                .map(r -> detalhar(r, d, previsao)).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public RecorrenciaDetalhada buscar(Long id) {
-        return detalhar(exigir(id), detalhador());
+        return detalhar(exigir(id));
     }
 
     @Override
@@ -78,7 +83,7 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         Recorrencia nova = new Recorrencia(null, dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
                 dados.dia(), dados.frequencia(), dados.inicio(), dados.fim(), dados.observacao(), Set.of(),
                 dados.confirmarSozinha() ? relogio.hoje() : null);
-        return detalhar(recorrencias.salvar(nova), detalhador());
+        return detalhar(recorrencias.salvar(nova));
     }
 
     @Override
@@ -89,10 +94,13 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         // Ligada continua valendo desde quando foi ligada; ligar agora vale a partir de hoje.
         LocalDate desde = !dados.confirmarSozinha() ? null
                 : atual.confirmaSozinha() ? atual.confirmarSozinhaDesde() : relogio.hoje();
+        // Mudou o valor (reajuste): a estimativa passa a considerar só as confirmações daqui em diante.
+        Competencia valorDesde = dados.valor().equals(atual.valor()) ? atual.valorDesde()
+                : Competencia.de(relogio.hoje());
         Recorrencia editada = new Recorrencia(id, dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
                 dados.dia(), dados.frequencia(), dados.inicio(), dados.fim(), dados.observacao(), atual.puladas(),
-                desde);
-        return detalhar(recorrencias.salvar(editada), detalhador());
+                desde, valorDesde);
+        return detalhar(recorrencias.salvar(editada));
     }
 
     @Override
@@ -116,13 +124,15 @@ public class RecorrenciaService implements GerenciarRecorrencias {
                 .map(l -> new Ocorrencia(l.recorrenciaId(), l.competenciaRecorrencia()))
                 .collect(Collectors.toCollection(HashSet::new));
         Detalhador d = detalhador();
+        List<Recorrencia> lista = recorrencias.listar();
+        PrevisaoRecorrencias previsao = previsaoFamilia.calcular(lista);
         List<OcorrenciaPendente> pendentes = new ArrayList<>();
-        for (Recorrencia r : recorrencias.listar()) {
+        for (Recorrencia r : lista) {
             RecorrenciaDetalhada detalhada = null;
             for (Competencia c = de; !c.depoisDe(ate); c = c.seguinte()) {
                 if (r.ocorreEm(c) && !r.dataEm(c).isAfter(hoje) && !confirmadas.contains(new Ocorrencia(r.id(), c))) {
-                    detalhada = detalhada != null ? detalhada : detalhar(r, d);
-                    pendentes.add(new OcorrenciaPendente(detalhada, c, r.dataEm(c)));
+                    detalhada = detalhada != null ? detalhada : detalhar(r, d, previsao);
+                    pendentes.add(new OcorrenciaPendente(detalhada, c, r.dataEm(c), previsao.valorEm(r, c)));
                 }
             }
         }
@@ -140,8 +150,10 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         Categoria categoria = planoContas.buscarCategoria(r.categoriaId()).orElseThrow();
         categoria.exigirLancavel(planoContas.buscarGrupo(categoria.grupoId()).orElseThrow());
         acesso.responsavel(r.membroId());
+        // Sem valor informado, vale o previsto (a estimativa pela regra, do mês atual em diante, ou o cadastrado).
+        Dinheiro previsto = valor != null ? valor : previsaoFamilia.calcular(List.of(r)).valorEm(r, competencia);
         Lancamento lancamento = new Lancamento(null, r.categoriaId(), r.membroId(), r.descricao(),
-                valor != null ? valor : r.valor(), data != null ? data : r.dataEm(competencia), r.id(), competencia,
+                previsto, data != null ? data : r.dataEm(competencia), r.id(), competencia,
                 null, null);
         return detalhador().detalhar(lancamentos.salvar(lancamento));
     }
@@ -151,7 +163,7 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         Recorrencia r = exigirOcorrencia(id, competencia);
         Set<Competencia> puladas = new HashSet<>(r.puladas());
         puladas.add(competencia);
-        return detalhar(recorrencias.salvar(r.comPuladas(puladas)), detalhador());
+        return detalhar(recorrencias.salvar(r.comPuladas(puladas)));
     }
 
     @Override
@@ -160,7 +172,7 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         acesso.exigirPodeAlterar(r.membroId());
         Set<Competencia> puladas = new HashSet<>(r.puladas());
         puladas.remove(competencia);
-        return detalhar(recorrencias.salvar(r.comPuladas(puladas)), detalhador());
+        return detalhar(recorrencias.salvar(r.comPuladas(puladas)));
     }
 
     /** Recorrência com ocorrência agendada na competência e ainda não confirmada, que o usuário pode alterar. */
@@ -198,10 +210,16 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         return new Detalhador(planoContas.listarCategorias(), planoContas.listarGrupos(), acesso.membrosPorId());
     }
 
-    private RecorrenciaDetalhada detalhar(Recorrencia r, Detalhador d) {
+    private RecorrenciaDetalhada detalhar(Recorrencia r) {
+        return detalhar(r, detalhador(), previsaoFamilia.calcular(List.of(r)));
+    }
+
+    private RecorrenciaDetalhada detalhar(Recorrencia r, Detalhador d, PrevisaoRecorrencias previsao) {
         int ano = relogio.hoje().getYear();
         Categoria c = d.categoria(r.categoriaId());
-        return new RecorrenciaDetalhada(r, c, d.grupo(c.grupoId()), d.membro(r.membroId()), ano,
-                r.valor().multiplicar(r.ocorrenciasNoAno(ano).size()), r.valorAnualizado());
+        Dinheiro noAno = r.ocorrenciasNoAno(ano).stream().map(comp -> previsao.valorEm(r, comp))
+                .reduce(Dinheiro.ZERO, Dinheiro::somar);
+        return new RecorrenciaDetalhada(r, c, d.grupo(c.grupoId()), d.membro(r.membroId()), ano, noAno,
+                r.valorAnualizado(), previsao.de(r));
     }
 }

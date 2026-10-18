@@ -11,6 +11,7 @@ import br.com.familianca.domain.exception.RegraNegocioException;
 import br.com.familianca.domain.model.CarteiraAnual;
 import br.com.familianca.domain.model.Familia;
 import br.com.familianca.domain.model.Periodicidade;
+import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.model.Recurso;
 import br.com.familianca.domain.model.VisaoAnual;
 import br.com.familianca.domain.service.CalculadoraImpacto;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -45,12 +47,13 @@ public class VisaoAnualService implements ConsultarVisaoAnual {
     private final InvestimentoRepository investimentos;
     private final AcessoFamilia acesso;
     private final Relogio relogio;
+    private final PrevisaoFamilia previsaoFamilia;
     private final ConfirmacaoAutomatica confirmacaoAutomatica;
 
     public VisaoAnualService(PlanoContasRepository planoContas, LancamentoRepository lancamentos,
                              RecorrenciaRepository recorrencias, SaldoRepository saldos,
                              InvestimentoRepository investimentos, AcessoFamilia acesso, Relogio relogio,
-                             ConfirmacaoAutomatica confirmacaoAutomatica) {
+                             ConfirmacaoAutomatica confirmacaoAutomatica, PrevisaoFamilia previsaoFamilia) {
         this.planoContas = planoContas;
         this.lancamentos = lancamentos;
         this.recorrencias = recorrencias;
@@ -59,6 +62,7 @@ public class VisaoAnualService implements ConsultarVisaoAnual {
         this.acesso = acesso;
         this.relogio = relogio;
         this.confirmacaoAutomatica = confirmacaoAutomatica;
+        this.previsaoFamilia = previsaoFamilia;
     }
 
     @Override
@@ -95,9 +99,10 @@ public class VisaoAnualService implements ConsultarVisaoAnual {
             aplicacoes = carteira.aportes();
             rendaInvestimentos = carteira.rendimentos();
         }
+        List<Recorrencia> lista = recorrencias.listar();
         return CALCULADORA.calcular(new Entrada(ano, planoContas.listarGrupos(), planoContas.listarCategorias(),
-                lancamentos.listar(LocalDate.of(ano, 1, 1), LocalDate.of(ano, 12, 31)), recorrencias.listar(),
+                lancamentos.listar(LocalDate.of(ano, 1, 1), LocalDate.of(ano, 12, 31)), lista,
                 confirmadas, saldos.listar(ano), aplicacoes, rendaInvestimentos, familia.metaAporte(),
-                familia.estimativa(), relogio.hoje()));
+                familia.estimativa(), relogio.hoje(), previsaoFamilia.calcular(lista)));
     }
 }

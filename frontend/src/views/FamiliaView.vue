@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Copy, MessageCircle, Pencil } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { Copy, MessageCircle, Pencil, Trash2 } from 'lucide-vue-next'
 import { familia as api } from '../api/servicos'
 import type { Convite, Membro, Papel } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
+import { catalogo } from '../estado/catalogo'
 import { avisar } from '../estado/avisos'
 import { dataCurta, dataPorExtenso, primeiroNome } from '../util/formato'
 import Mensagem from '../componentes/Mensagem.vue'
+import PainelLateral from '../componentes/PainelLateral.vue'
+import CampoSenha from '../componentes/CampoSenha.vue'
 
+const router = useRouter()
 const f = computed(() => sessao.estado.familia)
 const dono = computed(() => sessao.dono.value)
 const eu = computed(() => sessao.estado.usuario?.membroId)
@@ -144,6 +149,50 @@ async function cancelarConvite(c: Convite) {
     avisar('Convite cancelado. O link não vale mais.')
   } catch (e) {
     erroConvite.value = mensagemDeErro(e)
+  }
+}
+
+// ——— Apagar os dados ———
+// Sem volta: pede o nome da família digitado (contra o clique sem querer) e a senha de quem organiza.
+const apagando = ref(false)
+const nomeConfirmado = ref('')
+const senhaApagar = ref('')
+const erroApagar = ref('')
+const enviandoApagar = ref(false)
+const nomeConfere = computed(() =>
+  !!f.value && nomeConfirmado.value.trim().toLowerCase() === f.value.nome.trim().toLowerCase(),
+)
+
+function abrirApagar() {
+  nomeConfirmado.value = ''
+  senhaApagar.value = ''
+  erroApagar.value = ''
+  apagando.value = true
+}
+
+async function apagarDados() {
+  erroApagar.value = ''
+  if (!nomeConfere.value) {
+    erroApagar.value = 'Digite o nome da família exatamente como aparece acima.'
+    return
+  }
+  if (!senhaApagar.value) {
+    erroApagar.value = 'Informe a sua senha.'
+    return
+  }
+  enviandoApagar.value = true
+  try {
+    await api.apagarDados(senhaApagar.value)
+    apagando.value = false
+    await catalogo.carregar(true)
+    sessao.avisarMudanca()
+    avisar('Os dados da família foram apagados. As categorias voltaram ao padrão.')
+    router.push({ path: '/ano', query: { bemvindo: '1' } })
+  } catch (e) {
+    erroApagar.value = mensagemDeErro(e)
+  } finally {
+    senhaApagar.value = ''
+    enviandoApagar.value = false
   }
 }
 </script>
@@ -286,8 +335,55 @@ async function cancelarConvite(c: Convite) {
             só fica fechado.
           </p>
         </section>
+
+        <section v-if="dono" class="painel painel-corpo apagar">
+          <h2>Recomeçar do zero</h2>
+          <p class="texto-2">
+            Apaga de vez todo o orçamento da família: lançamentos, recorrências, saldos, investimentos e as categorias
+            criadas por vocês. Serve para recomeçar ou para ter certeza de que os dados saíram daqui.
+          </p>
+          <button type="button" class="botao botao-perigo" @click="abrirApagar">
+            <Trash2 aria-hidden="true" /> Apagar todos os dados
+          </button>
+        </section>
       </aside>
     </div>
+
+    <PainelLateral :aberto="apagando" titulo="Apagar todos os dados"
+                   descricao="Não tem como desfazer. Confira antes de seguir." @fechar="apagando = false">
+      <form class="formulario" novalidate @submit.prevent="apagarDados">
+        <div class="o-que-sai">
+          <h3>Sai, para todos da família</h3>
+          <ul>
+            <li>Todos os lançamentos de todos os anos, inclusive parcelas futuras</li>
+            <li>Todas as recorrências e os meses confirmados ou pulados</li>
+            <li>Saldos em conta informados e investimentos com os movimentos</li>
+            <li>Grupos e categorias criados ou alterados: voltam as categorias padrão de família nova</li>
+          </ul>
+          <h3>Fica</h3>
+          <ul>
+            <li>A família, as pessoas, os convites e o plano</li>
+            <li>As contas e senhas de cada um</li>
+          </ul>
+        </div>
+        <div class="campo">
+          <label for="apagar-nome">Para confirmar, digite o nome da família: <strong>{{ f.nome }}</strong></label>
+          <input id="apagar-nome" v-model="nomeConfirmado" class="entrada" maxlength="100" autocomplete="off"
+                 spellcheck="false" />
+        </div>
+        <div class="campo">
+          <label for="apagar-senha">Sua senha</label>
+          <CampoSenha id="apagar-senha" v-model="senhaApagar" autocomplete="current-password" />
+        </div>
+        <Mensagem v-if="erroApagar" tipo="erro">{{ erroApagar }}</Mensagem>
+        <div class="acoes rodape-apagar">
+          <button type="button" class="botao" @click="apagando = false">Manter os dados</button>
+          <button type="submit" class="botao botao-perigo" :disabled="enviandoApagar || !nomeConfere || !senhaApagar">
+            {{ enviandoApagar ? 'Apagando…' : 'Apagar tudo' }}
+          </button>
+        </div>
+      </form>
+    </PainelLateral>
   </div>
 </template>
 
@@ -425,6 +521,42 @@ async function cancelarConvite(c: Convite) {
   margin-top: var(--e-4);
   font-size: var(--t-xs);
   color: var(--texto-2);
+}
+
+.apagar h2 {
+  margin-bottom: var(--e-2);
+}
+
+.apagar p {
+  margin-bottom: var(--e-4);
+  font-size: var(--t-sm);
+}
+
+.o-que-sai {
+  padding: var(--e-4);
+  border-radius: var(--raio);
+  background: var(--erro-claro);
+  font-size: var(--t-sm);
+}
+
+.o-que-sai h3 {
+  font-size: var(--t-sm);
+  font-weight: 700;
+}
+
+.o-que-sai ul {
+  margin: var(--e-1) 0 var(--e-3);
+  padding-left: var(--e-5);
+  display: grid;
+  gap: var(--e-1);
+}
+
+.o-que-sai ul:last-child {
+  margin-bottom: 0;
+}
+
+.rodape-apagar {
+  justify-content: flex-end;
 }
 
 @media (max-width: 960px) {
