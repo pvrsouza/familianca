@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { CalendarClock, Check, PencilLine, SkipForward, Undo2 } from 'lucide-vue-next'
 import { recorrencias as api } from '../api/servicos'
-import type { Recorrencia } from '../api/tipos'
+import type { NotaFiscal, Recorrencia } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
+import { catalogo } from '../estado/catalogo'
 import { competenciaPorExtenso, dataPorExtenso, diasEntre, hoje, reais, vencimentoDe } from '../util/formato'
 import CampoValor from './CampoValor.vue'
+import CamposNotaFiscal from './CamposNotaFiscal.vue'
 import Mensagem from './Mensagem.vue'
 
 // Conferir uma ocorrência prevista. Receita recorrente pode não chegar (ou chegar com outro valor), então a
@@ -44,6 +46,19 @@ const textoAtraso = computed(() => {
   return `${atraso.value} ${atraso.value === 1 ? 'dia' : 'dias'} de atraso`
 })
 
+// ——— Nota fiscal (receita tributável) ———
+// O mês em que a nota conta é o do pagamento, então ele é informado a cada mês (o servidor também exige). Começa em
+// branco de propósito: o dia previsto não serve. Competência e emissão da nota são opcionais.
+onMounted(() => catalogo.carregar())
+const ehNota = computed(() => receita.value && !!catalogo.estado.grupos.flatMap((g) => g.categorias)
+  .find((c) => c.id === props.recorrencia.categoria.id)?.tributavel)
+const recebidoEm = ref('')
+const nfCompetencia = ref('')
+const nfEmissao = ref('')
+const notaFiscal = computed<NotaFiscal | null>(() =>
+  nfCompetencia.value || nfEmissao.value ? { competencia: nfCompetencia.value || null, emissao: nfEmissao.value || null } : null,
+)
+
 const mudandoVencimento = ref(false)
 const novoVencimento = ref(vencimento.value ?? '')
 
@@ -73,12 +88,17 @@ async function confirmar() {
     erro.value = 'Informe o valor que veio.'
     return
   }
+  if (ehNota.value && !recebidoEm.value) {
+    erro.value = 'Informe o dia em que o dinheiro da nota entrou na conta.'
+    return
+  }
   ocupado.value = true
   erro.value = ''
   try {
     const v = outroValor.value ? valor.value! : props.valorPrevisto
     await api.confirmar(props.recorrencia.id, props.competencia, outroValor.value ? v : undefined,
-      vencimento.value ? pagoEm.value : undefined)
+      ehNota.value ? recebidoEm.value : vencimento.value ? pagoEm.value : undefined,
+      ehNota.value ? notaFiscal.value : undefined)
     sessao.avisarMudanca()
     emit('feito', receita.value
       ? `${props.recorrencia.descricao}: ${reais(v)} recebidos em ${mes.value}.`
@@ -153,6 +173,16 @@ async function pular() {
           vencimento, mostra se foi paga em dia ou com atraso.
         </p>
       </template>
+    </div>
+
+    <div v-if="ehNota && podeAlterar && !confirmandoPulo" class="pagamento">
+      <div class="linha">
+        <label class="rotulo" :for="`recebido-${recorrencia.id}-${competencia}`">Entrou na conta em</label>
+        <input :id="`recebido-${recorrencia.id}-${competencia}`" v-model="recebidoEm" class="entrada data" type="date"
+               required :aria-invalid="(!!erro && !recebidoEm) || undefined" />
+      </div>
+      <CamposNotaFiscal v-model:competencia="nfCompetencia" v-model:emissao="nfEmissao"
+                        :id-base="`conf-${recorrencia.id}-${competencia}`" />
     </div>
 
     <template v-if="!podeAlterar">

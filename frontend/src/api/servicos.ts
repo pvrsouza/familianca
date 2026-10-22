@@ -1,7 +1,7 @@
 import { api } from './http'
 import type {
   Carteira, Categoria, Convite, ConviteAberto, Estimativa, Familia, FormaPagamento, Frequencia, Grupo, Impacto, Investimento, Lancamento, Membro,
-  Movimento, Natureza, Papel, Pendente, Periodicidade, Recorrencia, Saldo, MovimentoDoMes, LugarSaldo, TipoLugarSaldo, SituacaoMfa, Tipo, TipoInvestimento,
+  Movimento, Natureza, NotaFiscal, Papel, Pendente, Periodicidade, Recorrencia, Saldo, MovimentoDoMes, LugarSaldo, TipoLugarSaldo, SituacaoMfa, Tipo, TipoInvestimento,
   UsuarioLogado, VisaoAnual,
 } from './tipos'
 
@@ -82,6 +82,8 @@ export interface DadosLancamento {
   valor: number
   data: string
   observacao?: string | null
+  /** Só receita tributável; nulo = sem nota. */
+  notaFiscal?: NotaFiscal | null
 }
 
 export interface FiltroLancamentos {
@@ -139,9 +141,9 @@ export const recorrencias = {
   criar: (d: DadosRecorrencia) => api.post<Recorrencia>('/api/recorrencias', d),
   atualizar: (id: number, d: DadosRecorrencia) => api.put<Recorrencia>(`/api/recorrencias/${id}`, d),
   remover: (id: number) => api.delete(`/api/recorrencias/${id}`),
-  confirmar: (id: number, competencia: string, valor?: number, data?: string) =>
+  confirmar: (id: number, competencia: string, valor?: number, data?: string, notaFiscal?: NotaFiscal | null) =>
     api.post<Lancamento>(`/api/recorrencias/${id}/ocorrencias/${competencia}/confirmacao`,
-      valor !== undefined || data ? { valor, data } : undefined),
+      valor !== undefined || data || notaFiscal ? { valor, data, notaFiscal } : undefined),
   pular: (id: number, competencia: string) => api.post<Recorrencia>(`/api/recorrencias/${id}/ocorrencias/${competencia}/pulo`),
   desfazerPulo: (id: number, competencia: string) =>
     api.delete<Recorrencia>(`/api/recorrencias/${id}/ocorrencias/${competencia}/pulo`),

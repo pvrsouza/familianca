@@ -6,6 +6,7 @@ import br.com.familianca.domain.model.FormaPagamento;
 import br.com.familianca.domain.model.Frequencia;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Membro;
+import br.com.familianca.domain.model.NotaFiscal;
 import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.service.PrevisaoRecorrencias.Previsao;
 import br.com.familianca.domain.vo.Competencia;
@@ -32,8 +33,16 @@ public interface GerenciarRecorrencias {
     /** Ocorrências dos últimos 12 meses com data até hoje, nem confirmadas nem puladas. Mais antigas primeiro. */
     List<OcorrenciaPendente> pendentes();
 
-    /** Vira lançamento. valor e data nulos = os da recorrência. */
-    LancamentoDetalhado confirmar(Long id, Competencia competencia, Dinheiro valor, LocalDate data);
+    /**
+     * Vira lançamento. valor e data nulos = os da recorrência. Receita tributável (nota fiscal) exige a data do
+     * pagamento a cada mês e pode trazer a competência e a emissão da nota.
+     */
+    LancamentoDetalhado confirmar(Long id, Competencia competencia, Dinheiro valor, LocalDate data,
+                                  NotaFiscal notaFiscal);
+
+    default LancamentoDetalhado confirmar(Long id, Competencia competencia, Dinheiro valor, LocalDate data) {
+        return confirmar(id, competencia, valor, data, null);
+    }
 
     RecorrenciaDetalhada pular(Long id, Competencia competencia);
 

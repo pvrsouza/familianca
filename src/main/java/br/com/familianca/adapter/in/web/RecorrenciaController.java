@@ -99,7 +99,8 @@ public class RecorrenciaController {
     public LancamentoResponse confirmar(@PathVariable Long id, @PathVariable String competencia,
                                         @Valid @RequestBody(required = false) ConfirmacaoRequest r) {
         return LancamentoResponse.de(recorrencias.confirmar(id, Competencia.parse(competencia),
-                r != null ? Valores.dinheiro(r.valor()) : null, r != null ? r.data() : null));
+                r != null ? Valores.dinheiro(r.valor()) : null, r != null ? r.data() : null,
+                r != null && r.notaFiscal() != null ? r.notaFiscal().paraDominio() : null));
     }
 
     @PostMapping("/{id}/ocorrencias/{competencia}/pulo")

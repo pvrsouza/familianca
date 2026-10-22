@@ -78,4 +78,12 @@ public record Categoria(Long id, Long grupoId, String nome, int ordem, boolean a
             throw new RegraNegocioException("A categoria " + nome + " é calculada pela alíquota e não recebe lançamentos");
         }
     }
+
+    /** Competência e emissão da nota só fazem sentido na receita tributável (as notas fiscais emitidas). */
+    public void exigirAceitaNotaFiscal(NotaFiscal notaFiscal) {
+        if (notaFiscal != null && !tributavel) {
+            throw new RegraNegocioException("Competência e emissão da nota só valem para receita tributável, e "
+                    + nome + " não é");
+        }
+    }
 }

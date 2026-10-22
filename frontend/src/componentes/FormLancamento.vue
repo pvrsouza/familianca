@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { lancamentos, recorrencias } from '../api/servicos'
-import type { Frequencia, Lancamento, Tipo } from '../api/tipos'
+import type { Frequencia, Lancamento, NotaFiscal, Tipo } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { catalogo } from '../estado/catalogo'
 import { sessao } from '../estado/sessao'
 import { FREQUENCIAS, competenciaPorExtenso, hoje, reais } from '../util/formato'
 import CampoDescricao from './CampoDescricao.vue'
+import CamposNotaFiscal from './CamposNotaFiscal.vue'
 import CampoValor from './CampoValor.vue'
 import Mensagem from './Mensagem.vue'
 import SeletorCategoria from './SeletorCategoria.vue'
@@ -29,7 +30,12 @@ const form = reactive({
   observacao: l?.observacao ?? '',
   repetir: false,
   frequencia: 'MENSAL' as Frequencia,
+  /** Despesa que se repete: dia do vencimento (opcional). Em branco, a conta fica sem vencimento fixo. */
+  vencimento: null as number | null,
   aPagar: false,
+  /** Receita tributável (nota fiscal): mês do serviço (AAAA-MM) e emissão. Em branco = não informado. */
+  nfCompetencia: l?.notaFiscal?.competencia ?? '',
+  nfEmissao: l?.notaFiscal?.emissao ?? '',
 })
 const enviando = ref(false)
 const erro = ref('')
@@ -51,6 +57,23 @@ const competenciaDaData = computed(() => form.data.slice(0, 7))
 const repetirNoAno = computed(() => (form.valor ? form.valor * FREQUENCIAS[form.frequencia].vezes : null))
 /** "Repetir no ano" só oferece o que se repete: a conta avulsa é o "Ainda vou pagar". */
 const frequenciasRepetir = Object.fromEntries(Object.entries(FREQUENCIAS).filter(([chave]) => chave !== 'UNICA'))
+// Campo apagado volta como '' pelo v-model.number: conta como em branco.
+const comVencimento = computed(() => form.tipo === 'DESPESA' && typeof form.vencimento === 'number')
+const vencimentoInvalido = computed(() =>
+  !Number.isInteger(form.vencimento) || form.vencimento! < 1 || form.vencimento! > 31,
+)
+// Nota fiscal (receita tributável): a data é a do pagamento, que decide o mês; competência e emissão são da nota.
+const ehNota = computed(() => form.tipo === 'RECEITA' && !!categoria.value?.tributavel)
+const notaFiscal = computed<NotaFiscal | null>(() =>
+  ehNota.value && (form.nfCompetencia || form.nfEmissao)
+    ? { competencia: form.nfCompetencia || null, emissao: form.nfEmissao || null }
+    : null,
+)
+const rotuloData = computed(() => {
+  if (form.parcelado) return 'Data da 1ª parcela'
+  if (form.aPagar) return 'Vencimento'
+  return ehNota.value ? 'Entrou na conta em' : 'Data'
+})
 const podeFicarAPagar = computed(() => !editando.value && form.tipo === 'DESPESA' && !form.parcelado && !form.repetir)
 
 watch(() => [form.categoriaId, catalogo.estado.carregado] as const, () => {
@@ -92,19 +115,23 @@ async function lancarAPagar(base: { categoriaId: number; membroId: number | null
     + 'com vencimento no dia informado. Quando pagar, confirme na visão anual ou em Recorrências.')
 }
 
+// Despesa com vencimento: o dia dele vale para todos os meses (lembrete e pendências de pagamento). Sem ele, o dia
+// da data só posiciona a conta no mês, sem "em dia" ou "com atraso". Receita não tem vencimento: vale o dia da data.
 async function lancarRepetindo(base: { categoriaId: number; membroId: number | null; descricao: string; observacao: string | null }) {
+  const despesa = form.tipo === 'DESPESA'
   const r = await recorrencias.criar({
     ...base,
     valor: form.valor!,
-    dia: Number(form.data.slice(8, 10)),
+    dia: comVencimento.value ? form.vencimento! : Number(form.data.slice(8, 10)),
     frequencia: form.frequencia,
     inicio: competenciaDaData.value,
     fim: null,
+    semVencimento: despesa && !comVencimento.value,
   })
   // O que já aconteceu entra como confirmado; data futura fica prevista até o dia chegar.
   if (form.data <= hoje()) {
     try {
-      await recorrencias.confirmar(r.id, competenciaDaData.value, form.valor!, form.data)
+      await recorrencias.confirmar(r.id, competenciaDaData.value, form.valor!, form.data, notaFiscal.value)
     } catch (e) {
       // A recorrência já existe: não deixa salvar de novo (duplicaria). Fecha avisando o que falta.
       emit('salvo', `A recorrência foi criada, mas ${competenciaPorExtenso(competenciaDaData.value)} não foi `
@@ -120,6 +147,7 @@ async function salvar() {
   erro.value = ''
   if (!form.valor || form.valor <= 0 || !form.categoriaId || !form.descricao.trim() || !form.data) return
   if (form.parcelado && (form.parcelas < 2 || form.parcelas > 60)) return
+  if (form.repetir && comVencimento.value && vencimentoInvalido.value) return
   enviando.value = true
   const base = {
     categoriaId: form.categoriaId,
@@ -127,9 +155,10 @@ async function salvar() {
     descricao: form.descricao.trim(),
     observacao: form.observacao.trim() || null,
   }
+  const comNota = { ...base, notaFiscal: notaFiscal.value }
   try {
     if (props.lancamento) {
-      await lancamentos.atualizar(props.lancamento.id, { ...base, valor: form.valor, data: form.data })
+      await lancamentos.atualizar(props.lancamento.id, { ...comNota, valor: form.valor, data: form.data })
       emit('salvo', 'Lançamento atualizado.')
     } else if (form.repetir) {
       await lancarRepetindo(base)
@@ -139,7 +168,7 @@ async function salvar() {
       await lancamentos.lancarParcelado({ ...base, valorTotal: form.valor, parcelas: form.parcelas, primeiraData: form.data })
       emit('salvo', `Compra lançada em ${form.parcelas} parcelas.`)
     } else {
-      await lancamentos.lancar({ ...base, valor: form.valor, data: form.data })
+      await lancamentos.lancar({ ...comNota, valor: form.valor, data: form.data })
       emit('salvo', form.tipo === 'RECEITA' ? 'Receita lançada.' : 'Despesa lançada.')
     }
     sessao.avisarMudanca()
@@ -182,7 +211,7 @@ async function salvar() {
 
     <div class="grade-campos duas">
       <div class="campo">
-        <label for="l-data">{{ form.parcelado ? 'Data da 1ª parcela' : form.aPagar ? 'Vencimento' : 'Data' }}</label>
+        <label for="l-data">{{ rotuloData }}</label>
         <input id="l-data" v-model="form.data" class="entrada" type="date" required />
       </div>
       <div class="campo">
@@ -194,6 +223,9 @@ async function salvar() {
                :value="props.lancamento?.membro?.nome ?? sessao.estado.usuario?.nome" />
       </div>
     </div>
+
+    <CamposNotaFiscal v-if="ehNota" v-model:competencia="form.nfCompetencia" v-model:emissao="form.nfEmissao"
+                      id-base="l" />
 
     <div v-if="podeRepetir && categoria" class="repetir" :class="{ ligado: form.repetir }">
       <label class="caixa-marcar">
@@ -207,11 +239,29 @@ async function salvar() {
             <option v-for="(f, chave) in frequenciasRepetir" :key="chave" :value="chave">{{ f.rotulo }}</option>
           </select>
         </div>
-        <p v-if="repetirNoAno" class="resumo-parcela num">
+        <div v-if="form.tipo === 'DESPESA'" class="campo">
+          <label for="l-vencimento">Vence no dia <span class="texto-2">(opcional)</span></label>
+          <input id="l-vencimento" v-model.number="form.vencimento" class="entrada num" type="number" min="1" max="31"
+                 inputmode="numeric" placeholder="Ex.: 15" aria-describedby="l-vencimento-ajuda"
+                 :aria-invalid="(tentou && comVencimento && vencimentoInvalido) || undefined" />
+        </div>
+        <p v-else-if="repetirNoAno" class="resumo-parcela num">
           {{ reais(repetirNoAno) }} num ano cheio<br />
           <span class="texto-2">no dia {{ Number(form.data.slice(8, 10)) }}, sem data para acabar</span>
         </p>
       </div>
+      <p v-if="form.repetir && form.tipo === 'DESPESA'" id="l-vencimento-ajuda" class="ajuda">
+        <template v-if="tentou && comVencimento && vencimentoInvalido">Informe um dia entre 1 e 31.</template>
+        <template v-else-if="comVencimento">
+          Vence todo dia {{ form.vencimento }}<template v-if="repetirNoAno">, {{ reais(repetirNoAno) }} num ano
+          cheio</template>. Aparece nas contas a pagar de cada mês e avisa quando atrasar. 31 vira o último dia nos
+          meses curtos.
+        </template>
+        <template v-else>
+          Com o dia do vencimento, a conta aparece nas pendências de pagamento de cada mês. Sem ele, fica sem vencimento
+          fixo.
+        </template>
+      </p>
       <p id="l-repetir-ajuda" class="ajuda">
         <template v-if="form.repetir">
           {{ competenciaPorExtenso(competenciaDaData) }} entra {{ form.data <= hoje() ? 'como confirmado' : 'como previsto' }}

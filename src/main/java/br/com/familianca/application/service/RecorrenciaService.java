@@ -15,6 +15,7 @@ import br.com.familianca.domain.model.FormaPagamento;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Lancamento;
 import br.com.familianca.domain.model.Membro;
+import br.com.familianca.domain.model.NotaFiscal;
 import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.model.TipoMovimento;
 import br.com.familianca.domain.service.CalculadoraVisaoAnual.Ocorrencia;
@@ -147,7 +148,8 @@ public class RecorrenciaService implements GerenciarRecorrencias {
     }
 
     @Override
-    public LancamentoDetalhado confirmar(Long id, Competencia competencia, Dinheiro valor, LocalDate data) {
+    public LancamentoDetalhado confirmar(Long id, Competencia competencia, Dinheiro valor, LocalDate data,
+                                         NotaFiscal notaFiscal) {
         Recorrencia r = exigirOcorrencia(id, competencia);
         acesso.exigirSaldoInicial();
         if (r.puladas().contains(competencia)) {
@@ -155,12 +157,18 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         }
         Categoria categoria = planoContas.buscarCategoria(r.categoriaId()).orElseThrow();
         categoria.exigirLancavel(planoContas.buscarGrupo(categoria.grupoId()).orElseThrow());
+        categoria.exigirAceitaNotaFiscal(notaFiscal);
+        // Nota fiscal: o mês em que conta é o do pagamento, então ele é informado a cada mês (não vale o dia previsto).
+        if (categoria.tributavel() && data == null) {
+            throw new RegraNegocioException("Informem o dia em que o dinheiro de " + r.descricao() + " (" + competencia
+                    + ") entrou na conta");
+        }
         acesso.responsavel(r.membroId());
         // Sem valor informado, vale o previsto (a estimativa pela regra, do mês atual em diante, ou o cadastrado).
         Dinheiro previsto = valor != null ? valor : previsaoFamilia.calcular(List.of(r)).valorEm(r, competencia);
         Lancamento lancamento = new Lancamento(null, r.categoriaId(), r.membroId(), r.descricao(),
                 previsto, data != null ? data : r.dataEm(competencia), r.id(), competencia,
-                null, null);
+                null, null, notaFiscal);
         return detalhador().detalhar(lancamentos.salvar(lancamento));
     }
 

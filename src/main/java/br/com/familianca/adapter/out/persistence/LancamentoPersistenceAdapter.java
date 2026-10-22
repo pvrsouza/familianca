@@ -5,6 +5,7 @@ import br.com.familianca.application.port.out.LancamentoRepository;
 import br.com.familianca.application.port.out.UsuarioAtual;
 import br.com.familianca.domain.exception.NaoEncontradoException;
 import br.com.familianca.domain.model.Lancamento;
+import br.com.familianca.domain.model.NotaFiscal;
 import br.com.familianca.domain.model.Parcela;
 import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Dinheiro;
@@ -129,6 +130,9 @@ public class LancamentoPersistenceAdapter implements LancamentoRepository {
         e.parcelaNumero = l.parcela() != null ? (short) l.parcela().numero() : null;
         e.parcelaTotal = l.parcela() != null ? (short) l.parcela().total() : null;
         e.observacao = l.observacao();
+        e.nfCompetencia = l.notaFiscal() != null && l.notaFiscal().competencia() != null
+                ? l.notaFiscal().competencia().toString() : null;
+        e.nfEmissao = l.notaFiscal() != null ? l.notaFiscal().emissao() : null;
         return e;
     }
 
@@ -136,6 +140,7 @@ public class LancamentoPersistenceAdapter implements LancamentoRepository {
         return new Lancamento(e.id, e.categoriaId, e.membroId, e.descricao, Dinheiro.of(e.valor), e.data,
                 e.recorrenciaId, e.competenciaRecorrencia != null ? Competencia.parse(e.competenciaRecorrencia) : null,
                 e.parcelamentoId != null ? new Parcela(e.parcelamentoId, e.parcelaNumero, e.parcelaTotal) : null,
-                e.observacao);
+                e.observacao, NotaFiscal.de(e.nfCompetencia != null ? Competencia.parse(e.nfCompetencia) : null,
+                        e.nfEmissao));
     }
 }

@@ -110,6 +110,12 @@ export interface Ref {
   nome: string
 }
 
+/** Nota fiscal de receita tributável: o mês do serviço (AAAA-MM) e a emissão. O lançamento conta no pagamento. */
+export interface NotaFiscal {
+  competencia: string | null
+  emissao: string | null
+}
+
 export interface Lancamento {
   id: number
   tipo: Tipo
@@ -128,6 +134,7 @@ export interface Lancamento {
   vencimento: string | null
   /** 0 = pago em dia; nulo = sem vencimento. */
   diasAtraso: number | null
+  notaFiscal: NotaFiscal | null
 }
 
 export interface Recorrencia {

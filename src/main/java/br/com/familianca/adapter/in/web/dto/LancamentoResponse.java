@@ -26,7 +26,9 @@ public record LancamentoResponse(Long id, TipoMovimento tipo, CategoriaRef categ
                                          + "despesa que se repete e tem vencimento); nulo = não tem.")
                                  LocalDate vencimento,
                                  @Schema(description = "Dias pagos depois do vencimento: 0 = em dia; nulo = sem vencimento.")
-                                 Integer diasAtraso) {
+                                 Integer diasAtraso,
+                                 @Schema(description = "Competência e emissão da nota (receita tributável); nulo = sem nota.")
+                                 NotaFiscalDto notaFiscal) {
 
     public static LancamentoResponse de(LancamentoDetalhado d) {
         Lancamento l = d.lancamento();
@@ -35,7 +37,8 @@ public record LancamentoResponse(Long id, TipoMovimento tipo, CategoriaRef categ
                 l.recorrenciaId(), l.competenciaRecorrencia() != null ? l.competenciaRecorrencia().toString() : null,
                 l.parcela() != null ? new ParcelaResponse(l.parcela().parcelamentoId(), l.parcela().numero(),
                         l.parcela().total()) : null,
-                l.observacao(), d.vencimento(), diasAtraso(l.data(), d.vencimento()));
+                l.observacao(), d.vencimento(), diasAtraso(l.data(), d.vencimento()),
+                NotaFiscalDto.de(l.notaFiscal()));
     }
 
     private static Integer diasAtraso(LocalDate pagamento, LocalDate vencimento) {

@@ -15,9 +15,11 @@ import static br.com.familianca.domain.Validacoes.opcional;
  * - membroId: de quem é o gasto ou a receita; é o que aparece na visão por pessoa.
  * - recorrenciaId + competenciaRecorrencia: ocorrência confirmada de uma recorrência.
  * - parcela: posição numa compra parcelada.
+ * - notaFiscal: competência e emissão da nota (só receita tributável; nulo = não informada). A data é a do pagamento.
  */
 public record Lancamento(Long id, Long categoriaId, Long membroId, String descricao, Dinheiro valor, LocalDate data,
-                         Long recorrenciaId, Competencia competenciaRecorrencia, Parcela parcela, String observacao) {
+                         Long recorrenciaId, Competencia competenciaRecorrencia, Parcela parcela, String observacao,
+                         NotaFiscal notaFiscal) {
 
     public static final int DESCRICAO_MAXIMO = 200;
 
@@ -42,14 +44,21 @@ public record Lancamento(Long id, Long categoriaId, Long membroId, String descri
         observacao = opcional(observacao);
     }
 
+    /** Lançamento sem nota fiscal. */
+    public Lancamento(Long id, Long categoriaId, Long membroId, String descricao, Dinheiro valor, LocalDate data,
+                      Long recorrenciaId, Competencia competenciaRecorrencia, Parcela parcela, String observacao) {
+        this(id, categoriaId, membroId, descricao, valor, data, recorrenciaId, competenciaRecorrencia, parcela,
+                observacao, null);
+    }
+
     public Competencia competencia() {
         return Competencia.de(data);
     }
 
     /** Mesmo lançamento com os dados editáveis trocados; a origem (recorrência, parcela) se mantém. */
     public Lancamento editado(Long categoriaId, Long membroId, String descricao, Dinheiro valor, LocalDate data,
-                              String observacao) {
+                              String observacao, NotaFiscal notaFiscal) {
         return new Lancamento(id, categoriaId, membroId, descricao, valor, data, recorrenciaId,
-                competenciaRecorrencia, parcela, observacao);
+                competenciaRecorrencia, parcela, observacao, notaFiscal);
     }
 }

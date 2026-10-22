@@ -335,6 +335,10 @@ Pontos de atenção constante na hora de desenvolver.
   tributáveis do mês; não recebem lançamentos.
 - Grupo da **empresa** mostra o peso sobre as receitas tributáveis (o "% despesa fixa" da planilha).
 - Modelo PJ pronto (receita tributável + grupo da empresa com os impostos e custos fixos), aplicado sob demanda.
+- **Nota fiscal (2026-10-22):** o lançamento de receita tributável guarda, além da data, a **competência** (mês do
+  serviço) e a **data de emissão** da nota, ambas opcionais. A data do lançamento é a do **pagamento**, e é ela que
+  decide o mês (renda, fluxo e base das alíquotas). Na recorrência de nota, a data do pagamento é informada a cada
+  mês ao confirmar (o servidor exige; não vale o dia previsto). Competência e emissão só valem em categoria tributável.
 
 # Planos e assinatura
 

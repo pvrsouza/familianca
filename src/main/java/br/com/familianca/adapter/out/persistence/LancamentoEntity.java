@@ -32,6 +32,8 @@ public class LancamentoEntity {
     Short parcelaNumero;
     Short parcelaTotal;
     String observacao;
+    String nfCompetencia;
+    LocalDate nfEmissao;
     @Column(insertable = false, updatable = false)
     OffsetDateTime criadoEm;
 }

@@ -8,7 +8,7 @@ import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { catalogo } from '../estado/catalogo'
 import { avisar } from '../estado/avisos'
-import { MESES, anoAtual, dataPorExtenso, mesAtual, reais } from '../util/formato'
+import { MESES, anoAtual, competenciaPorExtenso, dataPorExtenso, mesAtual, reais } from '../util/formato'
 import PainelLateral from '../componentes/PainelLateral.vue'
 import FormLancamento from '../componentes/FormLancamento.vue'
 import EstadoVazio from '../componentes/EstadoVazio.vue'
@@ -219,6 +219,11 @@ const tituloMes = computed(() => tituloPeriodo.value.charAt(0).toUpperCase() + t
                 <span class="descricao">{{ l.descricao }}</span>
                 <span class="meta">
                   {{ l.categoria.nome }} · {{ l.grupo.nome }}<template v-if="l.membro"> · {{ l.membro.nome }}</template>
+                  · {{ l.notaFiscal ? 'entrou na conta' : l.tipo === 'RECEITA' ? 'recebido' : 'pago' }} em {{ dataPorExtenso(l.data) }}
+                  <template v-if="l.notaFiscal">
+                    <br />Nota<template v-if="l.notaFiscal.competencia"> de {{ competenciaPorExtenso(l.notaFiscal.competencia) }}</template><template
+                      v-if="l.notaFiscal.emissao">{{ l.notaFiscal.competencia ? ',' : '' }} emitida em {{ dataPorExtenso(l.notaFiscal.emissao, true) }}</template>
+                  </template>
                 </span>
                 <span v-if="l.parcela || l.recorrenciaId" class="selos">
                   <span v-if="l.parcela" class="selo num">parcela {{ l.parcela.numero }}/{{ l.parcela.total }}</span>

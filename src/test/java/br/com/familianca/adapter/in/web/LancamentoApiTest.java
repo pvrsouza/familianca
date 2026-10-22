@@ -57,6 +57,50 @@ class LancamentoApiTest extends IntegracaoBase {
     }
 
     @Test
+    void notaFiscalGuardaCompetenciaEEmissaoEContaNoMesDoPagamento() throws Exception {
+        mvc.perform(post("/api/categorias/modelos/pj")).andExpect(status().isCreated());
+        Long notas = categoria("Receitas da empresa (PJ)", "Notas fiscais emitidas");
+
+        // Serviço de setembro, nota emitida em 30/09, paga em 06/10: conta em outubro.
+        Long id = postarERetornarId("/api/lancamentos", """
+                {"categoriaId": %d, "descricao": "TalentFour", "valor": 16464, "data": "2026-10-06",
+                 "notaFiscal": {"competencia": "2026-09", "emissao": "2026-09-30"}}""".formatted(notas));
+        mvc.perform(get("/api/lancamentos/{id}", id))
+                .andExpect(jsonPath("$.competencia").value("2026-10"))
+                .andExpect(jsonPath("$.notaFiscal.competencia").value("2026-09"))
+                .andExpect(jsonPath("$.notaFiscal.emissao").value("2026-09-30"));
+
+        // Editar sem a nota tira a nota; categoria que não é tributável não aceita nota.
+        mvc.perform(put("/api/lancamentos/{id}", id).contentType(APPLICATION_JSON).content("""
+                        {"categoriaId": %d, "descricao": "TalentFour", "valor": 16464, "data": "2026-10-06"}"""
+                        .formatted(notas)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.notaFiscal").doesNotExist());
+        mvc.perform(post("/api/lancamentos").contentType(APPLICATION_JSON).content("""
+                        {"categoriaId": %d, "descricao": "Salário", "valor": 9000, "data": "2026-10-05",
+                         "notaFiscal": {"competencia": "2026-09"}}""".formatted(categoria("Receitas fixas", "Salário"))))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(post("/api/lancamentos").contentType(APPLICATION_JSON).content("""
+                        {"categoriaId": %d, "descricao": "TalentFour", "valor": 100, "data": "2026-10-05",
+                         "notaFiscal": {"competencia": "2026-13"}}""".formatted(notas)))
+                .andExpect(status().isBadRequest());
+
+        // Recorrência de nota: a data do pagamento é informada a cada mês.
+        Long recorrencia = postarERetornarId("/api/recorrencias", """
+                {"categoriaId": %d, "descricao": "TalentFour", "valor": 16464, "dia": 6, "frequencia": "MENSAL",
+                 "inicio": "2026-08"}""".formatted(notas));
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-08/confirmacao", recorrencia))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-08/confirmacao", recorrencia)
+                        .contentType(APPLICATION_JSON).content("""
+                                {"data": "2026-09-02", "notaFiscal": {"competencia": "2026-07", "emissao": "2026-07-31"}}"""))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data").value("2026-09-02"))
+                .andExpect(jsonPath("$.notaFiscal.competencia").value("2026-07"))
+                .andExpect(jsonPath("$.notaFiscal.emissao").value("2026-07-31"));
+    }
+
+    @Test
     void sugereAsMaisComunsEBuscaPeloQueSeDigita() throws Exception {
         lancar("Habitação", "Supermercado", "Feira", "80", "2026-09-01");
         lancar("Habitação", "Supermercado", "Feira", "90", "2026-09-08");

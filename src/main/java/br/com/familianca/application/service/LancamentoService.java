@@ -101,12 +101,15 @@ public class LancamentoService implements GerenciarLancamentos {
         Membro membro = validar(dados);
         acesso.exigirSaldoInicial();
         Lancamento novo = new Lancamento(null, dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
-                dados.data(), null, null, null, dados.observacao());
+                dados.data(), null, null, null, dados.observacao(), dados.notaFiscal());
         return detalhador().detalhar(lancamentos.salvar(novo));
     }
 
     @Override
     public List<LancamentoDetalhado> lancarParcelado(DadosLancamento dados, int parcelas) {
+        if (dados.notaFiscal() != null) {
+            throw new RegraNegocioException("Nota fiscal não se parcela: lancem cada nota com a data do pagamento");
+        }
         Membro membro = validar(dados);
         acesso.exigirSaldoInicial();
         UUID parcelamento = UUID.randomUUID();
@@ -127,7 +130,7 @@ public class LancamentoService implements GerenciarLancamentos {
         acesso.exigirPodeAlterar(atual.membroId());
         Membro membro = validar(dados);
         Lancamento editado = atual.editado(dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
-                dados.data(), dados.observacao());
+                dados.data(), dados.observacao(), dados.notaFiscal());
         return detalhador().detalhar(lancamentos.salvar(editado));
     }
 
@@ -221,6 +224,7 @@ public class LancamentoService implements GerenciarLancamentos {
         Categoria categoria = planoContas.buscarCategoria(obrigatorio(dados.categoriaId(), "categoria"))
                 .orElseThrow(() -> new NaoEncontradoException("Categoria não encontrada: " + dados.categoriaId()));
         categoria.exigirLancavel(planoContas.buscarGrupo(categoria.grupoId()).orElseThrow());
+        categoria.exigirAceitaNotaFiscal(dados.notaFiscal());
         Membro membro = acesso.responsavel(dados.membroId());
         acesso.exigirPodeAlterar(membro.id());
         return membro;

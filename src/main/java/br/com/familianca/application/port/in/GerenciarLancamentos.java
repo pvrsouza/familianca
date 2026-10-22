@@ -4,6 +4,7 @@ import br.com.familianca.domain.model.Categoria;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Lancamento;
 import br.com.familianca.domain.model.Membro;
+import br.com.familianca.domain.model.NotaFiscal;
 import br.com.familianca.domain.model.TipoMovimento;
 import br.com.familianca.domain.vo.Dinheiro;
 
@@ -44,9 +45,14 @@ public interface GerenciarLancamentos {
     record Filtro(LocalDate de, LocalDate ate, Long categoriaId, Long grupoId, Long membroId, TipoMovimento tipo) {
     }
 
-    /** membroId nulo = o membro logado. */
+    /** membroId nulo = o membro logado. notaFiscal: só receita tributável; nulo = não informada. */
     record DadosLancamento(Long categoriaId, Long membroId, String descricao, Dinheiro valor, LocalDate data,
-                           String observacao) {
+                           String observacao, NotaFiscal notaFiscal) {
+
+        public DadosLancamento(Long categoriaId, Long membroId, String descricao, Dinheiro valor, LocalDate data,
+                               String observacao) {
+            this(categoriaId, membroId, descricao, valor, data, observacao, null);
+        }
     }
 
     /** @param vencimento da ocorrência que o lançamento confirmou (despesa com vencimento); nulo = não tem */
