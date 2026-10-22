@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { Pencil } from 'lucide-vue-next'
 import type { LugarSaldo, Saldo, Serie, SeriePercentual, VisaoAnual } from '../../api/tipos'
 import { lugaresSaldo, saldos } from '../../api/servicos'
+import { mensagemDeErro } from '../../api/http'
 import { sessao } from '../../estado/sessao'
 import { MESES, MESES_CURTOS, competencia, pct, reais, reaisCurtos, variacao } from '../../util/formato'
 import Mensagem from '../Mensagem.vue'
@@ -91,15 +92,24 @@ const temSaldoInicial = computed(() => r.value.sobraInformada.some(Boolean))
 const mesDoBotao = computed(() => (props.mesAtual ?? 1) - 1)
 
 // Saldos como foram informados (valor, dia e lugares), para o painel e a dica da célula.
+// Sem eles, o painel abriria um mês já guardado como vazio, e guardar ali apagaria o que estava: não abre.
 const informados = ref<Saldo[]>([])
 const lugares = ref<LugarSaldo[]>([])
-watch(() => props.visao, async () => {
+const erroInformados = ref('')
+async function carregarInformados() {
+  erroInformados.value = ''
   try {
     ;[informados.value, lugares.value] = await Promise.all([saldos.listar(props.visao.ano), lugaresSaldo.listar()])
-  } catch {
-    informados.value = [] // só a dica da célula deixa de aparecer
+  } catch (e) {
+    informados.value = []
+    erroInformados.value = mensagemDeErro(e)
   }
-}, { immediate: true })
+}
+watch(() => props.visao, carregarInformados, { immediate: true })
+
+function editar(i: number) {
+  if (!erroInformados.value) editando.value = i
+}
 
 /** "2026-10-18" → "18/10" */
 function diaMes(iso: string): string {
@@ -152,7 +162,7 @@ function dicaSaldo(i: number): string | undefined {
             <td v-for="(v, i) in r.sobraMesAnterior.valores" :key="i" :class="{ atual: mesAtual === i + 1 }">
               <button v-if="podeEditar" type="button" class="celula-editavel" :class="{ informado: r.sobraInformada[i] }"
                       :aria-label="`Informar o saldo em conta do dia 1º de ${MESES[i]}`" :title="dicaSaldo(i)"
-                      @click="editando = i">
+                      @click="editar(i)">
                 <span class="num">{{ valor(v, true) }}</span>
                 <Pencil class="lapis" aria-hidden="true" />
               </button>
@@ -173,13 +183,20 @@ function dicaSaldo(i: number): string | undefined {
         </tbody>
       </table>
     </div>
+    <div v-if="erroInformados && podeEditar" class="falha-saldos">
+      <Mensagem tipo="erro">
+        Não deu para carregar os saldos informados ({{ erroInformados }}). Os valores guardados continuam certos;
+        para corrigir o saldo, tentem de novo.
+      </Mensagem>
+      <button type="button" class="botao botao-pequeno" @click="carregarInformados">Tentar de novo</button>
+    </div>
     <div class="legenda-saldo">
       <p>
         <span class="ponto" aria-hidden="true" /> Mês com saldo em conta informado, sempre o do dia 1º. Informem o saldo
         uma vez, no mês em que começaram; depois cada mês começa com a sobra do anterior.<template v-if="podeEditar">
         Se o banco mostrar outro valor, corrijam: a diferença vale daquele mês em diante.</template>
       </p>
-      <button v-if="podeEditar" type="button" class="botao botao-sutil botao-pequeno" @click="editando = mesDoBotao">
+      <button v-if="podeEditar" type="button" class="botao botao-sutil botao-pequeno" @click="editar(mesDoBotao)">
         <Pencil aria-hidden="true" />
         {{ temSaldoInicial ? `Corrigir o saldo de ${MESES[mesDoBotao]}` : 'Informar o saldo inicial' }}
       </button>
@@ -252,6 +269,12 @@ function dicaSaldo(i: number): string | undefined {
 </template>
 
 <style scoped>
+.falha-saldos {
+  display: grid;
+  justify-items: start;
+  gap: var(--e-2);
+}
+
 .fluxo {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

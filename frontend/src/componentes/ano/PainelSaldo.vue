@@ -40,6 +40,10 @@ const valores = ref<Record<number, number | null>>({})
 const lugares = ref<LugarSaldo[]>([])
 const incluindo = ref(false)
 const editandoLugar = ref<number | null>(null)
+// Sem a lista de lugares, o mês guardado lugar a lugar aparece vazio, e guardar assim apagaria os lugares dele:
+// enquanto ela não chega, nada se guarda.
+const lugaresCarregados = ref(false)
+const erroLugares = ref('')
 const obs = ref('')
 const salvando = ref(false)
 const erro = ref('')
@@ -206,12 +210,19 @@ watch(() => props.mes, async (i) => {
   valores.value = soDoDia ? {} : Object.fromEntries((s?.porLocal ?? []).map((p) => [p.localId, p.valor]))
   // Saldo inicial: lugar a lugar. Correção: o jeito rápido, só o total (a não ser que o mês já esteja por lugar).
   forma.value = s && !soDoDia ? (s.porLocal.length ? 'lugares' : 'total') : inicial.value ? 'lugares' : 'total'
+  await carregarLugares()
+}, { immediate: true })
+
+async function carregarLugares() {
+  lugaresCarregados.value = false
+  erroLugares.value = ''
   try {
     lugares.value = await lugaresSaldo.listar()
+    lugaresCarregados.value = true
   } catch (e) {
-    erro.value = mensagemDeErro(e)
+    erroLugares.value = mensagemDeErro(e)
   }
-}, { immediate: true })
+}
 
 watch([dataSaldo, () => props.mes], async () => {
   movimento.value = null
@@ -226,7 +237,7 @@ watch([dataSaldo, () => props.mes], async () => {
 })
 
 async function salvar() {
-  if (props.mes === null) return
+  if (props.mes === null || !lugaresCarregados.value) return
   if (temHoje.value && !dataValida.value) {
     erro.value = `Escolham um dia entre ${diaMes(primeiroDia.value)} e ${diaMes(ultimoDia.value)}.`
     return
@@ -336,7 +347,15 @@ async function remover() {
 
         <fieldset v-if="forma === 'lugares'" class="lugares">
           <legend class="rotulo">Saldo de cada lugar no dia 1º</legend>
-          <p v-if="!lugaresVisiveis.length && !incluindo" class="vazio">
+          <div v-if="erroLugares" class="falha-lugares">
+            <Mensagem tipo="erro">
+              Não deu para carregar os lugares do dinheiro ({{ erroLugares }}). Os saldos guardados continuam
+              certos; tentem de novo antes de mexer.
+            </Mensagem>
+            <button type="button" class="botao botao-pequeno" @click="carregarLugares">Tentar de novo</button>
+          </div>
+          <p v-else-if="!lugaresCarregados" class="vazio">Carregando os lugares…</p>
+          <p v-else-if="!lugaresVisiveis.length && !incluindo" class="vazio">
             Nenhum lugar cadastrado ainda. Incluam onde está o dinheiro da família, um por um.
           </p>
           <template v-for="l in lugaresVisiveis" :key="l.id">
@@ -366,7 +385,7 @@ async function remover() {
                           @salvo="lugarEditado" @cancelar="editandoLugar = null" />
           </template>
           <FormLugarSaldo v-if="incluindo" id-base="s-novo" @salvo="lugarIncluido" @cancelar="incluindo = false" />
-          <button v-else type="button" class="botao botao-sutil botao-pequeno incluir" @click="incluindo = true">
+          <button v-else-if="lugaresCarregados" type="button" class="botao botao-sutil botao-pequeno incluir" @click="incluindo = true">
             <Plus aria-hidden="true" /> Incluir lugar
           </button>
           <p class="ajuda">
@@ -490,7 +509,7 @@ async function remover() {
         <button v-if="salvo" type="button" class="botao botao-perigo" :disabled="salvando" @click="remover">
           Remover saldo
         </button>
-        <button type="submit" class="botao botao-primario" :disabled="salvando">Guardar</button>
+        <button type="submit" class="botao botao-primario" :disabled="salvando || !lugaresCarregados">Guardar</button>
       </div>
     </form>
   </PainelLateral>
@@ -549,6 +568,12 @@ async function remover() {
   gap: var(--e-3);
   padding: var(--e-2) 0;
   border-bottom: 1px solid var(--linha);
+}
+
+.falha-lugares {
+  display: grid;
+  justify-items: start;
+  gap: var(--e-2);
 }
 
 .acoes-lugar {
