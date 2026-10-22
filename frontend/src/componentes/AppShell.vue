@@ -27,16 +27,18 @@ const principais = [
   { para: '/ano', rotulo: 'O ano', icone: LayoutGrid },
   { para: '/lancamentos', rotulo: 'Lançamentos', icone: Receipt },
   { para: '/recorrencias', rotulo: 'Recorrências', icone: Repeat },
+  { para: '/categorias', rotulo: 'Categorias', icone: Tags },
   { para: '/quanto-pesa', rotulo: 'Quanto pesa?', icone: Calculator },
   { para: '/familia', rotulo: 'Família', icone: Users },
 ]
 const secundarios = [
-  { para: '/categorias', rotulo: 'Categorias', icone: Tags },
   { para: '/investimentos', rotulo: 'Investimentos', icone: PiggyBank },
   { para: '/conta', rotulo: 'Minha conta', icone: UserRound },
 ]
-const noCelular = principais.filter((p) => p.para !== '/quanto-pesa')
-const noMais = [principais.find((p) => p.para === '/quanto-pesa')!, ...secundarios]
+// No celular a barra de baixo não comporta todos: Categorias e Quanto pesa? ficam no "Mais".
+const soNoMais = ['/categorias', '/quanto-pesa']
+const noCelular = principais.filter((p) => !soNoMais.includes(p.para))
+const noMais = [...principais.filter((p) => soNoMais.includes(p.para)), ...secundarios]
 
 function lancou(mensagem: string) {
   lancando.value = false
@@ -88,7 +90,7 @@ onBeforeUnmount(() => {
       </nav>
 
       <div class="barra-acoes">
-        <button type="button" class="botao lancar" @click="lancando = true">
+        <button type="button" class="botao lancar" aria-label="Lançar" @click="lancando = true">
           <Plus aria-hidden="true" /> <span>Lançar</span>
         </button>
 
@@ -464,8 +466,11 @@ main:focus {
   transform: translateY(8px);
 }
 
-@media (max-width: 1080px) {
-  .usuario-textos {
+/* Seis itens na barra: abaixo de 1160px o nome ao lado do símbolo e o texto do Lançar saem para caber. */
+@media (max-width: 1160px) {
+  .usuario-textos,
+  .barra-marca :deep(.nome),
+  .lancar span {
     display: none;
   }
 
@@ -478,7 +483,7 @@ main:focus {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .barra-dentro {
     padding: 0 var(--e-4);
   }

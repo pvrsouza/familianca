@@ -257,6 +257,13 @@ svg {
   font-size: var(--t-sm);
 }
 
+/* Abaixo de 900px a navegação vai para a barra de baixo (AppShell): o fim da página não fica escondido atrás dela. */
+@media (max-width: 900px) {
+  .pagina {
+    padding-bottom: calc(var(--e-12) + 4.5rem);
+  }
+}
+
 @media (max-width: 760px) {
   .pagina {
     padding: var(--e-5) var(--e-4) calc(var(--e-12) + 4.5rem);
