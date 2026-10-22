@@ -89,7 +89,8 @@ const tempo = computed(() => (ano.value < anoAtual() ? 'passado' : ano.value > a
 // ——— Como começar ———
 // Guia de quem está chegando (ou recomeçou do zero), no ano corrente. O saldo inicial é obrigatório (pode ser zero ou
 // negativo) porque é o ponto de partida do fluxo; o painel dele abre aqui mesmo. Os outros passos podem ser pulados
-// (guardado no navegador). O guia some quando nada mais está pendente.
+// (guardado no navegador), mas só depois do saldo: antes dele não há o que pular nem desfazer. O guia some quando nada
+// mais está pendente.
 // Saldo inicial em qualquer ano conta (é o que libera os lançamentos no servidor).
 const temSaldo = computed(() => !!sessao.estado.familia?.temSaldoInicial || !!dados.value?.resumo.sobraInformada.some(Boolean))
 const realizadas = computed(() =>
@@ -117,7 +118,7 @@ interface Passo {
 const passos = computed<Passo[]>(() => {
   const mes = mesAtual()
   const dono = sessao.dono.value
-  const pulado = (id: string) => guia.pulado(familiaId.value, id)
+  const pulado = (id: string) => temSaldo.value && guia.pulado(familiaId.value, id)
   const lista: Passo[] = [
     {
       id: 'saldo',
@@ -275,7 +276,7 @@ const proximo = computed(() => passos.value.findIndex(pendente))
               </strong>
               <span>{{ p.texto }}</span>
             </div>
-            <div v-if="p.acao || (!p.obrigatorio && !p.feito)" class="acoes-passo">
+            <div v-if="p.acao || (temSaldo && !p.obrigatorio && !p.feito)" class="acoes-passo">
               <span v-if="p.depoisDoSaldo && !p.feito" class="depois">Depois do saldo</span>
               <template v-else-if="p.acao">
                 <RouterLink v-if="p.acao.para && !p.feito" :to="p.acao.para" class="botao botao-pequeno"
@@ -284,7 +285,7 @@ const proximo = computed(() => passos.value.findIndex(pendente))
                         :class="{ 'botao-primario': i === proximo, 'botao-sutil': p.feito }"
                         @click="p.acao.abrir()">{{ p.acao.rotulo }}</button>
               </template>
-              <button v-if="!p.obrigatorio && !p.feito" type="button" class="botao botao-sutil botao-pequeno"
+              <button v-if="temSaldo && !p.obrigatorio && !p.feito" type="button" class="botao botao-sutil botao-pequeno"
                       :aria-label="p.pulado ? `Voltar a mostrar: ${p.titulo}` : `Pular: ${p.titulo}`"
                       @click="pular(p, !p.pulado)">{{ p.pulado ? 'Desfazer' : 'Pular' }}</button>
             </div>

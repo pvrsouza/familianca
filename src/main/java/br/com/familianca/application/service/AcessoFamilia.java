@@ -67,7 +67,8 @@ public class AcessoFamilia {
     public void exigirSaldoInicial() {
         if (!temSaldoInicial()) {
             throw new RegraNegocioException(usuarioAtual.dono()
-                    ? "Antes do primeiro lançamento, informem quanto a família tem hoje (pode ser zero ou negativo)"
+                    ? "Antes do primeiro lançamento, informem o saldo de partida: quanto a família tinha no "
+                            + "começo do mês atual ou de um mês que já passou (pode ser zero ou negativo)"
                     : "Antes do primeiro lançamento, quem organiza a família precisa informar o saldo inicial");
         }
     }

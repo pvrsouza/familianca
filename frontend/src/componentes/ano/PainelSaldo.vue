@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Plus } from 'lucide-vue-next'
+import { Pencil, Plus, Trash2 } from 'lucide-vue-next'
 import type { LugarSaldo, MovimentoDoMes, Saldo, VisaoAnual } from '../../api/tipos'
 import { lugaresSaldo, saldos } from '../../api/servicos'
 import { mensagemDeErro } from '../../api/http'
@@ -39,6 +39,7 @@ const valorTotal = ref<number | null>(null)
 const valores = ref<Record<number, number | null>>({})
 const lugares = ref<LugarSaldo[]>([])
 const incluindo = ref(false)
+const editandoLugar = ref<number | null>(null)
 const obs = ref('')
 const salvando = ref(false)
 const erro = ref('')
@@ -139,6 +140,26 @@ function lugarIncluido(l: LugarSaldo) {
   avisar(`${l.nome} incluído. Agora informem o saldo dele.`)
 }
 
+// Errou o nome, o tipo ou de quem é? Corrige aqui mesmo. Excluir só vale para o que nunca entrou num saldo (o
+// servidor confere); o que já entrou se desativa na página Família.
+function lugarEditado(l: LugarSaldo) {
+  lugares.value = lugares.value.map((x) => (x.id === l.id ? l : x))
+  editandoLugar.value = null
+}
+
+async function excluirLugar(l: LugarSaldo) {
+  erro.value = ''
+  try {
+    await lugaresSaldo.remover(l.id)
+    lugares.value = lugares.value.filter((x) => x.id !== l.id)
+    const { [l.id]: _, ...resto } = valores.value
+    valores.value = resto
+    avisar(`${l.nome} excluído.`)
+  } catch (e) {
+    erro.value = mensagemDeErro(e)
+  }
+}
+
 // ——— Valores ———
 /** O saldo do dia 1º como a família digitou (nulo = em branco). */
 const valorDia1 = computed(() =>
@@ -172,6 +193,7 @@ watch(() => props.mes, async (i) => {
   if (i === null) return
   erro.value = ''
   incluindo.value = false
+  editandoLugar.value = null
   movimento.value = null
   const s = salvo.value
   obs.value = s?.observacao ?? ''
@@ -317,7 +339,8 @@ async function remover() {
           <p v-if="!lugaresVisiveis.length && !incluindo" class="vazio">
             Nenhum lugar cadastrado ainda. Incluam onde está o dinheiro da família, um por um.
           </p>
-          <div v-for="l in lugaresVisiveis" :key="l.id" class="lugar">
+          <template v-for="l in lugaresVisiveis" :key="l.id">
+          <div class="lugar">
             <label :for="`s-lugar-${l.id}`">
               <span class="nome-lugar">{{ l.nome }}</span>
               <span class="meta-lugar">
@@ -325,8 +348,23 @@ async function remover() {
                   v-if="!l.ativo"> · desativado</template>
               </span>
             </label>
+            <div class="acoes-lugar">
+              <button type="button" class="botao botao-sutil botao-pequeno" :aria-label="`Editar ${l.nome}`"
+                      :aria-expanded="editandoLugar === l.id" title="Corrigir nome, tipo ou de quem é"
+                      @click="editandoLugar = editandoLugar === l.id ? null : l.id">
+                <Pencil aria-hidden="true" />
+              </button>
+              <button v-if="!doMes.has(l.id)" type="button" class="botao botao-sutil botao-pequeno"
+                      :aria-label="`Excluir ${l.nome}`" title="Excluir este lugar" @click="excluirLugar(l)">
+                <Trash2 aria-hidden="true" />
+              </button>
+            </div>
             <CampoValor :id="`s-lugar-${l.id}`" v-model="valores[l.id]" negativo />
           </div>
+          <!-- Abaixo da linha, que continua com o valor digitado: corrigir o nome não apaga o saldo. -->
+          <FormLugarSaldo v-if="editandoLugar === l.id" :lugar="l" :id-base="`s-editar-${l.id}`" class="editar-lugar"
+                          @salvo="lugarEditado" @cancelar="editandoLugar = null" />
+          </template>
           <FormLugarSaldo v-if="incluindo" id-base="s-novo" @salvo="lugarIncluido" @cancelar="incluindo = false" />
           <button v-else type="button" class="botao botao-sutil botao-pequeno incluir" @click="incluindo = true">
             <Plus aria-hidden="true" /> Incluir lugar
@@ -506,11 +544,19 @@ async function remover() {
 
 .lugar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(8.5rem, 11rem);
+  grid-template-columns: minmax(0, 1fr) auto minmax(8.5rem, 11rem);
   align-items: center;
   gap: var(--e-3);
   padding: var(--e-2) 0;
   border-bottom: 1px solid var(--linha);
+}
+
+.acoes-lugar {
+  display: flex;
+}
+
+.editar-lugar {
+  margin: var(--e-2) 0;
 }
 
 .lugar label {

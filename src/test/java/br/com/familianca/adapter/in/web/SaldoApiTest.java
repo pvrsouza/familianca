@@ -200,7 +200,7 @@ class SaldoApiTest extends IntegracaoBase {
         mvc.perform(get("/api/familia")).andExpect(jsonPath("$.temSaldoInicial").value(false));
         mvc.perform(post("/api/lancamentos").contentType(APPLICATION_JSON).content(lancamento))
                 .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.detail").value(containsString("informem quanto a família tem hoje")));
+                .andExpect(jsonPath("$.detail").value(containsString("informem o saldo de partida")));
         mvc.perform(post("/api/lancamentos/parcelados").contentType(APPLICATION_JSON).content("""
                         {"categoriaId": %d, "descricao": "Geladeira", "valorTotal": 3000, "parcelas": 3,
                          "primeiraData": "2026-10-05"}""".formatted(mercado)))
