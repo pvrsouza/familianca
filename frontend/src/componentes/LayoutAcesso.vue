@@ -50,8 +50,8 @@ const meses = ['j', 'f', 'm', 'a', 'm', 'j', 'j', 'a', 's', 'o', 'n', 'd']
   justify-content: space-between;
   gap: var(--e-10);
   padding: var(--e-10);
-  background: var(--petroleo);
-  color: var(--areia);
+  background: var(--barra-fundo);
+  color: var(--sobre-escuro);
 }
 
 .copa {
@@ -74,7 +74,7 @@ const meses = ['j', 'f', 'm', 'a', 'm', 'j', 'j', 'a', 's', 'o', 'n', 'd']
   align-self: end;
   width: 100%;
   border-radius: 999px;
-  background: var(--areia);
+  background: var(--sobre-escuro);
   animation: crescer 700ms var(--ease) both;
 }
 

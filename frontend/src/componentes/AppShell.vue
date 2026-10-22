@@ -182,8 +182,8 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--petroleo);
-  color: var(--areia);
+  background: var(--barra-fundo);
+  color: var(--sobre-escuro);
   padding-top: env(safe-area-inset-top);
 }
 
@@ -204,7 +204,7 @@ onBeforeUnmount(() => {
 }
 
 .barra :focus-visible {
-  outline-color: var(--areia);
+  outline-color: var(--sobre-escuro);
 }
 
 .nav {
@@ -239,7 +239,7 @@ onBeforeUnmount(() => {
   bottom: 0;
   height: 3px;
   border-radius: 3px 3px 0 0;
-  background: var(--areia);
+  background: var(--sobre-escuro);
   transform: scaleX(0);
   transition: transform 200ms var(--ease);
 }
@@ -260,9 +260,9 @@ onBeforeUnmount(() => {
 }
 
 .lancar {
-  --b-fundo: var(--areia);
-  --b-borda: var(--areia);
-  --b-texto: var(--petroleo-noite);
+  --b-fundo: var(--sobre-escuro);
+  --b-borda: var(--sobre-escuro);
+  --b-texto: var(--noite-fixa);
 }
 
 .lancar:hover {
@@ -291,7 +291,7 @@ onBeforeUnmount(() => {
 
 .olho[aria-pressed='true'] {
   color: #fff;
-  background: var(--petroleo-noite);
+  background: var(--noite-fixa);
 }
 
 .olho svg {
@@ -313,7 +313,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: var(--raio);
   background: transparent;
-  color: var(--areia);
+  color: var(--sobre-escuro);
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -329,7 +329,7 @@ onBeforeUnmount(() => {
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
-  background: var(--petroleo-noite);
+  background: var(--noite-fixa);
   font-weight: 700;
   font-size: var(--t-sm);
   text-transform: uppercase;
@@ -369,7 +369,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--linha);
   border-radius: var(--raio-g);
   background: var(--papel);
-  box-shadow: 0 8px 24px rgb(18 58 65 / 0.16);
+  box-shadow: 0 8px 24px var(--sombra-cor);
   animation: abrir-menu 160ms var(--ease);
 }
 
@@ -445,8 +445,8 @@ main:focus {
 .aviso-rapido {
   padding: var(--e-3) var(--e-5);
   border-radius: 999px;
-  background: var(--petroleo-noite);
-  color: var(--areia);
+  background: var(--noite-fixa);
+  color: var(--sobre-escuro);
   font-size: var(--t-sm);
   font-weight: 600;
   box-shadow: 0 6px 20px rgb(18 58 65 / 0.24);
@@ -522,7 +522,7 @@ main:focus {
   }
 
   .nav-celular-item.router-link-active {
-    color: var(--petroleo);
+    color: var(--acao);
   }
 
   .avisos {

@@ -1,37 +1,56 @@
 /* Familiança: tokens da marca (projeto/marca.md §5) e a base da interface. */
 :root {
-  /* Paleta */
-  --areia: #f6f4f0;
-  --areia-funda: #efece6;
-  --papel: #fffdf9;
-  --pedra: #e2ded6;
-  --pedra-forte: #cfc9be;
-  --petroleo: #1f5c66;
-  --petroleo-escuro: #174850;
-  --petroleo-noite: #123a41;
-  --petroleo-tinta: #e4eeef;
-  --petroleo-tinta-forte: #cfe0e2;
-  --grafite: #1e2a2e;
-  --cinza: #5c6b6e;
-  --cinza-claro: #8a9597;
+  /* Paleta. Cada cor tem o par claro/escuro em light-dark(): quem escolhe é o color-scheme do <html> (tema
+     automático segue o sistema; data-tema fixa claro ou escuro, ver estado/tema.ts). No escuro a base é petróleo
+     noite, não preto; o texto é areia; o coral continua só fundo tracejado do previsto. */
+  --areia: light-dark(#f6f4f0, #0f1a1c);
+  --areia-funda: light-dark(#efece6, #213134);
+  --papel: light-dark(#fffdf9, #182628);
+  --pedra: light-dark(#e2ded6, #2b3c3f);
+  --pedra-forte: light-dark(#cfc9be, #41575a);
+  --petroleo: light-dark(#1f5c66, #2b7f8c);
+  --petroleo-escuro: light-dark(#174850, #8fd0d8);
+  --petroleo-noite: light-dark(#123a41, #d3ebee);
+  --petroleo-tinta: light-dark(#e4eeef, #183a3f);
+  --petroleo-tinta-forte: light-dark(#cfe0e2, #22505a);
+  --grafite: light-dark(#1e2a2e, #ebe7e0);
+  --cinza: light-dark(#5c6b6e, #a7b3b5);
+  --cinza-claro: light-dark(#8a9597, #7f8d8f);
   --coral: #e07a5f;
-  --coral-claro: #fce7e0;
-  --coral-borda: #c4573d;
+  --coral-claro: light-dark(#fce7e0, #3d2822);
+  --coral-borda: light-dark(#c4573d, #e8957f);
   --coral-sobre-escuro: #f4b5a3;
-  --verde: #2f7a5b;
-  --verde-claro: #e3f0e9;
-  --erro: #b42318;
-  --erro-claro: #fdecea;
+  --verde: light-dark(#2f7a5b, #6cc79e);
+  --verde-claro: light-dark(#e3f0e9, #16332a);
+  --verde-texto: light-dark(#1f5640, #b4e3cc);
+  --erro: light-dark(#b42318, #f28b7d);
+  --erro-claro: light-dark(#fdecea, #3d1e1a);
+  --erro-texto: light-dark(#7a1a12, #f8c3bb);
+
+  /* Superfícies que são petróleo cheio nos dois temas (barra, lado da marca na tela de acesso, aviso rápido) e o
+     texto sobre elas. */
+  --barra-fundo: light-dark(#1f5c66, #15434a);
+  --noite-fixa: #123a41;
+  --sobre-escuro: #f6f4f0;
 
   /* Papéis */
   --fundo: var(--areia);
   --superficie: var(--papel);
+  --campo: light-dark(#fff, #132022);
   --texto: var(--grafite);
   --texto-2: var(--cinza);
   --linha: var(--pedra);
-  --acao: var(--petroleo);
-  --acao-hover: var(--petroleo-escuro);
-  --foco: #2b7f8c;
+  --acao: light-dark(#1f5c66, #6fc1cc);
+  --acao-hover: light-dark(#174850, #9ad3db);
+  --acao-cheio: var(--petroleo);
+  --acao-cheio-hover: light-dark(#174850, #33919f);
+  --foco: light-dark(#2b7f8c, #5fb3bf);
+  --tinta-atual: light-dark(rgb(228 238 239 / 0.55), rgb(43 127 140 / 0.14));
+  --tinta-realce: light-dark(rgb(207 224 226 / 0.45), rgb(43 127 140 / 0.26));
+  --tinta-hover: light-dark(rgb(239 236 230 / 0.7), rgb(255 255 255 / 0.04));
+  --coral-realce: light-dark(#f9dcd2, #4d3129);
+  --esqueleto-brilho: light-dark(#f4f1ec, #2a3c3f);
+  --sombra-cor: light-dark(rgb(18 58 65 / 0.16), rgb(0 0 0 / 0.45));
 
   /* Tipografia */
   --fonte: 'Figtree Variable', 'Figtree', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -57,13 +76,37 @@
 
   --raio: 8px;
   --raio-g: 12px;
-  --sombra: 0 1px 2px rgb(30 42 46 / 0.06), 0 2px 8px rgb(30 42 46 / 0.06);
-  --sombra-painel: -8px 0 32px rgb(18 58 65 / 0.18);
+  --sombra: 0 1px 2px light-dark(rgb(30 42 46 / 0.06), rgb(0 0 0 / 0.3)),
+    0 2px 8px light-dark(rgb(30 42 46 / 0.06), rgb(0 0 0 / 0.3));
+  --sombra-painel: -8px 0 32px light-dark(rgb(18 58 65 / 0.18), rgb(0 0 0 / 0.5));
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --barra-altura: 3.5rem;
   --largura: 80rem;
 
+  --seta-selecao: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%235C6B6E' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+
+  color-scheme: light dark;
+}
+
+:root[data-tema='claro'] {
   color-scheme: light;
+}
+
+:root[data-tema='escuro'] {
+  color-scheme: dark;
+}
+
+/* O que não é cor (imagens) não passa por light-dark(): repete o tema escuro nos dois caminhos. */
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-tema='claro']) {
+    --seta-selecao: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23A7B3B5' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  }
+}
+
+@media screen {
+  :root[data-tema='escuro'] {
+    --seta-selecao: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23A7B3B5' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  }
 }
 
 *,
@@ -273,14 +316,14 @@ svg {
 }
 
 .botao-primario {
-  --b-fundo: var(--acao);
+  --b-fundo: var(--acao-cheio);
   --b-texto: #fff;
-  --b-borda: var(--acao);
+  --b-borda: var(--acao-cheio);
 }
 
 .botao-primario:hover {
-  --b-fundo: var(--acao-hover);
-  --b-borda: var(--acao-hover);
+  --b-fundo: var(--acao-cheio-hover);
+  --b-borda: var(--acao-cheio-hover);
   color: #fff;
 }
 
@@ -370,7 +413,8 @@ svg {
   height: 0.875rem;
   margin-right: 0.3rem;
   vertical-align: -0.15rem;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B42318' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' x2='12' y1='8' y2='12'/%3E%3Cline x1='12' x2='12.01' y1='16' y2='16'/%3E%3C/svg%3E") no-repeat center / contain;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' x2='12' y1='8' y2='12'/%3E%3Cline x1='12' x2='12.01' y1='16' y2='16'/%3E%3C/svg%3E") no-repeat center / contain;
 }
 
 .entrada,
@@ -380,12 +424,12 @@ svg {
   padding: 0 var(--e-3);
   border: 1px solid var(--pedra-forte);
   border-radius: var(--raio);
-  background: #fff;
+  background: var(--campo);
   color: var(--texto);
   font: inherit;
   font-size: var(--t-md);
   transition: border-color 160ms var(--ease), box-shadow 160ms var(--ease);
-  caret-color: var(--petroleo);
+  caret-color: var(--acao);
 }
 
 textarea.entrada {
@@ -407,7 +451,7 @@ textarea.entrada {
 .selecao:focus {
   outline: none;
   border-color: var(--foco);
-  box-shadow: 0 0 0 3px rgb(43 127 140 / 0.2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--foco) 20%, transparent);
 }
 
 .entrada[aria-invalid='true'] {
@@ -424,7 +468,7 @@ textarea.entrada {
 .selecao {
   appearance: none;
   padding-right: var(--e-8);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%235C6B6E' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-image: var(--seta-selecao);
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
 }
@@ -482,7 +526,7 @@ textarea.entrada {
 .caixa-marcar input {
   width: 1.125rem;
   height: 1.125rem;
-  accent-color: var(--petroleo);
+  accent-color: var(--acao-cheio);
 }
 
 /* Botões segmentados (tipo, periodicidade) */
@@ -525,7 +569,7 @@ textarea.entrada {
 .segmentos .router-link-exact-active {
   background: var(--papel);
   color: var(--petroleo-escuro);
-  box-shadow: 0 1px 2px rgb(30 42 46 / 0.12);
+  box-shadow: 0 1px 2px light-dark(rgb(30 42 46 / 0.12), rgb(0 0 0 / 0.4));
 }
 
 /* ——— Superfícies ——— */
@@ -621,12 +665,12 @@ textarea.entrada {
 
 .aviso-erro {
   background: var(--erro-claro);
-  color: #7a1a12;
+  color: var(--erro-texto);
 }
 
 .aviso-sucesso {
   background: var(--verde-claro);
-  color: #1f5640;
+  color: var(--verde-texto);
 }
 
 .aviso .acoes {
@@ -636,7 +680,7 @@ textarea.entrada {
 /* Esqueleto de carregamento */
 .esqueleto {
   border-radius: var(--raio);
-  background: linear-gradient(90deg, var(--areia-funda) 0%, #f4f1ec 50%, var(--areia-funda) 100%);
+  background: linear-gradient(90deg, var(--areia-funda) 0%, var(--esqueleto-brilho) 50%, var(--areia-funda) 100%);
   background-size: 200% 100%;
   animation: brilho 1.4s ease-in-out infinite;
 }
@@ -706,6 +750,11 @@ textarea.entrada {
 
 /* Impressão: a planilha da família no papel. O previsto tracejado continua legível em preto e branco. */
 @media print {
+  :root,
+  :root[data-tema] {
+    color-scheme: light;
+  }
+
   body {
     background: #fff;
   }

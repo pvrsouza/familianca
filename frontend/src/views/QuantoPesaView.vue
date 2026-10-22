@@ -183,7 +183,7 @@ legend {
   padding: 0 var(--e-3);
   border: 1px solid var(--pedra-forte);
   border-radius: 999px;
-  background: #fff;
+  background: var(--campo);
   color: var(--texto);
   font: inherit;
   font-size: var(--t-sm);
@@ -239,7 +239,7 @@ legend {
   margin-top: var(--e-1);
   font-size: var(--t-xl);
   font-family: var(--fonte-titulo);
-  color: var(--petroleo);
+  color: var(--acao);
 }
 
 .detalhes {

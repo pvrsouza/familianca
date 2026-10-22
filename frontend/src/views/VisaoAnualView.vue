@@ -428,7 +428,7 @@ const proximo = computed(() => passos.value.findIndex(pendente))
 .proximo .numero {
   background: var(--petroleo);
   border-color: var(--petroleo);
-  color: var(--areia);
+  color: var(--sobre-escuro);
 }
 
 .feito .numero {

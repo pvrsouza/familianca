@@ -35,7 +35,7 @@ defineProps<{ recurso: string; plano: string }>()
   height: 2.75rem;
   border-radius: 50%;
   background: var(--petroleo-tinta);
-  color: var(--petroleo);
+  color: var(--acao);
 }
 
 .icone svg {

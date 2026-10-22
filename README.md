@@ -29,6 +29,9 @@ npm run build   # vue-tsc + build em frontend/dist
 - `src/api/http.ts` busca o token CSRF, manda `X-XSRF-TOKEN` nas requisições que alteram dados e trata os erros
   (ProblemDetail): 401 volta para o login, 402 mostra o recurso fora do plano, 429 diz quanto esperar.
 - Nada de `v-html`: o Vue escapa todo texto, e a API não escapa HTML.
+- Tema claro/escuro: as cores de `src/estilos/base.css` usam `light-dark()`, e `src/estado/tema.ts` grava a escolha
+  (Automático, Claro ou Escuro, em Minha conta) só no navegador e marca `data-tema` no `<html>`. Cor nova entra como
+  token com os dois valores, não fixa no componente.
 
 ## Pré-requisito
 

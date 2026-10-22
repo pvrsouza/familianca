@@ -886,7 +886,7 @@ td:has(> .celula) {
   border-radius: var(--raio-g);
   background: var(--papel);
   color: var(--texto);
-  box-shadow: 0 8px 24px rgb(18 58 65 / 0.16);
+  box-shadow: 0 8px 24px var(--sombra-cor);
 }
 
 .explicacao::backdrop {
@@ -914,11 +914,11 @@ td:has(> .celula) {
 
 /* Estados das células */
 td.atual {
-  background-color: rgb(228 238 239 / 0.55);
+  background-color: var(--tinta-atual);
 }
 
 td.realce {
-  background-color: rgb(207 224 226 / 0.45);
+  background-color: var(--tinta-realce);
 }
 
 /* Previsto → confirmado: a célula perde o tracejado e assenta no papel. */
@@ -934,12 +934,12 @@ td.prev {
 }
 
 td.prev.realce {
-  background-color: #f9dcd2;
+  background-color: var(--coral-realce);
 }
 
 tbody tr:hover > th,
 tbody tr:hover > td:not(.prev) {
-  background-color: rgb(239 236 230 / 0.7);
+  background-color: var(--tinta-hover);
 }
 
 tbody tr:hover > th {

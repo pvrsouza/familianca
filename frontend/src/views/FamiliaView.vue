@@ -608,7 +608,7 @@ async function apagarDados() {
 }
 
 .recursos li::marker {
-  color: var(--petroleo);
+  color: var(--acao);
 }
 
 .ajuda-plano {

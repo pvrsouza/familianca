@@ -1,17 +1,24 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import QRCode from 'qrcode'
-import { ShieldCheck } from 'lucide-vue-next'
+import { Monitor, Moon, ShieldCheck, Sun } from 'lucide-vue-next'
 import { conta } from '../api/servicos'
 import type { SituacaoMfa } from '../api/tipos'
 import { ErroApi, mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { avisar } from '../estado/avisos'
 import { centavos } from '../estado/centavos'
+import { tema, type Tema } from '../estado/tema'
 import CampoSenha from '../componentes/CampoSenha.vue'
 import Mensagem from '../componentes/Mensagem.vue'
 
 const usuario = sessao.estado.usuario
+
+const temas: { valor: Tema; rotulo: string; icone: typeof Sun }[] = [
+  { valor: 'automatico', rotulo: 'Automático', icone: Monitor },
+  { valor: 'claro', rotulo: 'Claro', icone: Sun },
+  { valor: 'escuro', rotulo: 'Escuro', icone: Moon },
+]
 
 // ——— Nome ———
 const nome = ref(usuario?.nome ?? '')
@@ -183,6 +190,20 @@ async function copiarCodigos() {
     </section>
 
     <section class="painel painel-corpo">
+      <h2 id="c-tema-titulo">Aparência</h2>
+      <div class="segmentos" role="group" aria-labelledby="c-tema-titulo" aria-describedby="c-tema-ajuda">
+        <button v-for="t in temas" :key="t.valor" type="button" :aria-pressed="tema.escolha.value === t.valor"
+                @click="tema.escolher(t.valor)">
+          <component :is="t.icone" aria-hidden="true" />
+          {{ t.rotulo }}
+        </button>
+      </div>
+      <p id="c-tema-ajuda" class="ajuda tema-ajuda">
+        No automático, o tema acompanha o do celular ou do computador. Vale só neste aparelho.
+      </p>
+    </section>
+
+    <section class="painel painel-corpo">
       <h2>Senha</h2>
       <form class="formulario" novalidate @submit.prevent="trocarSenha">
         <input type="email" :value="usuario?.email" autocomplete="username" hidden />
@@ -308,6 +329,18 @@ async function copiarCodigos() {
   margin-bottom: var(--e-3);
 }
 
+.segmentos svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.tema-ajuda {
+  max-width: 60ch;
+  margin-top: var(--e-2);
+  font-size: var(--t-xs);
+  color: var(--texto-2);
+}
+
 .preferencia {
   max-width: 60ch;
   margin-top: var(--e-1);
@@ -350,6 +383,7 @@ async function copiarCodigos() {
   align-items: flex-start;
 }
 
+/* Fundo branco também no tema escuro: o leitor do autenticador precisa do contraste original do QR. */
 .qr {
   border: 1px solid var(--linha);
   border-radius: var(--raio);

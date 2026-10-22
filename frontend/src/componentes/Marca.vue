@@ -34,7 +34,7 @@ const alturas = [5, 8, 10.5, 12.5, 14, 15, 15, 14, 12.5, 10.5, 8, 5]
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--petroleo);
+  color: var(--acao);
 }
 
 .realizada,
@@ -47,7 +47,7 @@ const alturas = [5, 8, 10.5, 12.5, 14, 15, 15, 14, 12.5, 10.5, 8, 5]
 }
 
 .claro {
-  color: var(--areia);
+  color: var(--sobre-escuro);
 }
 
 .claro .prevista {

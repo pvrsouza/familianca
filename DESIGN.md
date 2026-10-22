@@ -196,6 +196,14 @@ Uma base fria e serena (petróleo) sobre neutros quentes (areia, papel, pedra), 
 
 **A Regra do Petróleo Dominante.** Petróleo é a cor dominante de qualquer tela; o coral entra em doses pequenas, quase sempre como fundo claro tracejado.
 
+### Tema escuro
+Escolhido em Minha conta (Automático, que segue o sistema, Claro ou Escuro), vale só no aparelho. Cada token de cor tem o par claro/escuro em `light-dark()` no `base.css`; o `color-scheme` do `<html>` decide qual vale e a impressão sai sempre no claro.
+
+- A base é petróleo noite, nunca preto: fundo `#0f1a1c`, papel `#182628`, areia funda `#213134`; texto em areia (`#ebe7e0`).
+- Os nomes continuam os mesmos e trocam de papel com o tema: `petroleo-escuro` e `petroleo-noite` viram tons claros (são texto de destaque), `coral-claro` vira tinta coral escura com o tracejado mais claro. O par previsto × realizado e as regras acima continuam valendo.
+- O que é petróleo cheio nos dois temas (barra superior, lado da marca na tela de acesso, aviso rápido) usa `barra-fundo`, `noite-fixa` e `sobre-escuro`, não os tokens que trocam.
+- O QR do MFA fica sempre em fundo branco, para o autenticador ler.
+
 ## Typography
 
 **Display Font:** Fraunces (com ui-serif, Georgia), pesos 500 e 600 carregados

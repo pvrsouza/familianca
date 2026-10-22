@@ -53,12 +53,12 @@ defineProps<{ escuro?: boolean }>()
 .como.escuro {
   --linha-passo: rgb(246 244 240 / 0.22);
   --numero-fundo: rgb(246 244 240 / 0.12);
-  --numero-texto: var(--areia);
+  --numero-texto: var(--sobre-escuro);
   --apoio: rgb(246 244 240 / 0.78);
-  --destaque: var(--areia);
+  --destaque: var(--sobre-escuro);
   --amostra-prevista-fundo: rgb(244 181 163 / 0.18);
   --amostra-prevista-borda: var(--coral-sobre-escuro);
-  --amostra-paga: var(--areia);
+  --amostra-paga: var(--sobre-escuro);
 }
 
 h2 {

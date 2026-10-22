@@ -285,7 +285,7 @@ function dicaSaldo(i: number): string | undefined {
 }
 
 .tabela td.atual {
-  background: rgb(228 238 239 / 0.55);
+  background: var(--tinta-atual);
 }
 
 .tabela td {
@@ -353,7 +353,7 @@ function dicaSaldo(i: number): string | undefined {
 
 .celula-editavel:hover {
   border-color: var(--pedra-forte);
-  background: #fff;
+  background: var(--campo);
 }
 
 .lapis {
