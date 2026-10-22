@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowLeft, ChevronRight, Plus, Undo2 } from 'lucide-vue-next'
+import { ArrowLeft, ChevronRight, Plus, Trash2, Undo2 } from 'lucide-vue-next'
 import { lancamentos as apiLancamentos, recorrencias as apiRecorrencias } from '../../api/servicos'
 import type { Lancamento, Recorrencia, Tipo } from '../../api/tipos'
-import { mensagemDeErro } from '../../api/http'
+import { ErroApi, mensagemDeErro } from '../../api/http'
 import { sessao } from '../../estado/sessao'
 import { avisar } from '../../estado/avisos'
 import { ESTIMATIVAS, MESES, previstoPelaRegra, anoAtual, competencia, dataPorExtenso, hoje, mesAtual, reais, situacaoPagamento } from '../../util/formato'
@@ -41,6 +41,9 @@ const editando = ref<Lancamento | null>(null)
 const direto = ref(false)
 const confirmandoExclusao = ref(false)
 const excluindo = ref(false)
+/** Item previsto (conta a pagar ou algo que se repete) com a exclusão aberta. */
+const confirmandoRemoverPrevista = ref<number | null>(null)
+const removendoPrevista = ref<number | null>(null)
 
 const comp = computed(() => (props.alvo ? competencia(props.alvo.ano, props.alvo.mes) : ''))
 const titulo = computed(() => props.alvo?.categoria.nome ?? '')
@@ -122,6 +125,7 @@ watch(() => props.alvo, (a) => {
   modo.value = 'lista'
   editando.value = null
   direto.value = false
+  confirmandoRemoverPrevista.value = null
   itens.value = []
   previstas.value = []
   puladas.value = []
@@ -194,6 +198,28 @@ function podeAlterarRecorrencia(r: Recorrencia) {
 
 const voltando = ref<number | null>(null)
 
+// ——— Excluir o que está previsto (conta a pagar ou algo que se repete) ———
+
+async function removerPrevista(r: Recorrencia) {
+  removendoPrevista.value = r.id
+  erro.value = ''
+  try {
+    await apiRecorrencias.remover(r.id)
+    sessao.avisarMudanca()
+    confirmandoRemoverPrevista.value = null
+    conferido(r.frequencia === 'UNICA' ? `${r.descricao} excluída.` : `${r.descricao} excluída: os meses previstos saíram do ano.`)
+  } catch (e) {
+    erro.value = e instanceof ErroApi && e.status === 409
+      ? `${r.descricao} já tem meses confirmados, que viraram lançamentos, então não dá para excluir. Para tirar só `
+        + `${MESES[props.alvo!.mes - 1]}, use "Pular o mês". Para parar daqui em diante, abra em Recorrências e marque `
+        + '"Tem data para acabar".'
+      : mensagemDeErro(e)
+    confirmandoRemoverPrevista.value = null
+  } finally {
+    removendoPrevista.value = null
+  }
+}
+
 async function voltarAPrever(r: Recorrencia) {
   voltando.value = r.id
   erro.value = ''
@@ -262,7 +288,40 @@ async function voltarAPrever(r: Recorrencia) {
                 <p v-if="usaEstimativa(r)" class="texto-2 nota-pulo">
                   Cadastrada em {{ reais(r.valor) }}; prevista {{ previstoPelaRegra(r.previstoPor!, r.confirmacoesNaPrevisao) }}.
                 </p>
-                <ConferirOcorrencia :recorrencia="r" :competencia="comp" :valor-previsto="previstoDe(r)" @feito="conferido" />
+                <ConferirOcorrencia v-if="confirmandoRemoverPrevista !== r.id" :recorrencia="r" :competencia="comp"
+                                    :valor-previsto="previstoDe(r)" @feito="conferido" />
+                <template v-if="podeAlterarRecorrencia(r)">
+                  <div v-if="confirmandoRemoverPrevista === r.id" class="confirmar-prevista" role="group"
+                       :aria-labelledby="`excluir-${r.id}`">
+                    <p :id="`excluir-${r.id}`" class="pergunta-excluir">Excluir "{{ r.descricao }}"?</p>
+                    <ul class="consequencias">
+                      <template v-if="r.frequencia === 'UNICA'">
+                        <li>A conta sai de {{ MESES[alvo.mes - 1] }}: {{ reais(previstoDe(r)) }} a menos nas despesas do ano.</li>
+                        <li>Use quando ela foi registrada por engano. Se foi paga, confirme em vez de excluir.</li>
+                      </template>
+                      <template v-else>
+                        <li>Some de todos os meses em que estava prevista, não só de {{ MESES[alvo.mes - 1] }}.</li>
+                        <li>Para tirar só este mês, volte e use "{{ alvo.tipo === 'RECEITA' ? 'Não recebi' : 'Pular o mês' }}".</li>
+                      </template>
+                      <li>Não dá para desfazer.</li>
+                    </ul>
+                    <div class="acoes">
+                      <button type="button" class="botao botao-perigo botao-pequeno" :disabled="removendoPrevista === r.id"
+                              @click="removerPrevista(r)">
+                        <Trash2 aria-hidden="true" /> Sim, excluir
+                      </button>
+                      <button type="button" class="botao botao-pequeno" @click="confirmandoRemoverPrevista = null">
+                        <Undo2 aria-hidden="true" /> Voltar
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else>
+                    <button type="button" class="botao botao-sutil botao-pequeno excluir-prevista"
+                            @click="confirmandoRemoverPrevista = r.id; erro = ''">
+                      <Trash2 aria-hidden="true" /> {{ r.frequencia === 'UNICA' ? 'Excluir esta conta' : 'Excluir (todos os meses)' }}
+                    </button>
+                  </div>
+                </template>
               </li>
             </ul>
           </section>
@@ -477,6 +536,34 @@ async function voltarAPrever(r: Recorrencia) {
 .rodape {
   flex-wrap: wrap;
   margin-top: var(--e-6);
+}
+
+.confirmar-prevista {
+  display: grid;
+  gap: var(--e-2);
+  padding: var(--e-3) var(--e-4);
+  border-radius: var(--raio);
+  background: var(--areia);
+  border: 1px solid var(--linha);
+}
+
+.pergunta-excluir {
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
+.consequencias {
+  display: grid;
+  gap: var(--e-1);
+  margin: 0;
+  padding-left: var(--e-5);
+  font-size: var(--t-sm);
+  line-height: 1.45;
+  color: var(--texto-2);
+}
+
+.excluir-prevista {
+  color: var(--coral-borda);
 }
 
 .zona-exclusao {
