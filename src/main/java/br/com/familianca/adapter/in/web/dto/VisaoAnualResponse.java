@@ -10,6 +10,7 @@ import br.com.familianca.domain.model.Variacao;
 import br.com.familianca.domain.model.VisaoAnual;
 import br.com.familianca.domain.model.VisaoAnual.Fluxo;
 import br.com.familianca.domain.model.VisaoAnual.LinhaCategoria;
+import br.com.familianca.domain.model.VisaoAnual.LinhaItem;
 import br.com.familianca.domain.model.VisaoAnual.LinhaGrupo;
 import br.com.familianca.domain.model.VisaoAnual.LinhaMembro;
 import br.com.familianca.domain.vo.Dinheiro;
@@ -120,13 +121,29 @@ public record VisaoAnualResponse(int ano, List<String> meses, Resumo resumo, Blo
                                  List<BigDecimal> estimado,
                                  @Schema(description = "% do total do tipo no ano.") BigDecimal participacao,
                                  @Schema(description = "Posição entre as categorias do tipo pelo total do ano (1 = maior).")
-                                 Integer rank) {
+                                 Integer rank,
+                                 @Schema(description = "O que compõe a categoria, do maior para o menor no ano: cada "
+                                         + "recorrência, cada descrição avulsa e a estimativa. Vazio se calculada por alíquota.")
+                                 List<ItemVisao> itens) {
 
         static CategoriaVisao de(LinhaCategoria l) {
             Categoria c = l.categoria();
             return new CategoriaVisao(c.id(), c.nome(), c.ativa(), c.calculada(), Valores.valor(c.aliquota()),
                     c.recorrente(), c.tributavel(), c.estimativa(), Serie.de(l.total()), Valores.meses(l.realizado()), Valores.meses(l.previsto()),
-                    Valores.meses(l.estimado()), Valores.valor(l.participacao()), l.rank());
+                    Valores.meses(l.estimado()), Valores.valor(l.participacao()), l.rank(),
+                    l.itens().stream().map(ItemVisao::de).toList());
+        }
+    }
+
+    public record ItemVisao(String descricao,
+                            @Schema(description = "A recorrência que é este item; nulo = descrição avulsa ou estimativa.")
+                            Long recorrenciaId,
+                            @Schema(description = "true = a estimativa dos próximos meses.") boolean estimativa,
+                            Serie total, List<BigDecimal> previsto) {
+
+        static ItemVisao de(LinhaItem i) {
+            return new ItemVisao(i.descricao(), i.recorrenciaId(), i.estimativa(), Serie.de(i.total()),
+                    Valores.meses(i.previsto()));
         }
     }
 

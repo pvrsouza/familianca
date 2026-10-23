@@ -48,6 +48,8 @@
   --tinta-atual: light-dark(rgb(228 238 239 / 0.55), rgb(43 127 140 / 0.14));
   --tinta-realce: light-dark(rgb(207 224 226 / 0.45), rgb(43 127 140 / 0.26));
   --tinta-hover: light-dark(rgb(239 236 230 / 0.7), rgb(255 255 255 / 0.04));
+  /* Faixa dos indicadores do ano (Total, Média, % ano, Rank): tinge por cima do fundo de cada linha. */
+  --tinta-indicadores: light-dark(rgb(30 42 46 / 0.035), rgb(255 255 255 / 0.035));
   --coral-realce: light-dark(#f9dcd2, #4d3129);
   --esqueleto-brilho: light-dark(#f4f1ec, #2a3c3f);
   --sombra-cor: light-dark(rgb(18 58 65 / 0.16), rgb(0 0 0 / 0.45));

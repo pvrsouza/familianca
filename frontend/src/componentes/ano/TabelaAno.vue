@@ -1,18 +1,57 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ChevronRight, Info } from 'lucide-vue-next'
-import type { Bloco, CategoriaVisao, GrupoVisao, SeriePercentual, Tipo, VisaoAnual } from '../../api/tipos'
+import type { Bloco, CategoriaVisao, GrupoVisao, ItemVisao, SeriePercentual, Tipo, VisaoAnual } from '../../api/tipos'
 import { MESES, MESES_CURTOS, ordinal, pct, reais, reaisCurtos, variacao } from '../../util/formato'
 import { centavos } from '../../estado/centavos'
 import { inflacao } from '../../estado/inflacao'
+import { detalhes } from '../../estado/detalhes'
 import SelosCategoria from '../SelosCategoria.vue'
+import PainelMes, { type AlvoMes } from './PainelMes.vue'
 
 // A planilha viva: grupos que abrem em categorias, 12 meses, total, média, % do ano e rank. Acima dos meses, a
 // copa do ano: uma barra por mês com a despesa realizada (cheia), a prevista (tracejada) e o traço da renda.
 // Como na planilha, a inflação da família fica sob as despesas e a de cada grupo de despesa sob o grupo.
 const props = defineProps<{ visao: VisaoAnual; mesAtual: number | null }>()
-const emit = defineEmits<{ abrir: [categoria: CategoriaVisao, tipo: Tipo, mes: number] }>()
+// ——— Editar dentro da tabela ———
+// Clicar num mês abre uma faixa logo abaixo da linha (da categoria ou do item), com o que forma aquele valor:
+// confirmar, outro valor, pular, editar, lançar. Clicar de novo na mesma célula, no X ou Esc fecha.
+const edicao = ref<{ chave: string; alvo: AlvoMes } | null>(null)
+const planilha = ref<HTMLElement | null>(null)
+const larguraFaixa = ref(0)
+
+function chaveDe(c: CategoriaVisao, item?: ItemVisao): string {
+  return item ? `${c.id}|${item.recorrenciaId ?? (item.estimativa ? 'estimativa' : item.descricao)}` : `${c.id}`
+}
+
+function editando(chave: string, i: number): boolean {
+  return edicao.value?.chave === chave && edicao.value.alvo.mes === i + 1
+}
+
+function medir() {
+  larguraFaixa.value = planilha.value?.clientWidth ?? 0
+}
+
+function abrirAqui(c: CategoriaVisao, tipo: Tipo, mes: number, item?: ItemVisao) {
+  const chave = chaveDe(c, item)
+  if (edicao.value?.chave === chave && edicao.value.alvo.mes === mes) {
+    edicao.value = null
+    return
+  }
+  medir()
+  edicao.value = {
+    chave,
+    alvo: {
+      categoria: c, tipo, ano: props.visao.ano, mes,
+      item: item ? { descricao: item.descricao, recorrenciaId: item.recorrenciaId, estimativa: item.estimativa } : null,
+    },
+  }
+}
+
+watch(() => props.visao.ano, () => (edicao.value = null))
+window.addEventListener('resize', medir)
+onBeforeUnmount(() => window.removeEventListener('resize', medir))
 
 const fechados = ref(new Set<number>())
 const mostrarVazias = ref(false)
@@ -51,6 +90,20 @@ function categoriasVisiveis(g: GrupoVisao): CategoriaVisao[] {
 const temOcultas = computed(() =>
   [...props.visao.receitas.grupos, ...props.visao.despesas.grupos].some((g) => g.categorias.some((c) => c.total.ano === 0)),
 )
+
+// ——— Agrupar ou abrir em itens ———
+// Categoria com mais de um item (três telefones, duas escolas) pode abrir uma linha por item. A escolha fica no
+// navegador, por categoria; o botão da barra abre ou agrupa todas de uma vez.
+const detalhavel = (c: CategoriaVisao) => c.itens.length > 1
+const aberta = (c: CategoriaVisao) => detalhavel(c) && detalhes.abertas.value.has(c.id)
+const detalhaveis = computed(() =>
+  [...props.visao.receitas.grupos, ...props.visao.despesas.grupos].flatMap((g) => g.categorias).filter(detalhavel),
+)
+const todasAbertas = computed(() => detalhaveis.value.length > 0 && detalhaveis.value.every(aberta))
+
+function alternarDetalhes() {
+  detalhes.definir(detalhaveis.value.map((c) => c.id), !todasAbertas.value)
+}
 
 function alternar(id: number) {
   const s = new Set(fechados.value)
@@ -185,13 +238,17 @@ function linkCategoria(c: CategoriaVisao): string {
       <label class="caixa-marcar" title="Sem centavos, os valores aparecem arredondados para o real mais próximo">
         <input type="checkbox" :checked="centavos.ligados.value" @change="centavos.alternar()" /> Mostrar centavos
       </label>
+      <button v-if="detalhaveis.length" type="button" class="botao botao-sutil botao-pequeno" @click="alternarDetalhes"
+              title="Categorias com mais de um item (como três telefones) mostram uma linha para cada">
+        {{ todasAbertas ? 'Agrupar as categorias' : 'Abrir as categorias em itens' }}
+      </button>
       <button type="button" class="botao botao-sutil botao-pequeno" @click="alternarTodos">
         {{ todosFechados ? 'Abrir todos os grupos' : 'Recolher os grupos' }}
       </button>
     </div>
   </div>
 
-  <div class="planilha" role="region" :aria-label="`Orçamento de ${visao.ano}, mês a mês`" tabindex="0"
+  <div ref="planilha" class="planilha" role="region" :aria-label="`Orçamento de ${visao.ano}, mês a mês`" tabindex="0"
        @mouseleave="realce = null">
     <table :class="{ 'com-centavos': centavos.ligados.value }">
       <colgroup>
@@ -294,16 +351,23 @@ function linkCategoria(c: CategoriaVisao): string {
               <td class="num total" :title="textoInflacaoAno(g.nome, g.inflacao)">{{ variacao(g.inflacao.ano) }}</td>
               <td colspan="3" />
             </tr>
-            <tr v-for="c in categoriasVisiveis(g)" :key="c.id" class="linha-categoria" :class="{ inativo: !c.ativa }">
+            <template v-for="c in categoriasVisiveis(g)" :key="c.id">
+            <tr class="linha-categoria" :class="{ inativo: !c.ativa, detalhavel: detalhavel(c) }">
               <th scope="row">
+                <button v-if="detalhavel(c)" type="button" class="abrir-itens" :aria-expanded="aberta(c)"
+                        :aria-label="`${aberta(c) ? 'Agrupar' : 'Abrir em itens'}: ${c.nome} (${c.itens.length})`"
+                        :title="aberta(c) ? 'Agrupar' : `Abrir os ${c.itens.length} itens`" @click="detalhes.alternar(c.id)">
+                  <ChevronRight class="seta" aria-hidden="true" />
+                </button>
                 <RouterLink :to="linkCategoria(c)" class="nome-categoria">{{ c.nome }}</RouterLink>
                 <SelosCategoria class="selos" :categoria="c" :tipo="b.chave" />
                 <span v-if="!c.ativa" class="selo">desativada</span>
               </th>
-              <td v-for="(v, i) in c.total.valores" :key="i" class="num" :class="classesCelula(i, c.previsto[i])"
-                  @mouseenter="realce = i">
+              <td v-for="(v, i) in c.total.valores" :key="i" class="num"
+                  :class="[classesCelula(i, c.previsto[i]), { editando: editando(chaveDe(c), i) }]" @mouseenter="realce = i">
                 <button v-if="clicavel(c, i)" type="button" class="celula" :aria-label="rotuloCelula(c, i, b.chave)"
-                        :title="dicaCategoria(c, i)" @click="emit('abrir', c, b.chave, i + 1)">{{ reaisCurtos(v) }}</button>
+                        :title="dicaCategoria(c, i)" :aria-expanded="editando(chaveDe(c), i)"
+                        @click="abrirAqui(c, b.chave, i + 1)">{{ reaisCurtos(v) }}</button>
                 <span v-else :title="dicaCategoria(c, i)">{{ reaisCurtos(v) }}</span>
               </td>
               <td class="num total">{{ reaisCurtos(c.total.ano) }}</td>
@@ -311,6 +375,41 @@ function linkCategoria(c: CategoriaVisao): string {
               <td class="num">{{ pct(c.participacao) }}</td>
               <td class="num rank" :title="textoRank(c, b.chave)">{{ c.rank ? ordinal(c.rank) : '–' }}</td>
             </tr>
+            <tr v-if="edicao?.chave === chaveDe(c)" class="linha-edicao">
+              <td colspan="17">
+                <div class="faixa-dentro" :style="{ width: larguraFaixa ? `${larguraFaixa}px` : undefined }">
+                  <PainelMes embutido :alvo="edicao.alvo" @fechar="edicao = null" />
+                </div>
+              </td>
+            </tr>
+            <template v-if="aberta(c)">
+              <template v-for="item in c.itens" :key="item.descricao">
+              <tr class="linha-item">
+                <th scope="row"><span class="nome-item">{{ item.descricao }}</span></th>
+                <td v-for="(v, i) in item.total.valores" :key="i" class="num"
+                    :class="[classesCelula(i, item.previsto[i]), { editando: editando(chaveDe(c, item), i) }]"
+                    @mouseenter="realce = i">
+                  <!-- Abre a faixa logo abaixo, só com este item naquele mês. -->
+                  <button v-if="clicavel(c, i)" type="button" class="celula"
+                          :aria-label="`${item.descricao}, ${MESES[i]}: ${v ? dica(v, item.previsto[i]) : 'nada lançado'}. Abrir`"
+                          :title="dica(v, item.previsto[i])" :aria-expanded="editando(chaveDe(c, item), i)"
+                          @click="abrirAqui(c, b.chave, i + 1, item)">{{ reaisCurtos(v) }}</button>
+                  <span v-else :title="dica(v, item.previsto[i])">{{ reaisCurtos(v) }}</span>
+                </td>
+                <td class="num total">{{ reaisCurtos(item.total.ano) }}</td>
+                <td class="num">{{ reaisCurtos(item.total.mediaMensal) }}</td>
+                <td colspan="2" />
+              </tr>
+              <tr v-if="edicao?.chave === chaveDe(c, item)" class="linha-edicao">
+              <td colspan="17">
+                <div class="faixa-dentro" :style="{ width: larguraFaixa ? `${larguraFaixa}px` : undefined }">
+                  <PainelMes embutido :alvo="edicao.alvo" @fechar="edicao = null" />
+                </div>
+              </td>
+            </tr>
+              </template>
+            </template>
+            </template>
           </template>
         </template>
       </tbody>
@@ -735,6 +834,50 @@ tbody + tbody .linha-tipo td {
   text-decoration: underline;
 }
 
+.linha-categoria.detalhavel th {
+  padding-left: var(--e-4);
+}
+
+.abrir-itens {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--raio);
+  background: transparent;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.abrir-itens:hover {
+  background: var(--areia);
+}
+
+.abrir-itens[aria-expanded='true'] .seta {
+  transform: rotate(90deg);
+}
+
+/* Itens da categoria aberta: um nível abaixo, mais discretos. */
+.linha-item th,
+.linha-item td {
+  height: 2rem;
+  font-size: var(--t-xs);
+  color: var(--texto-2);
+}
+
+.linha-item th {
+  padding-left: calc(var(--e-4) + 3rem);
+  font-weight: 400;
+}
+
+.nome-item {
+  overflow-wrap: anywhere;
+}
+
 .linha-categoria .selos {
   margin-left: var(--e-2);
 }
@@ -957,5 +1100,59 @@ tbody tr:hover > th {
 
 .negativo {
   color: var(--erro);
+}
+
+/* ——— Indicadores do ano ———
+   Total, Média, % ano e Rank formam uma faixa à parte depois dos doze meses: divisória dupla, fundo levemente
+   tingido (por cima do fundo de cada linha) e texto um passo abaixo. Os meses são o dado do dia a dia; a faixa é o
+   resumo que se consulta. O Total continua forte: é o número que a família compara. Posição 14 em diante = depois
+   do nome e dos 12 meses, em todas as linhas (a copa, o cabeçalho e o corpo). */
+.planilha tr > :nth-child(n + 14) {
+  background-image: linear-gradient(var(--tinta-indicadores), var(--tinta-indicadores));
+}
+
+.planilha tr > :nth-child(14) {
+  border-left: 3px double var(--pedra-forte);
+}
+
+.planilha tbody tr > td:nth-child(n + 15) {
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--texto-2);
+}
+
+/* Nos itens de uma categoria aberta, o total acompanha o tom discreto da linha. */
+.planilha .linha-item td.total {
+  font-weight: 600;
+}
+
+/* Os meses no cabeçalho em tom cheio; os indicadores ficam no cinza de antes. */
+.meses th:nth-child(-n + 13):not(.atual):not(.canto) {
+  color: var(--texto);
+}
+
+/* ——— Faixa de edição ———
+   Abre logo abaixo da linha clicada. Fica presa à esquerda e com a largura da área visível da tabela, para não
+   rolar junto com os meses. A célula de onde ela saiu ganha o contorno de foco. */
+.linha-edicao > td {
+  height: auto;
+  padding: 0;
+  text-align: left;
+  white-space: normal;
+  background: var(--areia);
+  border-bottom: 2px solid var(--pedra-forte);
+  box-shadow: inset 0 2px 0 var(--acao);
+}
+
+.faixa-dentro {
+  position: sticky;
+  left: 0;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: var(--e-4) var(--e-5) var(--e-5);
+}
+
+td.editando {
+  box-shadow: inset 0 0 0 2px var(--acao);
 }
 </style>

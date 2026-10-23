@@ -76,7 +76,7 @@ const textoPendentes = computed(() => {
   return partes.join(' e ')
 })
 
-// Clicar no valor de uma categoria num mês abre o painel do mês.
+// Clicar no valor de uma categoria num mês abre o painel do mês (no celular; na tabela, a faixa abre na própria linha).
 const alvo = ref<AlvoMes | null>(null)
 function abrirMes(c: CategoriaVisao, tipo: Tipo, mes: number) {
   alvo.value = { categoria: c, tipo, ano: ano.value, mes }
@@ -296,7 +296,7 @@ const proximo = computed(() => passos.value.findIndex(pendente))
       <div class="conteudo-aba">
         <template v-if="aba === 'orcamento'">
           <AnoCelular v-if="celular" :visao="dados" :mes-atual="mesDestaque" @abrir="abrirMes" />
-          <TabelaAno v-else :visao="dados" :mes-atual="mesDestaque" @abrir="abrirMes" />
+          <TabelaAno v-else :visao="dados" :mes-atual="mesDestaque" />
         </template>
         <FluxoCaixa v-else-if="aba === 'fluxo'" :visao="dados" :mes-atual="mesDestaque" @mudou="carregar" />
         <PorPessoa v-else :visao="dados" />

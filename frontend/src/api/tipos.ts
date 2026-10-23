@@ -207,6 +207,18 @@ export interface CategoriaVisao {
   estimado: number[]
   participacao: number | null
   rank: number | null
+  /** O que compõe a categoria, do maior para o menor: cada recorrência, cada descrição avulsa e a estimativa. */
+  itens: ItemVisao[]
+}
+
+export interface ItemVisao {
+  descricao: string
+  /** A recorrência que é este item; nulo = descrição avulsa ou estimativa. */
+  recorrenciaId: number | null
+  /** É a estimativa dos próximos meses. */
+  estimativa: boolean
+  total: Serie
+  previsto: number[]
 }
 
 export interface GrupoVisao {

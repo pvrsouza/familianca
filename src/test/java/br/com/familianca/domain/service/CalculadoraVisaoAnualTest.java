@@ -181,6 +181,45 @@ class CalculadoraVisaoAnualTest {
         assertThat(visao.inflacaoFamiliar().mensal().get(1).valor()).isEqualByComparingTo("-44.44");
     }
 
+    @Test
+    void categoriaAbreEmItensPorRecorrenciaEPorDescricao() {
+        Categoria telefone = categoria(23L, 2L, "Telefone e celular");
+        Recorrencia pessoal = new Recorrencia(3L, telefone.id(), PAI, "Vivo - Pessoal", Dinheiro.of("117.83"), 1,
+                Frequencia.MENSAL, Competencia.of(2026, 10), null, null, Set.of(), null);
+        Recorrencia moto = new Recorrencia(4L, telefone.id(), PAI, "Vivo - Moto", Dinheiro.of("35"), 1,
+                Frequencia.MENSAL, Competencia.of(2026, 10), null, null, Set.of(), null);
+        List<Lancamento> lancamentos = List.of(
+                // Outubro do pessoal confirmado com outro nome: continua no item da recorrência.
+                new Lancamento(10L, telefone.id(), PAI, "Celular", Dinheiro.of("120"), LocalDate.of(2026, 10, 1),
+                        3L, Competencia.of(2026, 10), null, null),
+                new Lancamento(11L, SUPERMERCADO.id(), PAI, "Feira", Dinheiro.of("80"), LocalDate.of(2026, 9, 1),
+                        null, null, null, null),
+                new Lancamento(12L, SUPERMERCADO.id(), PAI, " feira ", Dinheiro.of("90"), LocalDate.of(2026, 9, 8),
+                        null, null, null, null),
+                new Lancamento(13L, SUPERMERCADO.id(), PAI, "Açougue", Dinheiro.of("200"), LocalDate.of(2026, 9, 9),
+                        null, null, null, null));
+        VisaoAnual v = new CalculadoraVisaoAnual().calcular(new Entrada(2026, List.of(HABITACAO, EMPRESA, RECEITAS_PJ),
+                List.of(telefone, SUPERMERCADO, NOTAS, ISS), lancamentos, List.of(pessoal, moto),
+                Set.of(new Ocorrencia(3L, Competencia.of(2026, 10))), List.of(), SerieMensal.ZERO, SerieMensal.ZERO,
+                Percentual.of("10")));
+
+        List<VisaoAnual.LinhaItem> telefones = linha(v.despesas(), telefone.id()).itens();
+        assertThat(telefones).extracting(VisaoAnual.LinhaItem::descricao).containsExactly("Vivo - Pessoal", "Vivo - Moto");
+        assertThat(telefones.get(0).realizado().mes(10)).isEqualTo(Dinheiro.of("120"));
+        assertThat(telefones.get(0).previsto().mes(11)).isEqualTo(Dinheiro.of("117.83"));
+        assertThat(telefones.get(1).previsto().total()).isEqualTo(Dinheiro.of("105"));
+        assertThat(telefones).extracting(VisaoAnual.LinhaItem::recorrenciaId).containsExactly(3L, 4L);
+
+        // Avulsos: a mesma descrição com outra caixa ou espaço é um item só, com o nome do primeiro.
+        List<VisaoAnual.LinhaItem> mercado = linha(v.despesas(), SUPERMERCADO.id()).itens();
+        assertThat(mercado).extracting(VisaoAnual.LinhaItem::descricao).containsExactly("Açougue", "Feira");
+        assertThat(mercado.get(1).realizado().mes(9)).isEqualTo(Dinheiro.of("170"));
+        assertThat(mercado.get(1).recorrenciaId()).isNull();
+
+        // Calculada por alíquota não tem itens.
+        assertThat(linha(v.despesas(), ISS.id()).itens()).isEmpty();
+    }
+
     private static Categoria categoria(Long id, Long grupoId, String nome) {
         return new Categoria(id, grupoId, nome, id.intValue(), true, false, null);
     }

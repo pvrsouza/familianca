@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { CalendarClock, Check, PencilLine, SkipForward, Undo2 } from 'lucide-vue-next'
+import { CalendarClock, Check, ChevronDown, PencilLine, SkipForward, Undo2 } from 'lucide-vue-next'
 import { recorrencias as api } from '../api/servicos'
 import type { NotaFiscal, Recorrencia } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
@@ -13,12 +13,19 @@ import Mensagem from './Mensagem.vue'
 
 // Conferir uma ocorrência prevista. Receita recorrente pode não chegar (ou chegar com outro valor), então a
 // pergunta é "chegou?"; despesa recorrente quase sempre acontece, então é "confirmar o valor".
-const props = defineProps<{ recorrencia: Recorrencia; competencia: string; valorPrevisto: number }>()
+// compacto (no cartão junto à célula): só o essencial à vista (data, Confirmar, Outro valor); pular, vencimento e
+// o que vier no slot "mais" (ex.: excluir) ficam atrás de "Mais", e os textos de ajuda saem.
+// emLinha (vários itens na faixa da tabela): tudo numa linha só, como uma planilha: valor e vencimento, data,
+// Confirmar, Outro valor e Mais. O que abre (outro valor, pular, mais) desce para a linha de baixo.
+const props = defineProps<{
+  recorrencia: Recorrencia; competencia: string; valorPrevisto: number; compacto?: boolean; emLinha?: boolean
+}>()
 const emit = defineEmits<{ feito: [mensagem: string] }>()
 
 const receita = computed(() => props.recorrencia.tipo === 'RECEITA')
 const podeAlterar = computed(() => sessao.dono.value || props.recorrencia.membro?.id === sessao.estado.usuario?.membroId)
 const outroValor = ref(false)
+const maisAberto = ref(false)
 const confirmandoPulo = ref(false)
 const botaoPular = ref<HTMLButtonElement | null>(null)
 
@@ -130,10 +137,10 @@ async function pular() {
 </script>
 
 <template>
-  <div class="conferir">
-    <p v-if="receita" class="pergunta">Chegou? Previsto: <span class="selo selo-previsto num">{{ reais(valorPrevisto) }}</span></p>
+  <div class="conferir" :class="{ 'em-linha': emLinha }">
+    <p v-if="receita" class="pergunta"><span class="rotulo-previsto">Chegou? Previsto: </span><span class="selo selo-previsto num">{{ reais(valorPrevisto) }}</span></p>
     <p v-else class="pergunta">
-      Previsto: <span class="selo selo-previsto num">{{ reais(valorPrevisto) }}</span>
+      <span class="rotulo-previsto">Previsto: </span><span class="selo selo-previsto num">{{ reais(valorPrevisto) }}</span>
       <span v-if="vencimento" class="vence" :class="{ vencida: vencimento < hoje() }">
         <CalendarClock aria-hidden="true" />
         {{ vencimento < hoje() ? 'Venceu' : 'Vence' }} em {{ dataPorExtenso(vencimento) }}<template v-if="ajustado"> (só neste mês)</template>
@@ -162,13 +169,14 @@ async function pular() {
         <div class="linha">
           <label class="rotulo" :for="`pago-${recorrencia.id}-${competencia}`">{{ debito ? 'Debitado em' : 'Pago em' }}</label>
           <input :id="`pago-${recorrencia.id}-${competencia}`" v-model="pagoEm" class="entrada data" type="date"
-                 :aria-describedby="`pago-ajuda-${recorrencia.id}-${competencia}`" />
+                 :aria-describedby="compacto ? undefined : `pago-ajuda-${recorrencia.id}-${competencia}`" />
           <span v-if="textoAtraso" class="selo" :class="atraso ? 'selo-atraso' : 'selo-verde'">{{ textoAtraso }}</span>
-          <button type="button" class="botao botao-sutil botao-pequeno" @click="mudandoVencimento = true; novoVencimento = vencimento ?? ''">
+          <button v-if="!compacto" type="button" class="botao botao-sutil botao-pequeno"
+                  @click="mudandoVencimento = true; novoVencimento = vencimento ?? ''">
             Vencimento diferente neste mês
           </button>
         </div>
-        <p :id="`pago-ajuda-${recorrencia.id}-${competencia}`" class="ajuda">
+        <p v-if="!compacto" :id="`pago-ajuda-${recorrencia.id}-${competencia}`" class="ajuda">
           {{ debito ? 'O dia em que o débito saiu da conta.' : 'O dia em que a conta foi paga.' }} Comparado com o
           vencimento, mostra se foi paga em dia ou com atraso.
         </p>
@@ -181,7 +189,7 @@ async function pular() {
         <input :id="`recebido-${recorrencia.id}-${competencia}`" v-model="recebidoEm" class="entrada data" type="date"
                required :aria-invalid="(!!erro && !recebidoEm) || undefined" />
       </div>
-      <CamposNotaFiscal v-model:competencia="nfCompetencia" v-model:emissao="nfEmissao"
+      <CamposNotaFiscal v-if="!compacto || maisAberto" v-model:competencia="nfCompetencia" v-model:emissao="nfEmissao"
                         :id-base="`conf-${recorrencia.id}-${competencia}`" />
     </div>
 
@@ -238,9 +246,25 @@ async function pular() {
       <button type="button" class="botao botao-pequeno" :disabled="ocupado" @click="abrirOutroValor">
         <PencilLine aria-hidden="true" /> {{ receita ? 'Veio outro valor' : 'Outro valor' }}
       </button>
-      <button type="button" class="botao botao-sutil botao-pequeno" :disabled="ocupado" @click="perguntarPulo">
+      <button v-if="!compacto" type="button" class="botao botao-sutil botao-pequeno" :disabled="ocupado" @click="perguntarPulo">
         <SkipForward aria-hidden="true" /> {{ receita ? 'Não recebi' : 'Pular o mês' }}
       </button>
+      <button v-else type="button" class="botao botao-sutil botao-pequeno mais" :aria-expanded="maisAberto"
+              :aria-controls="`mais-${recorrencia.id}-${competencia}`" @click="maisAberto = !maisAberto">
+        Mais <ChevronDown aria-hidden="true" />
+      </button>
+    </div>
+
+    <div v-if="compacto && maisAberto && !outroValor && !confirmandoPulo && !mudandoVencimento"
+         :id="`mais-${recorrencia.id}-${competencia}`" class="opcoes-mais">
+      <button type="button" class="botao botao-sutil botao-pequeno" :disabled="ocupado" @click="perguntarPulo">
+        <SkipForward aria-hidden="true" /> {{ receita ? 'Não recebi neste mês' : 'Pular o mês' }}
+      </button>
+      <button v-if="vencimento" type="button" class="botao botao-sutil botao-pequeno"
+              @click="mudandoVencimento = true; novoVencimento = vencimento ?? ''">
+        <CalendarClock aria-hidden="true" /> Vencimento diferente neste mês
+      </button>
+      <slot name="mais" />
     </div>
 
     <Mensagem v-if="erro" tipo="erro">{{ erro }}</Mensagem>
@@ -333,6 +357,22 @@ async function pular() {
   color: var(--coral-borda);
 }
 
+.mais svg {
+  transition: transform 160ms var(--ease);
+}
+
+.mais[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.opcoes-mais {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-1);
+  padding-top: var(--e-1);
+  border-top: 1px dashed var(--linha);
+}
+
 .pagamento {
   display: grid;
   gap: var(--e-1);
@@ -347,5 +387,36 @@ async function pular() {
 .data {
   width: 10.5rem;
   min-height: 2.25rem;
+}
+
+/* Em linha: cada parte é uma coluna; o que abre embaixo ocupa a linha inteira. */
+.conferir.em-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-2) var(--e-4);
+}
+
+.em-linha .pergunta {
+  flex: 0 0 19rem;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.em-linha .rotulo-previsto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.em-linha > .outro,
+.em-linha > .aviso-pulo,
+.em-linha > .opcoes-mais,
+.em-linha > .nota,
+.em-linha > .aviso {
+  flex-basis: 100%;
 }
 </style>

@@ -22,9 +22,27 @@ public record VisaoAnual(int ano, List<LinhaGrupo> receitas, List<LinhaGrupo> de
      * @param estimado      a parte do previsto que vem da estimativa (média, máximo ou mínimo dos meses passados)
      * @param participacao  peso no total do tipo (receitas ou despesas) no ano
      * @param rank          posição entre as categorias do mesmo tipo pelo total do ano (1 = maior); nulo sem valor
+     * @param itens         o que compõe a categoria (cada recorrência, cada descrição avulsa, a estimativa), do
+     *                      maior para o menor no ano; vazio na categoria calculada por alíquota
      */
     public record LinhaCategoria(Categoria categoria, SerieMensal realizado, SerieMensal previsto,
-                                 SerieMensal estimado, Percentual participacao, Integer rank) {
+                                 SerieMensal estimado, Percentual participacao, Integer rank, List<LinhaItem> itens) {
+
+        public LinhaCategoria {
+            itens = List.copyOf(itens);
+        }
+
+        public SerieMensal total() {
+            return realizado.somar(previsto);
+        }
+    }
+
+    /**
+     * Um item dentro da categoria, para abrir a linha agrupada (ex.: os três telefones de "Telefone e celular").
+     * recorrenciaId: o item é essa recorrência (nulo = descrição avulsa ou estimativa); estimativa: é a estimativa.
+     */
+    public record LinhaItem(String descricao, Long recorrenciaId, boolean estimativa, SerieMensal realizado,
+                            SerieMensal previsto) {
 
         public SerieMensal total() {
             return realizado.somar(previsto);

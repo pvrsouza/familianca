@@ -14,18 +14,21 @@ import br.com.familianca.domain.model.VisaoAnual;
 import br.com.familianca.domain.model.VisaoAnual.Fluxo;
 import br.com.familianca.domain.model.VisaoAnual.LinhaCategoria;
 import br.com.familianca.domain.model.VisaoAnual.LinhaGrupo;
+import br.com.familianca.domain.model.VisaoAnual.LinhaItem;
 import br.com.familianca.domain.model.VisaoAnual.LinhaMembro;
 import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Dinheiro;
 import br.com.familianca.domain.vo.Percentual;
 import br.com.familianca.domain.vo.SerieMensal;
 
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -97,6 +100,7 @@ public final class CalculadoraVisaoAnual {
         Map<Long, SerieMensal> realizado = new HashMap<>();
         Map<Long, SerieMensal> previsto = new HashMap<>();
         Map<Long, SerieMensal[]> porMembro = new LinkedHashMap<>();
+        Itens itens = new Itens(e.recorrencias());
 
         for (Lancamento l : e.lancamentos()) {
             Categoria c = categorias.get(l.categoriaId());
@@ -105,6 +109,7 @@ public final class CalculadoraVisaoAnual {
             }
             int mes = l.data().getMonthValue();
             realizado.merge(c.id(), SerieMensal.ZERO.comMes(mes, l.valor()), SerieMensal::somar);
+            itens.realizado(c.id(), l, mes);
             somarMembro(porMembro, l.membroId(), grupos.get(c.grupoId()).tipo(), mes, l.valor());
         }
         for (Recorrencia r : e.recorrencias()) {
@@ -118,12 +123,14 @@ public final class CalculadoraVisaoAnual {
                 }
                 Dinheiro valor = e.previsao().valorEm(r, comp);
                 previsto.merge(c.id(), SerieMensal.ZERO.comMes(comp.numeroMes(), valor), SerieMensal::somar);
+                itens.previsto(c.id(), r, comp.numeroMes(), valor);
                 somarMembro(porMembro, r.membroId(), grupos.get(c.grupoId()).tipo(), comp.numeroMes(), valor);
             }
         }
 
         Map<Long, SerieMensal> estimado = estimar(e, categorias, grupos, realizado, previsto);
         estimado.forEach((id, serie) -> previsto.merge(id, serie, SerieMensal::somar));
+        estimado.forEach(itens::estimado);
 
         // Base das alíquotas: receitas tributáveis, separando o realizado do previsto.
         SerieMensal baseRealizada = SerieMensal.ZERO;
@@ -140,6 +147,7 @@ public final class CalculadoraVisaoAnual {
                 SerieMensal calcPrev = aplicar(c.aliquota(), basePrevista);
                 realizado.put(c.id(), calcReal);
                 previsto.put(c.id(), calcPrev);
+                itens.limpar(c.id());
                 for (int mes = 1; mes <= SerieMensal.MESES; mes++) {
                     somarMembro(porMembro, null, TipoMovimento.DESPESA, mes,
                             calcReal.mes(mes).somar(calcPrev.mes(mes)));
@@ -148,7 +156,7 @@ public final class CalculadoraVisaoAnual {
         }
 
         Map<TipoMovimento, List<LinhaCategoria>> linhasPorTipo = linhasCategoria(categorias.values(), grupos,
-                realizado, previsto, estimado);
+                realizado, previsto, estimado, itens);
         Dinheiro totalTributavelAno = baseRealizada.somar(basePrevista).total();
         List<LinhaGrupo> receitas = linhasGrupo(TipoMovimento.RECEITA, grupos, linhasPorTipo, totalTributavelAno);
         List<LinhaGrupo> despesas = linhasGrupo(TipoMovimento.DESPESA, grupos, linhasPorTipo, totalTributavelAno);
@@ -231,7 +239,7 @@ public final class CalculadoraVisaoAnual {
 
     private static Map<TipoMovimento, List<LinhaCategoria>> linhasCategoria(
             Iterable<Categoria> categorias, Map<Long, Grupo> grupos, Map<Long, SerieMensal> realizado,
-            Map<Long, SerieMensal> previsto, Map<Long, SerieMensal> estimado) {
+            Map<Long, SerieMensal> previsto, Map<Long, SerieMensal> estimado, Itens itens) {
         Map<TipoMovimento, List<LinhaCategoria>> porTipo = new HashMap<>();
         Map<TipoMovimento, Dinheiro> totalTipo = new HashMap<>();
         List<LinhaCategoria> provisorias = new ArrayList<>();
@@ -242,7 +250,7 @@ public final class CalculadoraVisaoAnual {
             boolean visivel = (c.ativa() && g.ativo()) || !real.ehZero() || !prev.ehZero();
             if (visivel) {
                 provisorias.add(new LinhaCategoria(c, real, prev, estimado.getOrDefault(c.id(), SerieMensal.ZERO),
-                        null, null));
+                        null, null, itens.da(c.id())));
                 totalTipo.merge(g.tipo(), real.somar(prev).total(), Dinheiro::somar);
             }
         }
@@ -259,11 +267,80 @@ public final class CalculadoraVisaoAnual {
                 Integer rank = t.ehZero() ? null : ++posicao;
                 finais.add(new LinhaCategoria(l.categoria(), l.realizado(), l.previsto(), l.estimado(),
                         Percentual.razao(t, total),
-                        rank));
+                        rank, l.itens()));
             }
             porTipo.put(tipo, finais);
         }
         return porTipo;
+    }
+
+    /**
+     * Os itens de cada categoria: a recorrência (o previsto e o que já foi confirmado dela, com o nome dela), cada
+     * descrição avulsa (sem diferença de maiúscula, acento ou espaço; vale o nome do primeiro lançamento) e a
+     * estimativa dos próximos meses.
+     */
+    private static final class Itens {
+
+        private static final String ESTIMATIVA = "Estimativa pelos meses anteriores";
+
+        private final Map<Long, String> nomesRecorrencias = new HashMap<>();
+        private final Map<Long, Map<String, String>> nomes = new HashMap<>();
+        private final Map<Long, Map<String, SerieMensal[]>> series = new HashMap<>();
+
+        Itens(List<Recorrencia> recorrencias) {
+            recorrencias.forEach(r -> nomesRecorrencias.put(r.id(), r.descricao()));
+        }
+
+        void realizado(Long categoriaId, Lancamento l, int mes) {
+            String chave = l.recorrenciaId() != null ? "r" + l.recorrenciaId() : "d" + normalizar(l.descricao());
+            String nome = l.recorrenciaId() != null
+                    ? nomesRecorrencias.getOrDefault(l.recorrenciaId(), l.descricao()) : l.descricao();
+            somar(categoriaId, chave, nome, mes, l.valor(), 0);
+        }
+
+        void previsto(Long categoriaId, Recorrencia r, int mes, Dinheiro valor) {
+            somar(categoriaId, "r" + r.id(), r.descricao(), mes, valor, 1);
+        }
+
+        void estimado(Long categoriaId, SerieMensal serie) {
+            for (int mes = 1; mes <= SerieMensal.MESES; mes++) {
+                if (!serie.mes(mes).ehZero()) {
+                    somar(categoriaId, "e", ESTIMATIVA, mes, serie.mes(mes), 1);
+                }
+            }
+        }
+
+        void limpar(Long categoriaId) {
+            series.remove(categoriaId);
+            nomes.remove(categoriaId);
+        }
+
+        List<LinhaItem> da(Long categoriaId) {
+            Map<String, SerieMensal[]> daCategoria = series.getOrDefault(categoriaId, Map.of());
+            Map<String, String> nomesDaCategoria = nomes.getOrDefault(categoriaId, Map.of());
+            return daCategoria.entrySet().stream()
+                    .map(x -> new LinhaItem(nomesDaCategoria.get(x.getKey()), recorrencia(x.getKey()),
+                            x.getKey().equals("e"), x.getValue()[0], x.getValue()[1]))
+                    .sorted(Comparator.comparing((LinhaItem i) -> i.total().total()).reversed()
+                            .thenComparing(LinhaItem::descricao, String.CASE_INSENSITIVE_ORDER))
+                    .toList();
+        }
+
+        private void somar(Long categoriaId, String chave, String nome, int mes, Dinheiro valor, int qual) {
+            nomes.computeIfAbsent(categoriaId, k -> new HashMap<>()).putIfAbsent(chave, nome);
+            SerieMensal[] s = series.computeIfAbsent(categoriaId, k -> new LinkedHashMap<>())
+                    .computeIfAbsent(chave, k -> new SerieMensal[] {SerieMensal.ZERO, SerieMensal.ZERO});
+            s[qual] = s[qual].somarNoMes(mes, valor);
+        }
+
+        private static Long recorrencia(String chave) {
+            return chave.startsWith("r") ? Long.valueOf(chave.substring(1)) : null;
+        }
+
+        private static String normalizar(String descricao) {
+            return Normalizer.normalize(descricao, Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+                    .toLowerCase(Locale.ROOT).trim().replaceAll("\\s+", " ");
+        }
     }
 
     private static List<LinhaGrupo> linhasGrupo(TipoMovimento tipo, Map<Long, Grupo> grupos,

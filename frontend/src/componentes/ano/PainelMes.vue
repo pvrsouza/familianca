@@ -10,20 +10,31 @@ import { avisar } from '../../estado/avisos'
 import { ESTIMATIVAS, MESES, previstoPelaRegra, anoAtual, competencia, dataPorExtenso, hoje, mesAtual, reais, situacaoPagamento } from '../../util/formato'
 import { catalogo } from '../../estado/catalogo'
 import PainelLateral from '../PainelLateral.vue'
+import FaixaEdicao from '../FaixaEdicao.vue'
 import FormLancamento from '../FormLancamento.vue'
 import ConferirOcorrencia from '../ConferirOcorrencia.vue'
 import Mensagem from '../Mensagem.vue'
 
 // O atalho da visão anual: clicar no valor de uma categoria num mês abre o que forma aquele valor. Com um
 // lançamento só, já abre a edição; com o mês vazio, já abre o "Lançar" com a categoria e a data.
+// embutido (na tabela do ano): abre numa faixa logo abaixo da linha clicada, mais enxuta, com os itens lado a lado;
+// senão (celular), no painel lateral. Com item (a linha de um item da categoria aberta), mostra só ele naquele mês.
+export interface ItemAlvo {
+  descricao: string
+  /** A recorrência que é o item; nulo = descrição avulsa ou estimativa. */
+  recorrenciaId: number | null
+  estimativa: boolean
+}
+
 export interface AlvoMes {
   categoria: { id: number; nome: string; ativa: boolean; calculada: boolean; estimado?: number[] }
   tipo: Tipo
   ano: number
   mes: number
+  item?: ItemAlvo | null
 }
 
-const props = defineProps<{ alvo: AlvoMes | null }>()
+const props = defineProps<{ alvo: AlvoMes | null; embutido?: boolean }>()
 const emit = defineEmits<{ fechar: [] }>()
 
 // UNICA: o fim é o próprio início, então o intervalo não importa (a faixa início–fim já limita a um mês).
@@ -46,8 +57,35 @@ const confirmandoRemoverPrevista = ref<number | null>(null)
 const removendoPrevista = ref<number | null>(null)
 
 const comp = computed(() => (props.alvo ? competencia(props.alvo.ano, props.alvo.mes) : ''))
-const titulo = computed(() => props.alvo?.categoria.nome ?? '')
-const subtitulo = computed(() => (props.alvo ? `${MESES[props.alvo.mes - 1]} de ${props.alvo.ano}` : undefined))
+const item = computed(() => props.alvo?.item ?? null)
+const titulo = computed(() => item.value?.descricao ?? props.alvo?.categoria.nome ?? '')
+const subtitulo = computed(() => {
+  const a = props.alvo
+  if (!a) return undefined
+  const quando = `${MESES[a.mes - 1]} de ${a.ano}`
+  return item.value ? `${a.categoria.nome} · ${quando}` : quando
+})
+
+const enxuto = computed(() => !!props.embutido)
+
+/** "Feira" e " feira " são o mesmo item, como no servidor. */
+function normalizar(t: string): string {
+  return t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim().replace(/\s+/g, ' ')
+}
+
+/** O lançamento é do item clicado? (a recorrência dele, ou a mesma descrição avulsa) */
+function doItem(l: Lancamento): boolean {
+  const i = item.value
+  if (!i) return true
+  if (i.estimativa) return false
+  if (i.recorrenciaId != null) return l.recorrenciaId === i.recorrenciaId
+  return !l.recorrenciaId && normalizar(l.descricao) === normalizar(i.descricao)
+}
+
+function recorrenciaDoItem(r: Recorrencia): boolean {
+  const i = item.value
+  return !i || (i.recorrenciaId != null && r.id === i.recorrenciaId)
+}
 const podeLancar = computed(() => !!props.alvo && props.alvo.categoria.ativa && !props.alvo.categoria.calculada)
 const dataNova = computed(() => {
   const a = props.alvo
@@ -58,6 +96,8 @@ const variasPessoas = computed(() => (sessao.estado.familia?.membros ?? []).filt
 const total = computed(() => itens.value.reduce((s, l) => s + l.valor, 0))
 /** Estimativa do mês (despesa que não se repete, meses à frente): o que falta para chegar na média/máximo/mínimo. */
 const estimadoNoMes = computed(() => (props.alvo ? props.alvo.categoria.estimado?.[props.alvo.mes - 1] ?? 0 : 0))
+/** A estimativa aparece no mês da categoria inteira, ou quando o item clicado é ela. */
+const mostrarEstimativa = computed(() => estimadoNoMes.value > 0.004 && (!item.value || item.value.estimativa))
 const regraEstimativa = computed(() => {
   const c = catalogo.estado.grupos.flatMap((g) => g.categorias).find((x) => x.id === props.alvo?.categoria.id)
   return ESTIMATIVAS[c?.estimativa ?? sessao.estado.familia?.estimativa ?? 'MEDIA'].como
@@ -106,13 +146,14 @@ async function carregar(primeira: boolean) {
       apiLancamentos.listar({ categoriaId: a.categoria.id, de: `${comp.value}-01`, ate: `${comp.value}-${ultimoDia}` }),
       apiRecorrencias.listar(),
     ])
-    itens.value = ls
+    itens.value = ls.filter(doItem)
     daCategoria.value = rs.filter((r) => r.categoria.id === a.categoria.id)
-    previstas.value = daCategoria.value.filter((r) => previstaNoMes(r, ls))
-    puladas.value = daCategoria.value.filter((r) => r.puladas.includes(comp.value))
-    if (primeira && !puladas.value.length && !estimadoNoMes.value) {
-      if (ls.length === 1 && !previstas.value.length && podeAlterar(ls[0])) abrirEdicao(ls[0], true)
-      else if (!ls.length && !previstas.value.length && podeLancar.value) abrirNovo(true)
+    previstas.value = daCategoria.value.filter((r) => recorrenciaDoItem(r) && previstaNoMes(r, ls))
+    puladas.value = daCategoria.value.filter((r) => recorrenciaDoItem(r) && r.puladas.includes(comp.value))
+    const ls1 = itens.value
+    if (primeira && !puladas.value.length && !mostrarEstimativa.value) {
+      if (ls1.length === 1 && !previstas.value.length && podeAlterar(ls1[0])) abrirEdicao(ls1[0], true)
+      else if (!ls1.length && !previstas.value.length && podeLancar.value && !item.value) abrirNovo(true)
     }
   } catch (e) {
     erro.value = mensagemDeErro(e)
@@ -236,7 +277,8 @@ async function voltarAPrever(r: Recorrencia) {
 </script>
 
 <template>
-  <PainelLateral :aberto="!!alvo" :titulo="titulo" :descricao="subtitulo" @fechar="emit('fechar')">
+  <component :is="enxuto ? FaixaEdicao : PainelLateral" :aberto="!!alvo" :titulo="titulo" :descricao="subtitulo"
+             @fechar="emit('fechar')">
     <template v-if="alvo">
       <button v-if="modo !== 'lista' && !direto" type="button" class="botao botao-sutil botao-pequeno voltar" @click="voltar">
         <ArrowLeft aria-hidden="true" /> Tudo de {{ MESES[alvo.mes - 1] }}
@@ -281,15 +323,25 @@ async function voltarAPrever(r: Recorrencia) {
 
         <template v-else>
           <section v-if="previstas.length" class="bloco">
-            <h3>{{ alvo.tipo === 'RECEITA' ? 'Previsto para receber' : 'Previsto' }}</h3>
-            <ul class="lista">
+            <h3 v-if="!item">{{ alvo.tipo === 'RECEITA' ? 'Previsto para receber' : 'Previsto' }}</h3>
+            <ul class="lista" :class="{ 'so-item': item, 'em-linhas': enxuto && !item }">
               <li v-for="r in previstas" :key="r.id" class="prevista">
-                <span class="descricao">{{ r.descricao }}</span>
-                <p v-if="usaEstimativa(r)" class="texto-2 nota-pulo">
-                  Cadastrada em {{ reais(r.valor) }}; prevista {{ previstoPelaRegra(r.previstoPor!, r.confirmacoesNaPrevisao) }}.
-                </p>
+                <div v-if="!item || usaEstimativa(r)" class="nome-prevista">
+                  <span v-if="!item" class="descricao">{{ r.descricao }}</span>
+                  <p v-if="usaEstimativa(r)" class="texto-2 nota-pulo">
+                    Cadastrada em {{ reais(r.valor) }}; prevista {{ previstoPelaRegra(r.previstoPor!, r.confirmacoesNaPrevisao) }}.
+                  </p>
+                </div>
                 <ConferirOcorrencia v-if="confirmandoRemoverPrevista !== r.id" :recorrencia="r" :competencia="comp"
-                                    :valor-previsto="previstoDe(r)" @feito="conferido" />
+                                    :valor-previsto="previstoDe(r)" :compacto="enxuto" :em-linha="enxuto && !item"
+                                    @feito="conferido">
+                  <template v-if="enxuto && podeAlterarRecorrencia(r)" #mais>
+                    <button type="button" class="botao botao-sutil botao-pequeno excluir-prevista"
+                            @click="confirmandoRemoverPrevista = r.id; erro = ''">
+                      <Trash2 aria-hidden="true" /> {{ r.frequencia === 'UNICA' ? 'Excluir esta conta' : 'Excluir (todos os meses)' }}
+                    </button>
+                  </template>
+                </ConferirOcorrencia>
                 <template v-if="podeAlterarRecorrencia(r)">
                   <div v-if="confirmandoRemoverPrevista === r.id" class="confirmar-prevista" role="group"
                        :aria-labelledby="`excluir-${r.id}`">
@@ -315,7 +367,7 @@ async function voltarAPrever(r: Recorrencia) {
                       </button>
                     </div>
                   </div>
-                  <div v-else>
+                  <div v-else-if="!enxuto">
                     <button type="button" class="botao botao-sutil botao-pequeno excluir-prevista"
                             @click="confirmandoRemoverPrevista = r.id; erro = ''">
                       <Trash2 aria-hidden="true" /> {{ r.frequencia === 'UNICA' ? 'Excluir esta conta' : 'Excluir (todos os meses)' }}
@@ -326,7 +378,7 @@ async function voltarAPrever(r: Recorrencia) {
             </ul>
           </section>
 
-          <section v-if="estimadoNoMes > 0.004" class="bloco">
+          <section v-if="mostrarEstimativa" class="bloco">
             <h3>Estimativa</h3>
             <div class="estimativa">
               <span class="selo selo-previsto num">{{ reais(estimadoNoMes) }}</span>
@@ -355,7 +407,7 @@ async function voltarAPrever(r: Recorrencia) {
             </ul>
           </section>
 
-          <section class="bloco">
+          <section v-if="itens.length || (!item && !enxuto)" class="bloco">
             <h3>{{ alvo.tipo === 'RECEITA' ? 'Recebido' : 'Lançado' }}</h3>
             <p v-if="!itens.length" class="texto-2 vazio">Nada lançado em {{ MESES[alvo.mes - 1] }}.</p>
             <ul v-else class="lista">
@@ -376,10 +428,14 @@ async function voltarAPrever(r: Recorrencia) {
             <p v-if="itens.length > 1" class="total num">Total lançado: <strong>{{ reais(total) }}</strong></p>
           </section>
 
+          <p v-if="item && !itens.length && !previstas.length && !puladas.length && !mostrarEstimativa" class="texto-2 vazio">
+            Nada de {{ item.descricao }} em {{ MESES[alvo.mes - 1] }}.
+          </p>
+
           <Mensagem v-if="erro" tipo="erro">{{ erro }}</Mensagem>
 
-          <div class="acoes rodape">
-            <button v-if="podeLancar" type="button" class="botao botao-primario" @click="abrirNovo()">
+          <div class="acoes rodape" :class="{ enxuto: enxuto }">
+            <button v-if="podeLancar && (!item || (!itens.length && !previstas.length))" type="button" class="botao botao-primario" @click="abrirNovo()">
               <Plus aria-hidden="true" /> Lançar em {{ MESES[alvo.mes - 1] }}
             </button>
             <RouterLink :to="`/lancamentos?categoriaId=${alvo.categoria.id}&ano=${alvo.ano}`" class="botao botao-sutil"
@@ -390,7 +446,7 @@ async function voltarAPrever(r: Recorrencia) {
         </template>
       </template>
     </template>
-  </PainelLateral>
+  </component>
 </template>
 
 <style scoped>
@@ -449,6 +505,34 @@ async function voltarAPrever(r: Recorrencia) {
   display: grid;
   gap: var(--e-2);
   padding: var(--e-3) var(--e-4);
+}
+
+/* Na faixa da tabela, um item por linha (como a planilha): nome à esquerda, valor, data e ações na mesma linha.
+   Com 11 itens, são 11 linhas baixas, não 11 caixas. */
+.lista.em-linhas > li.prevista {
+  grid-template-columns: minmax(9rem, 14rem) minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--e-4);
+  padding: var(--e-2) var(--e-4);
+  min-height: 0;
+}
+
+.em-linhas .nome-prevista .descricao {
+  font-weight: 600;
+}
+
+.em-linhas .confirmar-prevista {
+  grid-column: 2;
+}
+
+/* Só um item (faixa aberta pela linha do item): sem a caixa em volta. */
+.lista.so-item {
+  border: 0;
+  background: none;
+}
+
+.so-item .prevista {
+  padding: 0;
 }
 
 .item {
@@ -536,6 +620,17 @@ async function voltarAPrever(r: Recorrencia) {
 .rodape {
   flex-wrap: wrap;
   margin-top: var(--e-6);
+}
+
+/* No cartão: rodapé e blocos mais juntos, botões pequenos. */
+.rodape.enxuto {
+  margin-top: var(--e-3);
+}
+
+.rodape.enxuto .botao {
+  min-height: 2.25rem;
+  padding: 0 var(--e-3);
+  font-size: var(--t-sm);
 }
 
 .confirmar-prevista {
