@@ -206,6 +206,63 @@ class RecorrenciaApiTest extends IntegracaoBase {
     }
 
     @Test
+    void valorPrevistoDiferenteSoNumMesSemConfirmar() throws Exception {
+        Long id = streaming();
+        // Dezembro veio por 70: o ano passa de 5 × 55,90 = 279,50 para 279,50 − 55,90 + 70 = 293,60.
+        mvc.perform(put("/api/recorrencias/{id}/ocorrencias/2026-12/valor", id)
+                        .contentType(APPLICATION_JSON).content("{\"valor\": 70}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valorNoAno").value(293.60))
+                .andExpect(jsonPath("$.valoresAjustados[0].competencia").value("2026-12"))
+                .andExpect(jsonPath("$.valoresAjustados[0].valor").value(70));
+
+        // Nulo volta ao previsto de sempre.
+        mvc.perform(put("/api/recorrencias/{id}/ocorrencias/2026-12/valor", id)
+                        .contentType(APPLICATION_JSON).content("{\"valor\": null}"))
+                .andExpect(jsonPath("$.valorNoAno").value(279.50))
+                .andExpect(jsonPath("$.valoresAjustados", hasSize(0)));
+
+        // Confirmar sem valor usa o ajustado; depois de confirmada, muda-se o lançamento (409).
+        mvc.perform(put("/api/recorrencias/{id}/ocorrencias/2026-09/valor", id)
+                        .contentType(APPLICATION_JSON).content("{\"valor\": 61.50}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-09/confirmacao", id))
+                .andExpect(jsonPath("$.valor").value(61.50));
+        mvc.perform(put("/api/recorrencias/{id}/ocorrencias/2026-09/valor", id)
+                        .contentType(APPLICATION_JSON).content("{\"valor\": 80}"))
+                .andExpect(status().isConflict());
+        mvc.perform(put("/api/recorrencias/{id}/ocorrencias/2026-12/valor", id)
+                        .contentType(APPLICATION_JSON).content("{\"valor\": -1}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/recorrencias/{id}/ocorrencias/2026-07/valor", id)
+                        .contentType(APPLICATION_JSON).content("{\"valor\": 10}"))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    void valorPrevistoDaquiEmDianteGuardaOsMesesAntes() throws Exception {
+        Long id = streaming();
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-08/confirmacao", id)).andExpect(status().isCreated());
+        // De novembro em diante, 60. Setembro e outubro (previstos) ficam com 55,90; agosto já virou lançamento.
+        mvc.perform(put("/api/recorrencias/{id}/ocorrencias/2026-11/valor", id)
+                        .contentType(APPLICATION_JSON).content("{\"valor\": 60, \"daquiEmDiante\": true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valor").value(60))
+                .andExpect(jsonPath("$.valoresAjustados", hasSize(2)))
+                .andExpect(jsonPath("$.valoresAjustados[0].competencia").value("2026-09"))
+                .andExpect(jsonPath("$.valoresAjustados[0].valor").value(55.90))
+                .andExpect(jsonPath("$.valoresAjustados[1].competencia").value("2026-10"));
+        mvc.perform(get("/api/recorrencias/pendentes"))
+                .andExpect(jsonPath("$[0].competencia").value("2026-09"))
+                .andExpect(jsonPath("$[0].valorPrevisto").value(55.90));
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-12/confirmacao", id))
+                .andExpect(jsonPath("$.valor").value(60));
+        mvc.perform(put("/api/recorrencias/{id}/ocorrencias/2026-11/valor", id)
+                        .contentType(APPLICATION_JSON).content("{\"valor\": null, \"daquiEmDiante\": true}"))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
     void contaAvulsaUmaVezSo() throws Exception {
         Long iptu = postarERetornarId("/api/recorrencias", """
                 {"categoriaId": %d, "descricao": "IPTU cota única", "valor": 1800, "dia": 25, "frequencia": "UNICA",
@@ -240,12 +297,16 @@ class RecorrenciaApiTest extends IntegracaoBase {
                     .contentType(APPLICATION_JSON).content("{\"valor\": %s}".formatted(c[1])))
                     .andExpect(status().isCreated());
         }
-        // Média das três confirmações: 3.218,53, do mês atual em diante.
+        // Média das três últimas confirmações (padrão da família): 3.218,53, do mês atual em diante.
         mvc.perform(get("/api/recorrencias/{id}", das))
                 .andExpect(jsonPath("$.valor").value(3000))
                 .andExpect(jsonPath("$.valorPrevisto").value(3218.53))
-                .andExpect(jsonPath("$.previstoPor").value("MEDIA"))
-                .andExpect(jsonPath("$.confirmacoesNaPrevisao").value(3));
+                .andExpect(jsonPath("$.previstoPor").value("MEDIA_3M"))
+                .andExpect(jsonPath("$.confirmacoesNaPrevisao").value(3))
+                .andExpect(jsonPath("$.basePrevisao.origem").value("FAMILIA"))
+                .andExpect(jsonPath("$.basePrevisao.meses", hasSize(3)))
+                .andExpect(jsonPath("$.basePrevisao.meses[2].competencia").value("2026-09"))
+                .andExpect(jsonPath("$.basePrevisao.meses[2].valor").value(1511.61));
         mvc.perform(get("/api/visao-anual/2026"))
                 .andExpect(jsonPath("$.despesas.grupos[?(@.nome == 'Outras despesas fixas')].categorias[?(@.nome == 'Tarifas bancárias')].previsto[9]")
                         .value(3218.53))
@@ -256,6 +317,27 @@ class RecorrenciaApiTest extends IntegracaoBase {
         mvc.perform(put("/api/familia/estimativa").contentType(APPLICATION_JSON).content("{\"estimativa\": \"MAXIMO\"}"))
                 .andExpect(status().isOk());
         mvc.perform(get("/api/recorrencias/{id}", das)).andExpect(jsonPath("$.valorPrevisto").value(4959.84));
+        // Regra própria da conta vale acima da família; nula volta a seguir.
+        mvc.perform(put("/api/recorrencias/{id}/estimativa", das).contentType(APPLICATION_JSON)
+                        .content("{\"estimativa\": \"MINIMO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estimativa").value("MINIMO"))
+                .andExpect(jsonPath("$.valorPrevisto").value(1511.61))
+                .andExpect(jsonPath("$.basePrevisao.origem").value("DESPESA"));
+        mvc.perform(put("/api/recorrencias/{id}/estimativa", das).contentType(APPLICATION_JSON)
+                        .content("{\"estimativa\": null}"))
+                .andExpect(jsonPath("$.estimativa").doesNotExist())
+                .andExpect(jsonPath("$.valorPrevisto").value(4959.84));
+        // A regra da categoria vale acima da família (e a conta sem regra própria a segue).
+        Long tarifas = categoria("Outras despesas fixas", "Tarifas bancárias");
+        mvc.perform(put("/api/categorias/{id}/estimativa", tarifas).contentType(APPLICATION_JSON)
+                        .content("{\"estimativa\": \"MINIMO\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/recorrencias/{id}", das))
+                .andExpect(jsonPath("$.valorPrevisto").value(1511.61))
+                .andExpect(jsonPath("$.basePrevisao.origem").value("CATEGORIA"));
+        mvc.perform(put("/api/categorias/{id}/estimativa", tarifas).contentType(APPLICATION_JSON)
+                .content("{\"estimativa\": null}")).andExpect(status().isOk());
         // Confirmar sem informar o valor usa o previsto pela regra.
         mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-10/confirmacao", das))
                 .andExpect(status().isCreated())

@@ -1,10 +1,12 @@
 package br.com.familianca.adapter.in.web;
 
 import br.com.familianca.adapter.in.web.dto.ConfirmacaoRequest;
+import br.com.familianca.adapter.in.web.dto.EstimativaPropriaRequest;
 import br.com.familianca.adapter.in.web.dto.LancamentoResponse;
 import br.com.familianca.adapter.in.web.dto.OcorrenciaPendenteResponse;
 import br.com.familianca.adapter.in.web.dto.RecorrenciaRequest;
 import br.com.familianca.adapter.in.web.dto.RecorrenciaResponse;
+import br.com.familianca.adapter.in.web.dto.ValorPrevistoRequest;
 import br.com.familianca.adapter.in.web.dto.Valores;
 import br.com.familianca.adapter.in.web.dto.VencimentoRequest;
 import br.com.familianca.application.port.in.GerenciarRecorrencias;
@@ -118,6 +120,28 @@ public class RecorrenciaController {
                                                  @Valid @RequestBody VencimentoRequest r) {
         return RecorrenciaResponse.de(recorrencias.ajustarVencimento(id, Competencia.parse(competencia),
                 r.vencimento()));
+    }
+
+    @PutMapping("/{id}/ocorrencias/{competencia}/valor")
+    @Operation(summary = "Valor previsto diferente só neste mês", description = """
+            A conta deste mês veio com outro valor: muda o previsto só desta ocorrência, sem confirmar. Vale acima da
+            estimativa e é o valor usado ao confirmar sem informar outro. `valor` nulo volta ao previsto de sempre.
+            Com `daquiEmDiante`, o valor cadastrado muda deste mês em diante (reajuste) e os meses antes ainda
+            previstos ficam como estavam.
+            Já confirmada: 409 (altere o lançamento). Pulada ou fora da agenda: 422.""")
+    public RecorrenciaResponse ajustarValor(@PathVariable Long id, @PathVariable String competencia,
+                                            @Valid @RequestBody ValorPrevistoRequest r) {
+        return RecorrenciaResponse.de(recorrencias.ajustarValor(id, Competencia.parse(competencia),
+                Valores.dinheiro(r.valor()), Boolean.TRUE.equals(r.daquiEmDiante())));
+    }
+
+    @PutMapping("/{id}/estimativa")
+    @Operation(summary = "Regra própria para prever os próximos meses desta conta", description = """
+            Conta de valor variável (energia, DAS): os próximos meses ficam previstos pela regra (MEDIA_3M: média das 3
+            últimas confirmações; MEDIA, MAXIMO, MINIMO: das confirmações do ano; NENHUMA: o valor cadastrado). Nulo
+            volta a seguir a regra da categoria. Receita ou conta que confirma sozinha: 422.""")
+    public RecorrenciaResponse definirEstimativa(@PathVariable Long id, @RequestBody EstimativaPropriaRequest r) {
+        return RecorrenciaResponse.de(recorrencias.definirEstimativa(id, r.estimativa()));
     }
 
     @DeleteMapping("/{id}/ocorrencias/{competencia}/pulo")

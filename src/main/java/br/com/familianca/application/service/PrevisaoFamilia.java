@@ -5,6 +5,7 @@ import br.com.familianca.application.port.out.PlanoContasRepository;
 import br.com.familianca.application.port.out.Relogio;
 import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.service.PrevisaoRecorrencias;
+import br.com.familianca.domain.vo.Competencia;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -12,7 +13,7 @@ import java.util.List;
 
 /**
  * Monta a {@link PrevisaoRecorrencias} da família logada: a regra de estimativa (da família e das categorias) sobre
- * as confirmações do ano corrente. Usada pela visão anual e pelas recorrências, para mostrarem o mesmo previsto.
+ * as confirmações dos últimos 12 meses (a média recente cruza o ano; as regras do ano filtram o ano corrente). Usada pela visão anual e pelas recorrências, para mostrarem o mesmo previsto.
  */
 @Component
 class PrevisaoFamilia {
@@ -30,9 +31,13 @@ class PrevisaoFamilia {
         this.relogio = relogio;
     }
 
+    /** Quantos meses de confirmações olhar para trás: cobre o ano corrente e a média recente em janeiro. */
+    private static final int HISTORICO_MESES = 12;
+
     PrevisaoRecorrencias calcular(List<Recorrencia> recorrencias) {
         LocalDate hoje = relogio.hoje();
         return PrevisaoRecorrencias.calcular(recorrencias, planoContas.listarCategorias(), planoContas.listarGrupos(),
-                lancamentos.listarOcorrenciasConfirmadas(hoje.getYear()), acesso.familia().estimativa(), hoje);
+                lancamentos.listarOcorrenciasConfirmadas(Competencia.de(hoje).mais(-HISTORICO_MESES), Competencia.de(hoje)),
+                acesso.familia().estimativa(), hoje);
     }
 }

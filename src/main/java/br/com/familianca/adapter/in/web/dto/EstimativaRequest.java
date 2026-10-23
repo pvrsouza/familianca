@@ -5,5 +5,5 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 
 public record EstimativaRequest(
-        @Schema(description = "MEDIA, MAXIMO, MINIMO ou NENHUMA.", example = "MEDIA") @NotNull Estimativa estimativa) {
+        @Schema(description = "MEDIA_3M, MEDIA, MAXIMO, MINIMO ou NENHUMA.", example = "MEDIA_3M") @NotNull Estimativa estimativa) {
 }

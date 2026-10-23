@@ -94,6 +94,45 @@ async function salvarVencimento(valor: string | null) {
   }
 }
 
+// ——— Previsto diferente só neste mês (a conta veio mais cara ou mais barata), sem confirmar nada ———
+const previstoAjustado = computed(() => props.recorrencia.valoresAjustados.some((v) => v.competencia === props.competencia))
+/** Há meses depois deste? Então pergunta se o novo previsto vale só aqui ou daqui em diante. */
+const temMesesDepois = computed(() => props.recorrencia.frequencia !== 'UNICA'
+  && (!props.recorrencia.fim || props.recorrencia.fim > props.competencia))
+const escolhendoAlcance = ref(false)
+
+function pedirPrevisto() {
+  if (!valor.value || valor.value <= 0) {
+    erro.value = 'Informe o valor previsto.'
+    return
+  }
+  erro.value = ''
+  if (temMesesDepois.value) escolhendoAlcance.value = true
+  else salvarPrevisto(valor.value)
+}
+
+async function salvarPrevisto(novo: number | null, daquiEmDiante = false) {
+  if (novo !== null && (!novo || novo <= 0)) {
+    erro.value = 'Informe o valor previsto.'
+    return
+  }
+  ocupado.value = true
+  erro.value = ''
+  try {
+    await api.ajustarValor(props.recorrencia.id, props.competencia, novo, daquiEmDiante)
+    sessao.avisarMudanca()
+    emit('feito', novo === null
+      ? `${props.recorrencia.descricao}: ${mes.value} voltou ao previsto de sempre.`
+      : daquiEmDiante
+        ? `${props.recorrencia.descricao}: de ${mes.value} em diante o previsto é ${reais(novo)}. Nada foi confirmado; os meses antes continuam como estavam.`
+        : `${props.recorrencia.descricao}: previsto de ${mes.value} agora é ${reais(novo)}. Nada foi confirmado; os outros meses não mudam.`)
+  } catch (e) {
+    erro.value = mensagemDeErro(e)
+  } finally {
+    ocupado.value = false
+  }
+}
+
 function abrirOutroValor() {
   valor.value = props.valorPrevisto
   outroValor.value = true
@@ -147,9 +186,13 @@ async function pular() {
 
 <template>
   <div class="conferir" :class="{ 'em-linha': emLinha }">
-    <p v-if="receita" class="pergunta"><span class="rotulo-previsto">Chegou? Previsto: </span><span class="selo selo-previsto num">{{ reais(valorPrevisto) }}</span></p>
+    <p v-if="receita" class="pergunta">
+      <span class="rotulo-previsto">Chegou? Previsto: </span><span class="selo selo-previsto num">{{ reais(valorPrevisto) }}</span>
+      <span v-if="previstoAjustado" class="so-mes">só neste mês</span>
+    </p>
     <p v-else class="pergunta">
       <span class="rotulo-previsto">Previsto: </span><span class="selo selo-previsto num">{{ reais(valorPrevisto) }}</span>
+      <span v-if="previstoAjustado" class="so-mes">só neste mês</span>
       <span v-if="vencimento" class="vence" :class="{ vencida: vencimento < hoje() }">
         <CalendarClock aria-hidden="true" />
         {{ vencimento < hoje() ? 'Venceu' : 'Vence' }} em {{ dataPorExtenso(vencimento) }}<template v-if="ajustado"> (só neste mês)</template>
@@ -217,10 +260,44 @@ async function pular() {
         <button type="button" class="botao botao-primario botao-pequeno" :disabled="ocupado" @click="confirmar">
           <Check aria-hidden="true" /> {{ receita ? 'Recebi este valor' : 'Confirmar' }}
         </button>
-        <button type="button" class="botao botao-sutil botao-pequeno" :disabled="ocupado" @click="outroValor = false">
+        <button type="button" class="botao botao-pequeno" :disabled="ocupado" :aria-expanded="temMesesDepois ? escolhendoAlcance : undefined"
+                @click="pedirPrevisto">
+          <PencilLine aria-hidden="true" /> Só mudar o previsto
+        </button>
+        <button v-if="previstoAjustado" type="button" class="botao botao-sutil botao-pequeno" :disabled="ocupado"
+                @click="salvarPrevisto(null)">
+          Voltar ao previsto de sempre
+        </button>
+        <button type="button" class="botao botao-sutil botao-pequeno" :disabled="ocupado"
+                @click="outroValor = false; escolhendoAlcance = false">
           <Undo2 aria-hidden="true" /> Voltar
         </button>
       </div>
+      <div v-if="escolhendoAlcance" class="alcance" role="group" :aria-labelledby="`alcance-${recorrencia.id}-${competencia}`">
+        <p :id="`alcance-${recorrencia.id}-${competencia}`" class="pergunta-pulo">
+          Prever {{ reais(valor ?? 0) }} só em {{ mes }} ou daqui em diante?
+        </p>
+        <div class="linha">
+          <button type="button" class="botao botao-primario botao-pequeno" :disabled="ocupado" @click="salvarPrevisto(valor)">
+            Só em {{ mes }}
+          </button>
+          <button type="button" class="botao botao-pequeno" :disabled="ocupado" @click="salvarPrevisto(valor, true)">
+            De {{ mes }} em diante
+          </button>
+          <button type="button" class="botao botao-sutil botao-pequeno" :disabled="ocupado" @click="escolhendoAlcance = false">
+            <Undo2 aria-hidden="true" /> Voltar
+          </button>
+        </div>
+        <p class="ajuda">
+          Daqui em diante muda o valor da recorrência a partir de {{ mes }} (um reajuste). Os meses antes que ainda estão
+          previstos ficam como estavam, e o que já foi confirmado não muda.
+        </p>
+      </div>
+      <p v-else class="ajuda">
+        {{ receita ? 'Recebi este valor: o dinheiro já entrou.' : 'Confirmar: a conta já foi paga com este valor.' }}
+        Só mudar o previsto: ainda não {{ receita ? 'chegou' : 'foi paga' }}, então nada é lançado; você escolhe se
+        vale só para {{ mes }} ou daqui em diante.
+      </p>
     </div>
 
     <div v-else-if="confirmandoPulo" class="aviso-pulo" role="group" :aria-labelledby="`pulo-${recorrencia.id}-${competencia}`">
@@ -348,6 +425,22 @@ async function pular() {
 
 .nota {
   font-size: var(--t-sm);
+}
+
+.alcance {
+  display: grid;
+  gap: var(--e-2);
+  margin-top: var(--e-3);
+  padding: var(--e-3);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  background: var(--areia);
+}
+
+.so-mes {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--texto-2);
 }
 
 .vence {

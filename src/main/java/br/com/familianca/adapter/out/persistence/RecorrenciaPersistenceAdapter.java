@@ -4,6 +4,7 @@ import br.com.familianca.application.port.out.DescricaoUsada;
 import br.com.familianca.application.port.out.RecorrenciaRepository;
 import br.com.familianca.application.port.out.UsuarioAtual;
 import br.com.familianca.domain.exception.NaoEncontradoException;
+import br.com.familianca.domain.model.Estimativa;
 import br.com.familianca.domain.model.FormaPagamento;
 import br.com.familianca.domain.model.Frequencia;
 import br.com.familianca.domain.model.Recorrencia;
@@ -69,8 +70,11 @@ public class RecorrenciaPersistenceAdapter implements RecorrenciaRepository {
         r.puladas().forEach(c -> e.puladas.add(c.toString()));
         e.semVencimento = r.semVencimento();
         e.formaPagamento = r.formaPagamento() != null ? r.formaPagamento().name() : null;
+        e.estimativa = r.estimativa() != null ? r.estimativa().name() : null;
         e.vencimentos.clear();
         r.vencimentosAjustados().forEach((c, v) -> e.vencimentos.put(c.toString(), v));
+        e.valores.clear();
+        r.valoresAjustados().forEach((c, v) -> e.valores.put(c.toString(), v.valor()));
         return paraDominio(jpa.save(e));
     }
 
@@ -87,7 +91,10 @@ public class RecorrenciaPersistenceAdapter implements RecorrenciaRepository {
                 e.valorDesde != null ? Competencia.parse(e.valorDesde) : null, e.semVencimento,
                 e.formaPagamento != null ? FormaPagamento.valueOf(e.formaPagamento) : null,
                 e.vencimentos.entrySet().stream().collect(Collectors.toMap(
-                        v -> Competencia.parse(v.getKey()), Map.Entry::getValue)));
+                        v -> Competencia.parse(v.getKey()), Map.Entry::getValue)),
+                e.valores.entrySet().stream().collect(Collectors.toMap(
+                        v -> Competencia.parse(v.getKey()), v -> Dinheiro.of(v.getValue()))),
+                e.estimativa != null ? Estimativa.valueOf(e.estimativa) : null);
     }
 
     @Override

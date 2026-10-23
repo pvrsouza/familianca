@@ -69,8 +69,10 @@ public class FamiliaController {
     @Operation(summary = "Regra padrão para estimar os próximos meses",
             description = """
                     Despesas que não se repetem (supermercado, farmácia) ganham nos meses que faltam do ano uma \
-                    estimativa a partir dos meses que já passaram: MEDIA, MAXIMO, MINIMO ou NENHUMA. Cada categoria \
-                    pode seguir esta regra ou ter a sua (`estimativa` em PUT /api/categorias/{id}).""")
+                    estimativa a partir dos meses que já passaram: MEDIA_3M (média dos últimos 3 meses, padrão), \
+                    MEDIA, MAXIMO, MINIMO (do ano) ou NENHUMA. Cada categoria pode seguir esta regra ou ter a sua \
+                    (PUT /api/categorias/{id}/estimativa), e cada conta que se repete pode ter a dela \
+                    (PUT /api/recorrencias/{id}/estimativa).""")
     public FamiliaResponse definirEstimativa(@Valid @RequestBody EstimativaRequest r) {
         familia.definirEstimativa(r.estimativa());
         return consultar();

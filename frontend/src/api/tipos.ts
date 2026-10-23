@@ -56,8 +56,19 @@ export interface Convite {
   link?: string
 }
 
-/** Como estimar os próximos meses de uma despesa que não se repete, pelos meses que já passaram no ano. */
-export type Estimativa = 'NENHUMA' | 'MEDIA' | 'MAXIMO' | 'MINIMO'
+/**
+ * Como estimar os próximos meses de uma despesa, pelo que já aconteceu. MEDIA_3M: média dos últimos 3 meses (na conta
+ * que se repete, das 3 últimas confirmações), mesmo do ano anterior; as outras olham só o ano.
+ */
+export type Estimativa = 'NENHUMA' | 'MEDIA_3M' | 'MEDIA' | 'MAXIMO' | 'MINIMO'
+
+/** De onde saiu a estimativa: a regra, de quem ela é e os meses (ou confirmações) usados. */
+export interface BaseEstimativa {
+  regra: Estimativa
+  origem: 'DESPESA' | 'CATEGORIA' | 'FAMILIA'
+  meses: { competencia: string; valor: number }[]
+  valor: number
+}
 
 export interface Familia {
   id: number
@@ -168,6 +179,12 @@ export interface Recorrencia {
   temVencimento: boolean
   /** Vencimentos diferentes do dia cadastrado, por mês. */
   vencimentosAjustados: { competencia: string; vencimento: string }[]
+  /** Regra própria para prever os próximos meses; nulo = segue a categoria (ou a família). */
+  estimativa: Estimativa | null
+  /** De onde saiu o valorPrevisto; nulo = valor cadastrado. */
+  basePrevisao: BaseEstimativa | null
+  /** Valores previstos diferentes do de sempre, por mês (sem confirmar). */
+  valoresAjustados: { competencia: string; valor: number }[]
 }
 
 export interface Pendente {
@@ -209,6 +226,8 @@ export interface CategoriaVisao {
   rank: number | null
   /** O que compõe a categoria, do maior para o menor: cada recorrência, cada descrição avulsa e a estimativa. */
   itens: ItemVisao[]
+  /** De onde saiu a estimativa dos próximos meses; nulo sem estimativa. */
+  baseEstimativa: BaseEstimativa | null
 }
 
 export interface ItemVisao {

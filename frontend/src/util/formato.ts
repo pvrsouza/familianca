@@ -166,14 +166,33 @@ export function situacaoPagamento(diasAtraso: number | null | undefined): string
 
 /** Regras de estimativa dos próximos meses: rótulo curto e "como" (para frases). */
 export const ESTIMATIVAS: Record<string, { rotulo: string; como: string }> = {
-  MEDIA: { rotulo: 'Média', como: 'pela média dos meses que já passaram' },
+  MEDIA_3M: { rotulo: 'Média dos últimos 3 meses', como: 'pela média dos últimos 3 meses' },
+  MEDIA: { rotulo: 'Média do ano', como: 'pela média dos meses que já passaram no ano' },
   MAXIMO: { rotulo: 'Maior mês', como: 'pelo maior mês do ano até aqui' },
   MINIMO: { rotulo: 'Menor mês', como: 'pelo menor mês do ano até aqui' },
   NENHUMA: { rotulo: 'Não estimar', como: 'sem estimativa' },
 }
 
+/** Ordem em que as regras aparecem para escolher. */
+export const ORDEM_ESTIMATIVAS = ['MEDIA_3M', 'MEDIA', 'MAXIMO', 'MINIMO', 'NENHUMA'] as const
+
+/** De quem é a regra usada. */
+export const ORIGENS_ESTIMATIVA: Record<string, string> = {
+  DESPESA: 'regra desta conta',
+  CATEGORIA: 'regra da categoria',
+  FAMILIA: 'padrão da família',
+}
+
+/** "ago R$ 410 · set R$ 380 · out R$ 395": os meses que entraram na estimativa. */
+export function mesesDaBase(meses: { competencia: string; valor: number }[]): string {
+  return meses.map((m) => `${competenciaCurta(m.competencia)} ${reais(m.valor)}`).join(' · ')
+}
+
 /** "pela média de 3 confirmações" (recorrência de valor variável prevista pela regra). */
 export function previstoPelaRegra(regra: string, confirmacoes: number): string {
+  if (regra === 'MEDIA_3M') {
+    return confirmacoes === 1 ? 'pela única confirmação recente' : `pela média das ${confirmacoes} últimas confirmações`
+  }
   if (confirmacoes === 1) return 'pela única confirmação do ano'
   const qual = regra === 'MAXIMO' ? 'pela maior' : regra === 'MINIMO' ? 'pela menor' : 'pela média'
   return `${qual} das ${confirmacoes} confirmações do ano`

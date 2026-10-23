@@ -28,6 +28,9 @@ public interface GerenciarCategorias {
     /** Pode mudar para outro grupo do mesmo tipo. */
     Categoria atualizarCategoria(Long id, DadosCategoria dados, boolean ativa);
 
+    /** Regra própria de estimativa da categoria; nula = segue a da família. */
+    Categoria definirEstimativa(Long id, Estimativa estimativa);
+
     /** Só categoria sem lançamentos nem recorrências; com uso, desative. */
     void removerCategoria(Long id);
 

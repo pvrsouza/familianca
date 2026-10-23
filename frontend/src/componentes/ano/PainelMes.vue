@@ -3,16 +3,17 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowLeft, ChevronRight, Plus, Trash2, Undo2 } from 'lucide-vue-next'
 import { lancamentos as apiLancamentos, recorrencias as apiRecorrencias } from '../../api/servicos'
-import type { Lancamento, Recorrencia, Tipo } from '../../api/tipos'
+import type { BaseEstimativa, Lancamento, Recorrencia, Tipo } from '../../api/tipos'
 import { ErroApi, mensagemDeErro } from '../../api/http'
 import { sessao } from '../../estado/sessao'
 import { avisar } from '../../estado/avisos'
-import { ESTIMATIVAS, MESES, previstoPelaRegra, anoAtual, competencia, dataPorExtenso, hoje, mesAtual, reais, situacaoPagamento } from '../../util/formato'
+import { MESES, anoAtual, competencia, dataPorExtenso, hoje, mesAtual, reais, situacaoPagamento } from '../../util/formato'
 import { catalogo } from '../../estado/catalogo'
 import PainelLateral from '../PainelLateral.vue'
 import FaixaEdicao from '../FaixaEdicao.vue'
 import FormLancamento from '../FormLancamento.vue'
 import ConferirOcorrencia from '../ConferirOcorrencia.vue'
+import RegraPrevisao from './RegraPrevisao.vue'
 import Mensagem from '../Mensagem.vue'
 
 // O atalho da visão anual: clicar no valor de uma categoria num mês abre o que forma aquele valor. Com um
@@ -27,14 +28,15 @@ export interface ItemAlvo {
 }
 
 export interface AlvoMes {
-  categoria: { id: number; nome: string; ativa: boolean; calculada: boolean; estimado?: number[] }
+  categoria: { id: number; nome: string; ativa: boolean; calculada: boolean; estimado?: number[]; baseEstimativa?: BaseEstimativa | null }
   tipo: Tipo
   ano: number
   mes: number
   item?: ItemAlvo | null
 }
 
-const props = defineProps<{ alvo: AlvoMes | null; embutido?: boolean }>()
+// baseEstimativa: a da visão recarregada (o alvo guarda a linha de quando a célula foi aberta).
+const props = defineProps<{ alvo: AlvoMes | null; embutido?: boolean; baseEstimativa?: BaseEstimativa | null }>()
 const emit = defineEmits<{ fechar: [] }>()
 
 // UNICA: o fim é o próprio início, então o intervalo não importa (a faixa início–fim já limita a um mês).
@@ -98,10 +100,6 @@ const total = computed(() => itens.value.reduce((s, l) => s + l.valor, 0))
 const estimadoNoMes = computed(() => (props.alvo ? props.alvo.categoria.estimado?.[props.alvo.mes - 1] ?? 0 : 0))
 /** A estimativa aparece no mês da categoria inteira, ou quando o item clicado é ela. */
 const mostrarEstimativa = computed(() => estimadoNoMes.value > 0.004 && (!item.value || item.value.estimativa))
-const regraEstimativa = computed(() => {
-  const c = catalogo.estado.grupos.flatMap((g) => g.categorias).find((x) => x.id === props.alvo?.categoria.id)
-  return ESTIMATIVAS[c?.estimativa ?? sessao.estado.familia?.estimativa ?? 'MEDIA'].como
-})
 
 function meses(c: string): number {
   const [a, m] = c.split('-').map(Number)
@@ -141,12 +139,13 @@ async function carregar(primeira: boolean) {
   erro.value = ''
   catalogo.carregar().catch(() => {})
   try {
-    const ultimoDia = new Date(a.ano, a.mes, 0).getDate()
+    // O ano inteiro: a confirmação de um mês pode ter sido paga noutro (adiantada ou atrasada) e conta lá, mas o mês
+    // dela não está mais previsto. Os itens do mês são só os com data nele.
     const [ls, rs] = await Promise.all([
-      apiLancamentos.listar({ categoriaId: a.categoria.id, de: `${comp.value}-01`, ate: `${comp.value}-${ultimoDia}` }),
+      apiLancamentos.listar({ categoriaId: a.categoria.id, de: `${a.ano}-01-01`, ate: `${a.ano}-12-31` }),
       apiRecorrencias.listar(),
     ])
-    itens.value = ls.filter(doItem)
+    itens.value = ls.filter((l) => l.data.slice(0, 7) === comp.value && doItem(l))
     daCategoria.value = rs.filter((r) => r.categoria.id === a.categoria.id)
     previstas.value = daCategoria.value.filter((r) => recorrenciaDoItem(r) && previstaNoMes(r, ls))
     puladas.value = daCategoria.value.filter((r) => recorrenciaDoItem(r) && r.puladas.includes(comp.value))
@@ -229,7 +228,17 @@ function usaEstimativa(r: Recorrencia) {
   return !!a && !!r.previstoPor && (a.ano > anoAtual() || (a.ano === anoAtual() && a.mes >= mesAtual()))
 }
 
+/** O ajustado só neste mês vale acima da estimativa e do valor cadastrado. */
+/** Despesa que se repete, do mês atual em diante e sem confirmação automática: mostra (e deixa mudar) a regra. */
+function mostraRegra(r: Recorrencia) {
+  const a = props.alvo
+  return !!a && a.tipo === 'DESPESA' && !r.confirmarSozinha
+    && (a.ano > anoAtual() || (a.ano === anoAtual() && a.mes >= mesAtual()))
+}
+
 function previstoDe(r: Recorrencia) {
+  const ajustado = r.valoresAjustados.find((v) => v.competencia === comp.value)
+  if (ajustado) return ajustado.valor
   return usaEstimativa(r) ? r.valorPrevisto : r.valor
 }
 
@@ -326,11 +335,10 @@ async function voltarAPrever(r: Recorrencia) {
             <h3 v-if="!item">{{ alvo.tipo === 'RECEITA' ? 'Previsto para receber' : 'Previsto' }}</h3>
             <ul class="lista" :class="{ 'so-item': item, 'em-linhas': enxuto && !item }">
               <li v-for="r in previstas" :key="r.id" class="prevista">
-                <div v-if="!item || usaEstimativa(r)" class="nome-prevista">
+                <div v-if="!item || mostraRegra(r)" class="nome-prevista">
                   <span v-if="!item" class="descricao">{{ r.descricao }}</span>
-                  <p v-if="usaEstimativa(r)" class="texto-2 nota-pulo">
-                    Cadastrada em {{ reais(r.valor) }}; prevista {{ previstoPelaRegra(r.previstoPor!, r.confirmacoesNaPrevisao) }}.
-                  </p>
+                  <RegraPrevisao v-if="mostraRegra(r)" :base="usaEstimativa(r) ? r.basePrevisao : null" :recorrencia="r"
+                                 :categoria-id="alvo.categoria.id" @feito="conferido" />
                 </div>
                 <ConferirOcorrencia v-if="confirmandoRemoverPrevista !== r.id" :recorrencia="r" :competencia="comp"
                                     :valor-previsto="previstoDe(r)" :compacto="enxuto" :em-linha="enxuto && !item"
@@ -382,11 +390,13 @@ async function voltarAPrever(r: Recorrencia) {
             <h3>Estimativa</h3>
             <div class="estimativa">
               <span class="selo selo-previsto num">{{ reais(estimadoNoMes) }}</span>
-              <p class="texto-2">
-                Estimado {{ regraEstimativa }}{{ itens.length ? ', descontando o que já foi lançado' : '' }}. Quando
-                vocês lançarem o gasto real, ele ocupa o lugar da estimativa. A regra muda em
-                <RouterLink to="/categorias" @click="emit('fechar')">Categorias</RouterLink>.
-              </p>
+              <div>
+                <RegraPrevisao :base="baseEstimativa !== undefined ? baseEstimativa : alvo.categoria.baseEstimativa ?? null" :categoria-id="alvo.categoria.id" @feito="conferido" />
+                <p class="texto-2 nota-estimativa">
+                  {{ itens.length ? 'Já descontado o que foi lançado. ' : '' }}Quando vocês lançarem o gasto real, ele
+                  ocupa o lugar da estimativa.
+                </p>
+              </div>
             </div>
           </section>
 

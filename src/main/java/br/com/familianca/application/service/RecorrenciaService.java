@@ -11,6 +11,7 @@ import br.com.familianca.domain.exception.ConflitoException;
 import br.com.familianca.domain.exception.NaoEncontradoException;
 import br.com.familianca.domain.exception.RegraNegocioException;
 import br.com.familianca.domain.model.Categoria;
+import br.com.familianca.domain.model.Estimativa;
 import br.com.familianca.domain.model.FormaPagamento;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Lancamento;
@@ -104,7 +105,8 @@ public class RecorrenciaService implements GerenciarRecorrencias {
                 : Competencia.de(relogio.hoje());
         Recorrencia editada = new Recorrencia(id, dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
                 dados.dia(), dados.frequencia(), dados.inicio(), dados.fim(), dados.observacao(), atual.puladas(),
-                desde, valorDesde, dados.semVencimento(), dados.formaPagamento(), atual.vencimentosAjustados());
+                desde, valorDesde, dados.semVencimento(), dados.formaPagamento(), atual.vencimentosAjustados(),
+                atual.valoresAjustados(), atual.estimativa());
         return detalhar(recorrencias.salvar(editada));
     }
 
@@ -203,6 +205,42 @@ public class RecorrenciaService implements GerenciarRecorrencias {
                     : "Esta conta está marcada como sem vencimento");
         }
         return detalhar(recorrencias.salvar(r.comVencimentoAjustado(competencia, vencimento)));
+    }
+
+    @Override
+    public RecorrenciaDetalhada ajustarValor(Long id, Competencia competencia, Dinheiro valor, boolean daquiEmDiante) {
+        Recorrencia r = exigirOcorrencia(id, competencia);
+        if (r.puladas().contains(competencia)) {
+            throw new RegraNegocioException("A ocorrência de " + competencia + " foi pulada: desfaça o pulo antes");
+        }
+        if (!daquiEmDiante) {
+            return detalhar(recorrencias.salvar(r.comValorAjustado(competencia, valor)));
+        }
+        if (valor == null) {
+            throw new RegraNegocioException("Informem o novo valor de " + competencia + " em diante");
+        }
+        // Os meses antes ficam como estão: o previsto de hoje deles é guardado antes de mudar o valor cadastrado.
+        PrevisaoRecorrencias previsao = previsaoFamilia.calcular(List.of(r));
+        Set<Competencia> confirmadas = lancamentos.listarOcorrenciasConfirmadas(r.inicio(), competencia).stream()
+                .filter(l -> r.id().equals(l.recorrenciaId()))
+                .map(Lancamento::competenciaRecorrencia)
+                .collect(Collectors.toSet());
+        return detalhar(recorrencias.salvar(r.comValorDesde(competencia, valor, c -> previsao.valorEm(r, c),
+                confirmadas)));
+    }
+
+    @Override
+    public RecorrenciaDetalhada definirEstimativa(Long id, Estimativa estimativa) {
+        Recorrencia r = exigir(id);
+        acesso.exigirPodeAlterar(r.membroId());
+        Categoria categoria = planoContas.buscarCategoria(r.categoriaId()).orElseThrow();
+        if (planoContas.buscarGrupo(categoria.grupoId()).orElseThrow().tipo() != TipoMovimento.DESPESA) {
+            throw new RegraNegocioException("Receita não é estimada: vale o valor cadastrado");
+        }
+        if (r.confirmaSozinha()) {
+            throw new RegraNegocioException("Conta que confirma sozinha tem valor fixo: não é estimada");
+        }
+        return detalhar(recorrencias.salvar(r.comEstimativa(estimativa)));
     }
 
     /** Recorrência com ocorrência agendada na competência e ainda não confirmada, que o usuário pode alterar. */

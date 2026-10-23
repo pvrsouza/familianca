@@ -1,5 +1,6 @@
 package br.com.familianca.domain.service;
 
+import br.com.familianca.domain.model.BaseEstimativa;
 import br.com.familianca.domain.model.Categoria;
 import br.com.familianca.domain.model.Estimativa;
 import br.com.familianca.domain.model.Grupo;
@@ -34,6 +35,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Monta a {@link VisaoAnual}: soma os lançamentos do ano, projeta as recorrências não confirmadas como previstas,
@@ -57,12 +59,28 @@ public final class CalculadoraVisaoAnual {
      * @param previsao           valor previsto de cada ocorrência das recorrências (estimado pela regra ou cadastrado)
      * @param sobraAnoAnterior   fluxo líquido de dezembro do ano anterior, com que janeiro começa sem saldo informado;
      *                           nulo = nenhum saldo informado antes deste ano (janeiro começa do zero)
+     * @param anteriores         lançamentos do ano anterior: a média dos últimos meses cruza o ano (em janeiro, usa
+     *                           outubro a dezembro)
      */
     public record Entrada(int ano, List<Grupo> grupos, List<Categoria> categorias, List<Lancamento> lancamentos,
                           List<Recorrencia> recorrencias, Set<Ocorrencia> confirmadas, List<SaldoMes> saldos,
                           SerieMensal aplicacoes, SerieMensal rendaInvestimentos, Percentual metaAporte,
                           Estimativa estimativaFamilia, LocalDate hoje, PrevisaoRecorrencias previsao,
-                          Dinheiro sobraAnoAnterior) {
+                          Dinheiro sobraAnoAnterior, List<Lancamento> anteriores) {
+
+        public Entrada {
+            anteriores = anteriores == null ? List.of() : List.copyOf(anteriores);
+        }
+
+        /** Sem os lançamentos do ano anterior. */
+        public Entrada(int ano, List<Grupo> grupos, List<Categoria> categorias, List<Lancamento> lancamentos,
+                       List<Recorrencia> recorrencias, Set<Ocorrencia> confirmadas, List<SaldoMes> saldos,
+                       SerieMensal aplicacoes, SerieMensal rendaInvestimentos, Percentual metaAporte,
+                       Estimativa estimativaFamilia, LocalDate hoje, PrevisaoRecorrencias previsao,
+                       Dinheiro sobraAnoAnterior) {
+            this(ano, grupos, categorias, lancamentos, recorrencias, confirmadas, saldos, aplicacoes,
+                    rendaInvestimentos, metaAporte, estimativaFamilia, hoje, previsao, sobraAnoAnterior, List.of());
+        }
 
         /** Sem saldo informado em anos anteriores. */
         public Entrada(int ano, List<Grupo> grupos, List<Categoria> categorias, List<Lancamento> lancamentos,
@@ -128,7 +146,8 @@ public final class CalculadoraVisaoAnual {
             }
         }
 
-        Map<Long, SerieMensal> estimado = estimar(e, categorias, grupos, realizado, previsto);
+        Map<Long, BaseEstimativa> bases = new HashMap<>();
+        Map<Long, SerieMensal> estimado = estimar(e, categorias, grupos, realizado, previsto, bases);
         estimado.forEach((id, serie) -> previsto.merge(id, serie, SerieMensal::somar));
         estimado.forEach(itens::estimado);
 
@@ -156,7 +175,7 @@ public final class CalculadoraVisaoAnual {
         }
 
         Map<TipoMovimento, List<LinhaCategoria>> linhasPorTipo = linhasCategoria(categorias.values(), grupos,
-                realizado, previsto, estimado, itens);
+                realizado, previsto, estimado, bases, itens);
         Dinheiro totalTributavelAno = baseRealizada.somar(basePrevista).total();
         List<LinhaGrupo> receitas = linhasGrupo(TipoMovimento.RECEITA, grupos, linhasPorTipo, totalTributavelAno);
         List<LinhaGrupo> despesas = linhasGrupo(TipoMovimento.DESPESA, grupos, linhasPorTipo, totalTributavelAno);
@@ -167,24 +186,35 @@ public final class CalculadoraVisaoAnual {
     }
 
     /**
-     * Estimativa dos próximos meses (só no ano corrente, só despesa que não é recorrente nem calculada, ativa): a
-     * média, o máximo ou o mínimo dos meses que já passaram, contados a partir do primeiro mês do ano com algum
-     * lançamento da família (antes disso a família ainda não usava o app). Cada mês futuro recebe só o que falta
-     * para chegar na estimativa, descontando o que já foi lançado ou está previsto ali (parcelas, recorrências).
-     * O mês corrente não é estimado: está em andamento. A estimativa não entra na visão por pessoa.
+     * Estimativa dos próximos meses (só no ano corrente, só despesa que não é recorrente nem calculada, ativa), pela
+     * regra da categoria ou da família:
+     * - MEDIA_3M: a média dos últimos 3 meses que já passaram, mesmo que do ano anterior (em janeiro, out a dez);
+     * - MEDIA, MAXIMO, MINIMO: dos meses que já passaram no ano.
+     * Só contam meses a partir do primeiro com algum lançamento da família (antes disso ela ainda não usava o app).
+     * Cada mês futuro recebe só o que falta para chegar na estimativa, descontando o que já foi lançado ou está previsto
+     * ali (parcelas, recorrências). O mês corrente não é estimado: está em andamento. A estimativa não entra na visão
+     * por pessoa. A base de cada categoria (regra, de quem é e os meses usados) vai em {@code bases}.
      */
     private static Map<Long, SerieMensal> estimar(Entrada e, Map<Long, Categoria> categorias, Map<Long, Grupo> grupos,
-                                                  Map<Long, SerieMensal> realizado, Map<Long, SerieMensal> previsto) {
+                                                  Map<Long, SerieMensal> realizado, Map<Long, SerieMensal> previsto,
+                                                  Map<Long, BaseEstimativa> bases) {
         Map<Long, SerieMensal> estimado = new HashMap<>();
         if (e.hoje() == null || e.hoje().getYear() != e.ano() || e.estimativaFamilia() == null) {
             return estimado;
         }
-        int mesAtual = e.hoje().getMonthValue();
-        int inicio = e.lancamentos().stream()
-                .filter(l -> l.data().getYear() == e.ano() && l.data().getMonthValue() < mesAtual)
-                .mapToInt(l -> l.data().getMonthValue()).min().orElse(0);
-        if (inicio == 0) {
+        Competencia atual = Competencia.de(e.hoje());
+        int mesAtual = atual.numeroMes();
+        Competencia inicio = Stream.concat(e.anteriores().stream(), e.lancamentos().stream())
+                .map(l -> Competencia.de(l.data()))
+                .filter(c -> c.antesDe(atual))
+                .min(Comparator.naturalOrder()).orElse(null);
+        if (inicio == null) {
             return estimado;
+        }
+        Map<Long, Map<Competencia, Dinheiro>> anoAnterior = new HashMap<>();
+        for (Lancamento l : e.anteriores()) {
+            anoAnterior.computeIfAbsent(l.categoriaId(), k -> new HashMap<>())
+                    .merge(Competencia.de(l.data()), l.valor(), Dinheiro::somar);
         }
         for (Categoria c : categorias.values()) {
             Grupo g = grupos.get(c.grupoId());
@@ -194,19 +224,24 @@ public final class CalculadoraVisaoAnual {
                 continue;
             }
             SerieMensal real = realizado.getOrDefault(c.id(), SerieMensal.ZERO);
-            List<Dinheiro> passados = new ArrayList<>();
-            for (int mes = inicio; mes < mesAtual; mes++) {
-                passados.add(real.mes(mes));
+            Map<Competencia, Dinheiro> antes = anoAnterior.getOrDefault(c.id(), Map.of());
+            List<BaseEstimativa.Mes> meses = new ArrayList<>();
+            Competencia primeiro = regra.doAno()
+                    ? (inicio.ano() == e.ano() ? inicio : Competencia.of(e.ano(), 1))
+                    : atual.mais(-Estimativa.MESES_RECENTES);
+            for (Competencia m = primeiro.antesDe(inicio) ? inicio : primeiro; m.antesDe(atual); m = m.seguinte()) {
+                Dinheiro valor = m.ano() == e.ano() ? real.mes(m.numeroMes()) : antes.getOrDefault(m, Dinheiro.ZERO);
+                meses.add(new BaseEstimativa.Mes(m, valor));
             }
-            Dinheiro base = switch (regra) {
-                case MEDIA -> passados.stream().reduce(Dinheiro.ZERO, Dinheiro::somar).proporcional(1, passados.size());
-                case MAXIMO -> passados.stream().max(Comparator.naturalOrder()).orElse(Dinheiro.ZERO);
-                case MINIMO -> passados.stream().min(Comparator.naturalOrder()).orElse(Dinheiro.ZERO);
-                case NENHUMA -> Dinheiro.ZERO;
-            };
+            if (meses.isEmpty()) {
+                continue;
+            }
+            Dinheiro base = regra.aplicar(meses.stream().map(BaseEstimativa.Mes::valor).toList());
             if (!base.ehPositivo()) {
                 continue;
             }
+            bases.put(c.id(), new BaseEstimativa(regra, c.estimativa() != null ? BaseEstimativa.Origem.CATEGORIA
+                    : BaseEstimativa.Origem.FAMILIA, meses, base));
             SerieMensal prev = previsto.getOrDefault(c.id(), SerieMensal.ZERO);
             SerieMensal serie = SerieMensal.ZERO;
             for (int mes = mesAtual + 1; mes <= SerieMensal.MESES; mes++) {
@@ -239,7 +274,8 @@ public final class CalculadoraVisaoAnual {
 
     private static Map<TipoMovimento, List<LinhaCategoria>> linhasCategoria(
             Iterable<Categoria> categorias, Map<Long, Grupo> grupos, Map<Long, SerieMensal> realizado,
-            Map<Long, SerieMensal> previsto, Map<Long, SerieMensal> estimado, Itens itens) {
+            Map<Long, SerieMensal> previsto, Map<Long, SerieMensal> estimado, Map<Long, BaseEstimativa> bases,
+            Itens itens) {
         Map<TipoMovimento, List<LinhaCategoria>> porTipo = new HashMap<>();
         Map<TipoMovimento, Dinheiro> totalTipo = new HashMap<>();
         List<LinhaCategoria> provisorias = new ArrayList<>();
@@ -250,7 +286,7 @@ public final class CalculadoraVisaoAnual {
             boolean visivel = (c.ativa() && g.ativo()) || !real.ehZero() || !prev.ehZero();
             if (visivel) {
                 provisorias.add(new LinhaCategoria(c, real, prev, estimado.getOrDefault(c.id(), SerieMensal.ZERO),
-                        null, null, itens.da(c.id())));
+                        null, null, itens.da(c.id()), bases.get(c.id())));
                 totalTipo.merge(g.tipo(), real.somar(prev).total(), Dinheiro::somar);
             }
         }
@@ -267,7 +303,7 @@ public final class CalculadoraVisaoAnual {
                 Integer rank = t.ehZero() ? null : ++posicao;
                 finais.add(new LinhaCategoria(l.categoria(), l.realizado(), l.previsto(), l.estimado(),
                         Percentual.razao(t, total),
-                        rank, l.itens()));
+                        rank, l.itens(), l.baseEstimativa()));
             }
             porTipo.put(tipo, finais);
         }

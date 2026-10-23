@@ -7,6 +7,7 @@ import br.com.familianca.domain.exception.ConflitoException;
 import br.com.familianca.domain.exception.NaoEncontradoException;
 import br.com.familianca.domain.exception.RegraNegocioException;
 import br.com.familianca.domain.model.Categoria;
+import br.com.familianca.domain.model.Estimativa;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Recurso;
 import br.com.familianca.domain.service.CatalogoCategorias;
@@ -97,6 +98,15 @@ public class CategoriaService implements GerenciarCategorias {
             throw new ConflitoException("Já existe a categoria " + categoria.nome() + " em " + grupo.nome());
         }
         return planoContas.salvarCategoria(categoria);
+    }
+
+    @Override
+    public Categoria definirEstimativa(Long id, Estimativa estimativa) {
+        Categoria c = exigirCategoria(id);
+        Categoria nova = new Categoria(c.id(), c.grupoId(), c.nome(), c.ordem(), c.ativa(), c.tributavel(), c.aliquota(),
+                c.recorrente(), estimativa);
+        nova.validarNo(exigirGrupo(c.grupoId()));
+        return planoContas.salvarCategoria(nova);
     }
 
     @Override

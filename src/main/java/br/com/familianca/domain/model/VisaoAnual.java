@@ -24,9 +24,16 @@ public record VisaoAnual(int ano, List<LinhaGrupo> receitas, List<LinhaGrupo> de
      * @param rank          posição entre as categorias do mesmo tipo pelo total do ano (1 = maior); nulo sem valor
      * @param itens         o que compõe a categoria (cada recorrência, cada descrição avulsa, a estimativa), do
      *                      maior para o menor no ano; vazio na categoria calculada por alíquota
+     * @param baseEstimativa de onde saiu a estimativa dos próximos meses (regra e meses usados); nulo sem estimativa
      */
     public record LinhaCategoria(Categoria categoria, SerieMensal realizado, SerieMensal previsto,
-                                 SerieMensal estimado, Percentual participacao, Integer rank, List<LinhaItem> itens) {
+                                 SerieMensal estimado, Percentual participacao, Integer rank, List<LinhaItem> itens,
+                                 BaseEstimativa baseEstimativa) {
+
+        public LinhaCategoria(Categoria categoria, SerieMensal realizado, SerieMensal previsto, SerieMensal estimado,
+                              Percentual participacao, Integer rank, List<LinhaItem> itens) {
+            this(categoria, realizado, previsto, estimado, participacao, rank, itens, null);
+        }
 
         public LinhaCategoria {
             itens = List.copyOf(itens);

@@ -12,6 +12,7 @@ import br.com.familianca.domain.model.Lancamento;
 import br.com.familianca.domain.model.Membro;
 import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.vo.Competencia;
+import br.com.familianca.domain.vo.Dinheiro;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,7 +77,9 @@ public class ConfirmacaoAutomatica {
             if (membro == null || !membro.ativo() || categoria == null || !lancavel(categoria, grupos)) {
                 continue;
             }
-            lancamentos.salvar(new Lancamento(null, r.categoriaId(), r.membroId(), r.descricao(), r.valor(),
+            Dinheiro ajustado = r.valorAjustadoEm(o.competencia());
+            lancamentos.salvar(new Lancamento(null, r.categoriaId(), r.membroId(), r.descricao(),
+                    ajustado != null ? ajustado : r.valor(),
                     r.dataEm(o.competencia()), r.id(), o.competencia(), null, r.observacao()));
         }
     }

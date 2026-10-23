@@ -29,7 +29,7 @@ public class Familia {
     }
 
     public static Familia nova(String nome, Assinatura assinatura) {
-        return new Familia(null, nome, assinatura, null, Estimativa.MEDIA);
+        return new Familia(null, nome, assinatura, null, Estimativa.MEDIA_3M);
     }
 
     public static Familia reconstituir(Long id, String nome, Assinatura assinatura, Percentual metaAporte,

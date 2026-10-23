@@ -47,10 +47,18 @@ public class RecorrenciaEntity {
     Set<String> puladas = new HashSet<>();
     boolean semVencimento;
     String formaPagamento;
+    /** Regra própria de estimativa; nulo = segue a da categoria. */
+    String estimativa;
     /** Vencimento ajustado por competência (AAAA-MM). */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "recorrencia_vencimento", joinColumns = @JoinColumn(name = "recorrencia_id"))
     @MapKeyColumn(name = "competencia")
     @Column(name = "vencimento")
     Map<String, LocalDate> vencimentos = new HashMap<>();
+    /** Valor previsto ajustado por competência (AAAA-MM). */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "recorrencia_valor", joinColumns = @JoinColumn(name = "recorrencia_id"))
+    @MapKeyColumn(name = "competencia")
+    @Column(name = "valor")
+    Map<String, BigDecimal> valores = new HashMap<>();
 }

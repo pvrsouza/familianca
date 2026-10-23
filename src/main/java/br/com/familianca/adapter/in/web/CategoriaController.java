@@ -1,6 +1,7 @@
 package br.com.familianca.adapter.in.web;
 
 import br.com.familianca.adapter.in.web.dto.CategoriaRequest;
+import br.com.familianca.adapter.in.web.dto.EstimativaPropriaRequest;
 import br.com.familianca.adapter.in.web.dto.PlanoContasResponse;
 import br.com.familianca.adapter.in.web.dto.PlanoContasResponse.CategoriaResponse;
 import br.com.familianca.adapter.in.web.dto.PlanoContasResponse.GrupoResponse;
@@ -93,6 +94,14 @@ public class CategoriaController {
     @Operation(summary = "Editar, mover, desativar ou reativar categoria", description = "Só para grupo do mesmo tipo.")
     public CategoriaResponse atualizarCategoria(@PathVariable Long id, @Valid @RequestBody CategoriaRequest r) {
         return CategoriaResponse.de(categorias.atualizarCategoria(id, r.paraDados(), r.ativaOuPadrao()));
+    }
+
+    @PutMapping("/{id}/estimativa")
+    @Operation(summary = "Regra própria de estimativa da categoria", description = """
+            Como prever os próximos meses das despesas desta categoria (e das contas dela sem regra própria). Nulo
+            volta a seguir a regra da família. Só quem organiza a família.""")
+    public CategoriaResponse definirEstimativa(@PathVariable Long id, @RequestBody EstimativaPropriaRequest r) {
+        return CategoriaResponse.de(categorias.definirEstimativa(id, r.estimativa()));
     }
 
     @DeleteMapping("/{id}")

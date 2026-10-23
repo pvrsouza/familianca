@@ -116,7 +116,7 @@ public record VisaoAnualResponse(int ano, List<String> meses, Resumo resumo, Blo
                                  @Schema(description = "Regra própria de estimativa; nulo = segue a da família.")
                                  Estimativa estimativa,
                                  Serie total, List<BigDecimal> realizado, List<BigDecimal> previsto,
-                                 @Schema(description = "Parte do previsto que é estimativa (média, máximo ou mínimo "
+                                 @Schema(description = "Parte do previsto que é estimativa (pela regra, a partir "
                                          + "dos meses que já passaram), para despesas que não se repetem.")
                                  List<BigDecimal> estimado,
                                  @Schema(description = "% do total do tipo no ano.") BigDecimal participacao,
@@ -124,14 +124,16 @@ public record VisaoAnualResponse(int ano, List<String> meses, Resumo resumo, Blo
                                  Integer rank,
                                  @Schema(description = "O que compõe a categoria, do maior para o menor no ano: cada "
                                          + "recorrência, cada descrição avulsa e a estimativa. Vazio se calculada por alíquota.")
-                                 List<ItemVisao> itens) {
+                                 List<ItemVisao> itens,
+                                 @Schema(description = "De onde saiu a estimativa dos próximos meses; nulo sem estimativa.")
+                                 BaseEstimativaDto baseEstimativa) {
 
         static CategoriaVisao de(LinhaCategoria l) {
             Categoria c = l.categoria();
             return new CategoriaVisao(c.id(), c.nome(), c.ativa(), c.calculada(), Valores.valor(c.aliquota()),
                     c.recorrente(), c.tributavel(), c.estimativa(), Serie.de(l.total()), Valores.meses(l.realizado()), Valores.meses(l.previsto()),
                     Valores.meses(l.estimado()), Valores.valor(l.participacao()), l.rank(),
-                    l.itens().stream().map(ItemVisao::de).toList());
+                    l.itens().stream().map(ItemVisao::de).toList(), BaseEstimativaDto.de(l.baseEstimativa()));
         }
     }
 

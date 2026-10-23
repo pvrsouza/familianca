@@ -36,7 +36,7 @@ class FamiliaApiTest extends IntegracaoBase {
 
     @Test
     void estimativaDosProximosMeses() throws Exception {
-        mvc.perform(get("/api/familia")).andExpect(jsonPath("$.estimativa").value("MEDIA"));
+        mvc.perform(get("/api/familia")).andExpect(jsonPath("$.estimativa").value("MEDIA_3M"));
         mvc.perform(put("/api/familia/estimativa").contentType(APPLICATION_JSON).content("{\"estimativa\": \"MAXIMO\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estimativa").value("MAXIMO"));

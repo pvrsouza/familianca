@@ -2,6 +2,7 @@ package br.com.familianca.application.port.in;
 
 import br.com.familianca.application.port.in.GerenciarLancamentos.LancamentoDetalhado;
 import br.com.familianca.domain.model.Categoria;
+import br.com.familianca.domain.model.Estimativa;
 import br.com.familianca.domain.model.FormaPagamento;
 import br.com.familianca.domain.model.Frequencia;
 import br.com.familianca.domain.model.Grupo;
@@ -53,6 +54,20 @@ public interface GerenciarRecorrencias {
      * mês. Nulo volta ao dia cadastrado. Só conta com vencimento.
      */
     RecorrenciaDetalhada ajustarVencimento(Long id, Competencia competencia, LocalDate vencimento);
+
+    /**
+     * Valor previsto diferente, sem confirmar (a conta do mês veio mais cara). daquiEmDiante falso: só nesta
+     * ocorrência, e nulo volta ao previsto de sempre. Verdadeiro: o valor cadastrado muda desta competência em diante
+     * e os meses antes ainda previstos ficam como estavam (valor obrigatório). Ocorrência já confirmada: altera-se o
+     * lançamento.
+     */
+    RecorrenciaDetalhada ajustarValor(Long id, Competencia competencia, Dinheiro valor, boolean daquiEmDiante);
+
+    /**
+     * Regra própria para prever os próximos meses desta conta (só despesa que não confirma sozinha); nula = segue a
+     * da categoria.
+     */
+    RecorrenciaDetalhada definirEstimativa(Long id, Estimativa estimativa);
 
     /**
      * membroId nulo = o membro logado; fim nulo = sem prazo. confirmarSozinha: as ocorrências que vencem a partir de

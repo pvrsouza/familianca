@@ -72,6 +72,9 @@ export const categorias = {
   criar: (d: DadosCategoria) => api.post<Categoria>('/api/categorias', d),
   atualizar: (id: number, d: DadosCategoria) => api.put<Categoria>(`/api/categorias/${id}`, d),
   remover: (id: number) => api.delete(`/api/categorias/${id}`),
+  /** Regra própria de estimativa; null volta a seguir a da família. */
+  definirEstimativa: (id: number, estimativa: Estimativa | null) =>
+    api.put<Categoria>(`/api/categorias/${id}/estimativa`, { estimativa }),
   aplicarModeloPj: () => api.post<{ grupos: Grupo[] }>('/api/categorias/modelos/pj'),
 }
 
@@ -156,6 +159,15 @@ export const recorrencias = {
   /** Vencimento diferente só neste mês; null volta ao dia cadastrado. */
   ajustarVencimento: (id: number, competencia: string, vencimento: string | null) =>
     api.put<Recorrencia>(`/api/recorrencias/${id}/ocorrencias/${competencia}/vencimento`, { vencimento }),
+  /**
+   * Valor previsto diferente, sem confirmar. Só neste mês (null volta ao previsto de sempre) ou, com daquiEmDiante,
+   * deste mês em diante: os meses antes ainda previstos ficam como estavam.
+   */
+  /** Regra própria para prever os próximos meses desta conta; null volta a seguir a categoria. */
+  definirEstimativa: (id: number, estimativa: Estimativa | null) =>
+    api.put<Recorrencia>(`/api/recorrencias/${id}/estimativa`, { estimativa }),
+  ajustarValor: (id: number, competencia: string, valor: number | null, daquiEmDiante = false) =>
+    api.put<Recorrencia>(`/api/recorrencias/${id}/ocorrencias/${competencia}/valor`, { valor, daquiEmDiante }),
 }
 
 export const saldos = {

@@ -176,9 +176,9 @@ Rotas públicas: `GET /api/auth/csrf`, `POST /api/auth/login`, `POST /api/cadast
 | Cadastro e convite (públicos) | `POST /api/cadastro`, `GET /api/convites/{token}`, `POST /api/convites/{token}/aceite` |
 | Minha conta | `PUT /api/conta/senha`, `PUT /api/conta/nome`, `GET /api/conta/mfa`, `POST /api/conta/mfa/configuracao`, `POST /api/conta/mfa/ativacao`, `POST /api/conta/mfa/codigos-recuperacao`, `POST /api/conta/mfa/desativacao` |
 | Família | `GET/PUT /api/familia`, `PUT /api/familia/membros/{id}/papel`, `DELETE /api/familia/membros/{id}`, `POST /api/familia/convites`, `DELETE /api/familia/convites/{id}` |
-| Categorias | `GET /api/categorias`, `POST/PUT/DELETE /api/categorias/grupos[/{id}]`, `POST/PUT/DELETE /api/categorias[/{id}]`, `POST /api/categorias/modelos/pj` |
+| Categorias | `GET /api/categorias`, `POST/PUT/DELETE /api/categorias/grupos[/{id}]`, `POST/PUT/DELETE /api/categorias[/{id}]`, `PUT /api/categorias/{id}/estimativa`, `POST /api/categorias/modelos/pj` |
 | Lançamentos | `GET/POST /api/lancamentos` (filtros: `de`, `ate`, `categoriaId`, `grupoId`, `membroId`, `tipo`, `q`, `origem`), `POST /api/lancamentos/parcelados`, `GET/PUT/DELETE /api/lancamentos/{id}` |
-| Recorrências | `GET/POST /api/recorrencias`, `GET /api/recorrencias/pendentes`, `GET/PUT/DELETE /api/recorrencias/{id}`, `POST /api/recorrencias/{id}/ocorrencias/{AAAA-MM}/confirmacao`, `POST/DELETE /api/recorrencias/{id}/ocorrencias/{AAAA-MM}/pulo` |
+| Recorrências | `GET/POST /api/recorrencias`, `GET /api/recorrencias/pendentes`, `GET/PUT/DELETE /api/recorrencias/{id}`, `POST /api/recorrencias/{id}/ocorrencias/{AAAA-MM}/confirmacao`, `POST/DELETE /api/recorrencias/{id}/ocorrencias/{AAAA-MM}/pulo`, `PUT /api/recorrencias/{id}/ocorrencias/{AAAA-MM}/vencimento`, `PUT /api/recorrencias/{id}/ocorrencias/{AAAA-MM}/valor` (só o mês ou `daquiEmDiante`), `PUT /api/recorrencias/{id}/estimativa` |
 | Saldos | `GET /api/saldos?ano=`, `PUT/DELETE /api/saldos/{AAAA-MM}` |
 | Investimentos | `GET/POST /api/investimentos`, `PUT/DELETE /api/investimentos/{id}`, `GET /api/investimentos/{id}/movimentos`, `PUT/DELETE /api/investimentos/{id}/movimentos/{AAAA-MM}`, `GET /api/investimentos/carteira?ano=` |
 | Visão anual | `GET /api/visao-anual`, `GET /api/visao-anual/{ano}`, `POST /api/impacto` |

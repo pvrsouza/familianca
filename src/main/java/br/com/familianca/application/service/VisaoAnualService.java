@@ -10,6 +10,7 @@ import br.com.familianca.application.port.out.SaldoRepository;
 import br.com.familianca.domain.exception.RegraNegocioException;
 import br.com.familianca.domain.model.CarteiraAnual;
 import br.com.familianca.domain.model.Familia;
+import br.com.familianca.domain.model.Lancamento;
 import br.com.familianca.domain.model.Periodicidade;
 import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.model.Recurso;
@@ -110,9 +111,12 @@ public class VisaoAnualService implements ConsultarVisaoAnual {
             rendaInvestimentos = carteira.rendimentos();
         }
         List<Recorrencia> lista = recorrencias.listar();
+        // Só o ano corrente é estimado; a média dos últimos meses pode precisar do ano anterior (em janeiro).
+        List<Lancamento> anteriores = ano == relogio.hoje().getYear()
+                ? lancamentos.listar(LocalDate.of(ano - 1, 1, 1), LocalDate.of(ano - 1, 12, 31)) : List.of();
         return CALCULADORA.calcular(new Entrada(ano, planoContas.listarGrupos(), planoContas.listarCategorias(),
                 lancamentos.listar(LocalDate.of(ano, 1, 1), LocalDate.of(ano, 12, 31)), lista,
                 confirmadas, saldos.listar(ano), aplicacoes, rendaInvestimentos, familia.metaAporte(),
-                familia.estimativa(), relogio.hoje(), previsaoFamilia.calcular(lista), sobraAnoAnterior));
+                familia.estimativa(), relogio.hoje(), previsaoFamilia.calcular(lista), sobraAnoAnterior, anteriores));
     }
 }

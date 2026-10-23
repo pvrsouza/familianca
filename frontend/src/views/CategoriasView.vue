@@ -224,7 +224,7 @@ async function criarGrupo() {
 
 // ——— Estimativa dos próximos meses (regra da família; a categoria pode ter a sua) ———
 const estimativaFamilia = computed<Estimativa>(() => sessao.estado.familia?.estimativa ?? 'MEDIA')
-const opcoesEstimativa: Estimativa[] = ['MEDIA', 'MAXIMO', 'MINIMO', 'NENHUMA']
+const opcoesEstimativa: Estimativa[] = ['MEDIA_3M', 'MEDIA', 'MAXIMO', 'MINIMO', 'NENHUMA']
 
 // Mudar a regra recalcula na hora todos os previstos que seguem a família: antes, explica o que muda.
 const estimativaPendente = ref<Estimativa | null>(null)

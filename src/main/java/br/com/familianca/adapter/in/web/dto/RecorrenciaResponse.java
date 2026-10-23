@@ -33,8 +33,8 @@ public record RecorrenciaResponse(Long id, TipoMovimento tipo, CategoriaRef cate
                                   @Schema(description = "Valor previsto das ocorrências do mês atual em diante: a "
                                           + "estimativa pela regra (despesa de valor variável) ou o valor cadastrado.")
                                   BigDecimal valorPrevisto,
-                                  @Schema(description = "Regra que gerou o valorPrevisto (MEDIA, MAXIMO, MINIMO); nulo = "
-                                          + "valor cadastrado (sem confirmação no ano, receita, confirma sozinha ou NENHUMA).")
+                                  @Schema(description = "Regra que gerou o valorPrevisto (MEDIA_3M, MEDIA, MAXIMO, MINIMO); "
+                                          + "nulo = valor cadastrado (sem confirmação na base, receita, confirma sozinha ou NENHUMA).")
                                   Estimativa previstoPor,
                                   @Schema(description = "Quantas confirmações do ano entraram na estimativa.")
                                   int confirmacoesNaPrevisao,
@@ -45,9 +45,18 @@ public record RecorrenciaResponse(Long id, TipoMovimento tipo, CategoriaRef cate
                                           + "e não cobrada no cartão. Receita: sempre falso.")
                                   boolean temVencimento,
                                   @Schema(description = "Vencimentos diferentes do dia cadastrado, por ocorrência.")
-                                  List<VencimentoAjustado> vencimentosAjustados) {
+                                  List<VencimentoAjustado> vencimentosAjustados,
+                                  @Schema(description = "Valores previstos diferentes do de sempre, por ocorrência.")
+                                  List<ValorAjustado> valoresAjustados,
+                                  @Schema(description = "Regra própria para prever os próximos meses; nulo = segue a "
+                                          + "categoria (ou a família).") Estimativa estimativa,
+                                  @Schema(description = "De onde saiu o valorPrevisto: regra, de quem é e as "
+                                          + "confirmações usadas; nulo = valor cadastrado.") BaseEstimativaDto basePrevisao) {
 
     public record VencimentoAjustado(String competencia, LocalDate vencimento) {
+    }
+
+    public record ValorAjustado(String competencia, BigDecimal valor) {
     }
 
     public static RecorrenciaResponse de(RecorrenciaDetalhada d) {
@@ -62,6 +71,9 @@ public record RecorrenciaResponse(Long id, TipoMovimento tipo, CategoriaRef cate
                 d.previsao() != null ? d.previsao().confirmacoes() : 0, r.semVencimento(), r.formaPagamento(),
                 d.grupo().tipo() == TipoMovimento.DESPESA && r.temVencimento(),
                 r.vencimentosAjustados().entrySet().stream().sorted(Map.Entry.comparingByKey())
-                        .map(e -> new VencimentoAjustado(e.getKey().toString(), e.getValue())).toList());
+                        .map(e -> new VencimentoAjustado(e.getKey().toString(), e.getValue())).toList(),
+                r.valoresAjustados().entrySet().stream().sorted(Map.Entry.comparingByKey())
+                        .map(e -> new ValorAjustado(e.getKey().toString(), e.getValue().valor())).toList(),
+                r.estimativa(), d.previsao() != null ? BaseEstimativaDto.de(d.previsao().base()) : null);
     }
 }

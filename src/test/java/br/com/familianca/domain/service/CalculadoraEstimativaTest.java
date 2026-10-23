@@ -1,5 +1,6 @@
 package br.com.familianca.domain.service;
 
+import br.com.familianca.domain.model.BaseEstimativa;
 import br.com.familianca.domain.model.Categoria;
 import br.com.familianca.domain.model.Estimativa;
 import br.com.familianca.domain.model.Grupo;
@@ -91,6 +92,36 @@ class CalculadoraEstimativaTest {
                 .isEqualTo(SerieMensal.ZERO);
         assertThat(linha(calcular(Estimativa.MEDIA, LocalDate.of(2026, 3, 20)), SUPERMERCADO).estimado())
                 .isEqualTo(SerieMensal.ZERO);
+    }
+
+    @Test
+    void mediaDosUltimos3MesesComABaseNaTela() {
+        LinhaCategoria l = linha(calcular(Estimativa.MEDIA_3M, HOJE), SUPERMERCADO);
+        // Fevereiro, março e abril; fevereiro é antes de a família começar: média de março e abril = 1.200.
+        assertThat(l.estimado().mes(7)).isEqualTo(Dinheiro.of("1200.00"));
+        assertThat(l.baseEstimativa().regra()).isEqualTo(Estimativa.MEDIA_3M);
+        assertThat(l.baseEstimativa().origem()).isEqualTo(BaseEstimativa.Origem.FAMILIA);
+        assertThat(l.baseEstimativa().meses()).extracting(m -> m.competencia().toString())
+                .containsExactly("2026-03", "2026-04");
+        assertThat(linha(calcular(Estimativa.MEDIA_3M, HOJE), FARMACIA_MAXIMO).baseEstimativa().origem())
+                .isEqualTo(BaseEstimativa.Origem.CATEGORIA);
+    }
+
+    @Test
+    void emJaneiroAMediaRecenteUsaOAnoAnterior() {
+        List<Lancamento> anteriores = List.of(
+                lancamento(30L, SUPERMERCADO, "900", LocalDate.of(2026, 10, 10)),
+                lancamento(31L, SUPERMERCADO, "1100", LocalDate.of(2026, 11, 10)),
+                lancamento(32L, SUPERMERCADO, "1300", LocalDate.of(2026, 12, 10)));
+        VisaoAnual visao = new CalculadoraVisaoAnual().calcular(new Entrada(2027, List.of(RECEITAS, CASA),
+                List.of(SALARIO, SUPERMERCADO), List.of(), List.of(), Set.of(), List.of(), SerieMensal.ZERO,
+                SerieMensal.ZERO, null, Estimativa.MEDIA_3M, LocalDate.of(2027, 1, 10), PrevisaoRecorrencias.nenhuma(),
+                null, anteriores));
+        LinhaCategoria l = linha(visao, SUPERMERCADO);
+        assertThat(l.estimado().mes(1)).isEqualTo(Dinheiro.ZERO);
+        assertThat(l.estimado().mes(2)).isEqualTo(Dinheiro.of("1100.00"));
+        assertThat(l.baseEstimativa().meses()).extracting(m -> m.competencia().toString())
+                .containsExactly("2026-10", "2026-11", "2026-12");
     }
 
     private static VisaoAnual calcular(Estimativa daFamilia, LocalDate hoje) {

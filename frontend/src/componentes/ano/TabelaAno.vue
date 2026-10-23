@@ -50,6 +50,13 @@ function abrirAqui(c: CategoriaVisao, tipo: Tipo, mes: number, item?: ItemVisao)
 }
 
 watch(() => props.visao.ano, () => (edicao.value = null))
+
+/** A base da estimativa da categoria aberta, na visão atual (muda quando a regra muda). */
+const baseAtual = computed(() => {
+  const id = edicao.value?.alvo.categoria.id
+  return [...props.visao.receitas.grupos, ...props.visao.despesas.grupos].flatMap((g) => g.categorias)
+    .find((c) => c.id === id)?.baseEstimativa ?? null
+})
 window.addEventListener('resize', medir)
 onBeforeUnmount(() => window.removeEventListener('resize', medir))
 
@@ -378,7 +385,7 @@ function linkCategoria(c: CategoriaVisao): string {
             <tr v-if="edicao?.chave === chaveDe(c)" class="linha-edicao">
               <td colspan="17">
                 <div class="faixa-dentro" :style="{ width: larguraFaixa ? `${larguraFaixa}px` : undefined }">
-                  <PainelMes embutido :alvo="edicao.alvo" @fechar="edicao = null" />
+                  <PainelMes embutido :alvo="edicao.alvo" :base-estimativa="baseAtual" @fechar="edicao = null" />
                 </div>
               </td>
             </tr>
@@ -403,7 +410,7 @@ function linkCategoria(c: CategoriaVisao): string {
               <tr v-if="edicao?.chave === chaveDe(c, item)" class="linha-edicao">
               <td colspan="17">
                 <div class="faixa-dentro" :style="{ width: larguraFaixa ? `${larguraFaixa}px` : undefined }">
-                  <PainelMes embutido :alvo="edicao.alvo" @fechar="edicao = null" />
+                  <PainelMes embutido :alvo="edicao.alvo" :base-estimativa="baseAtual" @fechar="edicao = null" />
                 </div>
               </td>
             </tr>

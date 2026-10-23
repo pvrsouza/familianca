@@ -196,6 +196,18 @@ Pontos de atenção constante na hora de desenvolver.
   - **Vencimento diferente só num mês:** o boleto do mês veio para outro dia → muda só aquela ocorrência (até 2 meses
     antes ou depois), com "voltar ao dia X". Esse vencimento passa a ser a data da ocorrência: decide quando ela
     vence (e entra em "para conferir") e é a data sugerida ao confirmar. Conta sem vencimento ou no cartão não tem.
+  - **Previsto diferente só num mês (2026-10-23):** a conta do mês veio mais cara ou mais barata, mas ainda não foi
+    paga → muda só o valor previsto daquela ocorrência, **sem confirmar nada** ("Outro valor" → "Só mudar o
+    previsto"), com "voltar ao previsto de sempre". Vale acima da estimativa pela regra, entra nos totais do ano e é o
+    valor usado ao confirmar sem informar outro (inclusive na confirmação automática). Já confirmada, muda-se o
+    lançamento. Vale para receita e despesa.
+    - **Só neste mês ou daqui em diante (2026-10-23):** ao escolher "Só mudar o previsto", a tela pergunta o alcance
+      (não pergunta em conta avulsa nem no último mês). **Daqui em diante** é um reajuste: o valor da recorrência
+      passa a ser o novo a partir daquele mês; os meses antes que ainda estão previstos ficam com o previsto que
+      tinham (guardado só neles) e os confirmados não mudam. A estimativa recomeça a contar desse mês, e os ajustes de
+      um mês só daí em diante saem.
+  - O mês confirmado com data de outro mês (pagamento adiantado ou atrasado) conta no mês da data e deixa de
+    aparecer como previsto no mês da ocorrência, inclusive na faixa do mês da visão anual.
   - **Pagar = confirmar.** Ao confirmar uma conta com vencimento, informa-se "Pago em" (ou "Debitado em"): já vencida,
     vem preenchido com o vencimento (supõe pago em dia; corrige-se se foi depois); ainda a vencer, com hoje. Num mês
     futuro (pagamento adiantado), vem com o vencimento, para o valor não ir para o mês atual; se a data escolhida cair
@@ -241,7 +253,20 @@ Pontos de atenção constante na hora de desenvolver.
     valor confirmado), em vez do valor cadastrado. Sem confirmação no ano, vale o cadastrado. Ficam de fora receitas
     e contas que confirmam sozinhas (valor fixo). Confirmar sem informar o valor usa esse previsto. Mudar o valor
     cadastrado (reajuste) zera a base: só as confirmações a partir daquele mês contam.
-  - **Nada é gravado:** os previstos são calculados a cada consulta. Mudar a regra (da família ou da categoria),
+  - **Média dos últimos 3 meses e regra por conta (2026-10-23):**
+    - Nova regra **"Média dos últimos 3 meses"**: na despesa avulsa, a média dos 3 meses que já passaram (sem o mês
+      em andamento); na conta que se repete, das 3 últimas confirmações. Cruza o ano (em janeiro usa outubro a
+      dezembro), então funciona desde o começo do ano e acompanha reajustes. Só contam meses a partir de quando a
+      família começou a lançar. Média do ano, maior e menor mês continuam olhando só o ano corrente.
+    - Virou o **padrão da família**: as famílias que seguiam a média passaram a ela (inclusive as que já existiam);
+      categorias com regra própria não mudaram.
+    - **Quem manda:** a regra da própria conta que se repete (nova), senão a da categoria, senão a da família. O
+      previsto ajustado à mão num mês ("Só mudar o previsto") vale acima de tudo.
+    - **Fica claro e muda ali mesmo:** na faixa do mês, cada conta prevista e a estimativa da categoria mostram a regra,
+      de quem ela é e os meses usados ("Previsto pela média das 3 últimas confirmações (padrão da família): ago
+      R$ 410 · set R$ 380 · out R$ 395 → R$ 395"), com "Mudar a regra". A regra da conta muda quem cadastrou ou quem
+      organiza; a da categoria, só quem organiza. Receita e conta que confirma sozinha não têm regra.
+  - **Nada é gravado:** os previstos são calculados a cada consulta. Mudar a regra (da família, da categoria ou da conta),
     editar um lançamento ou confirmar um mês recalcula tudo na hora. A tela pede confirmação antes de trocar a
     regra da família e explica o que vai ser recalculado.
 - O ano mês a mês, com total e média, para cada categoria, grupo, receitas e despesas. Cada valor separa
