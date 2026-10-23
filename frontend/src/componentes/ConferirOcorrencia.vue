@@ -45,7 +45,10 @@ const vencimento = computed(() => (receita.value ? null : vencimentoDe(props.rec
 const debito = computed(() => props.recorrencia.formaPagamento === 'DEBITO_AUTOMATICO')
 const ajustado = computed(() => props.recorrencia.vencimentosAjustados.some((v) => v.competencia === props.competencia))
 // Já venceu: supõe pago no vencimento (corrija se foi depois). Ainda vai vencer: pago hoje.
-const pagoEm = ref(vencimento.value && vencimento.value <= hoje() ? vencimento.value : hoje())
+// O lançamento conta no mês da data: hoje, num mês que ainda vai chegar, levaria o valor para o mês atual.
+// Mês futuro: sugere o próprio vencimento.
+const mesFuturo = props.competencia > hoje().slice(0, 7)
+const pagoEm = ref(vencimento.value && (vencimento.value <= hoje() || mesFuturo) ? vencimento.value : hoje())
 const atraso = computed(() => (vencimento.value && pagoEm.value ? Math.max(0, diasEntre(vencimento.value, pagoEm.value)) : null))
 const textoAtraso = computed(() => {
   if (atraso.value == null) return ''
@@ -60,6 +63,12 @@ onMounted(() => catalogo.carregar())
 const ehNota = computed(() => receita.value && !!catalogo.estado.grupos.flatMap((g) => g.categorias)
   .find((c) => c.id === props.recorrencia.categoria.id)?.tributavel)
 const recebidoEm = ref('')
+
+/** A data escolhida cai noutro mês: o valor vai contar lá, não no mês da ocorrência. Avisa antes de confirmar. */
+function avisoDeMes(data: string): string {
+  if (!data || data.slice(0, 7) === props.competencia) return ''
+  return `Com esta data, o valor conta em ${competenciaPorExtenso(data.slice(0, 7))}, não em ${mes.value}.`
+}
 const nfCompetencia = ref('')
 const nfEmissao = ref('')
 const notaFiscal = computed<NotaFiscal | null>(() =>
@@ -171,6 +180,7 @@ async function pular() {
           <input :id="`pago-${recorrencia.id}-${competencia}`" v-model="pagoEm" class="entrada data" type="date"
                  :aria-describedby="compacto ? undefined : `pago-ajuda-${recorrencia.id}-${competencia}`" />
           <span v-if="textoAtraso" class="selo" :class="atraso ? 'selo-atraso' : 'selo-verde'">{{ textoAtraso }}</span>
+          <span v-if="avisoDeMes(pagoEm)" class="aviso-mes" role="status">{{ avisoDeMes(pagoEm) }}</span>
           <button v-if="!compacto" type="button" class="botao botao-sutil botao-pequeno"
                   @click="mudandoVencimento = true; novoVencimento = vencimento ?? ''">
             Vencimento diferente neste mês
@@ -188,6 +198,7 @@ async function pular() {
         <label class="rotulo" :for="`recebido-${recorrencia.id}-${competencia}`">Entrou na conta em</label>
         <input :id="`recebido-${recorrencia.id}-${competencia}`" v-model="recebidoEm" class="entrada data" type="date"
                required :aria-invalid="(!!erro && !recebidoEm) || undefined" />
+        <span v-if="avisoDeMes(recebidoEm)" class="aviso-mes" role="status">{{ avisoDeMes(recebidoEm) }}</span>
       </div>
       <CamposNotaFiscal v-if="!compacto || maisAberto" v-model:competencia="nfCompetencia" v-model:emissao="nfEmissao"
                         :id-base="`conf-${recorrencia.id}-${competencia}`" />
@@ -418,5 +429,11 @@ async function pular() {
 .em-linha > .nota,
 .em-linha > .aviso {
   flex-basis: 100%;
+}
+
+.aviso-mes {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--erro-texto);
 }
 </style>
