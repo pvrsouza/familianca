@@ -230,7 +230,7 @@ Escolhido em Minha conta (Automático, que segue o sistema, Claro ou Escuro), va
 
 A página tem largura máxima de 80rem, centralizada, com respiro de 2rem/1,5rem/3rem (topo/lados/base); abaixo de 760px vira 1,25rem/1rem e ganha espaço extra na base para a barra de navegação inferior. O ritmo de espaço é de base 4px (`e-1` a `e-12`); o vão padrão entre itens é 0,5rem a 1rem, entre campos de formulário 1,25rem, entre seções 2,5rem.
 
-A barra superior é fixa (sticky), em petróleo cheio, com 3,5rem de altura: marca, navegação, botão Lançar e usuário. Abaixo de 1080px o nome do usuário some; abaixo de 760px a navegação vira uma barra inferior em papel com cinco itens de ícone + rótulo (alvo mínimo de 3,75rem).
+A barra superior é fixa (sticky), em petróleo cheio, com 3,5rem de altura: marca, navegação, botão Lançar e usuário. A navegação tem seis itens (Categorias inclusive, fora do menu do usuário). Abaixo de 1160px o nome do usuário, o nome da marca e o texto do Lançar somem; abaixo de 900px a navegação vira uma barra inferior em papel com itens de ícone + rótulo (alvo mínimo de 3,75rem).
 
 A planilha anual é a superfície principal: rola nos dois eixos dentro de um contêiner com altura limitada à janela, com cabeçalho dos meses e primeira coluna fixos (sticky), largura mínima de 81rem e colunas de largura fixa (nome 14rem, mês 4,25rem, total 5,75rem). Acima dos meses fica a "copa do ano": doze barras alinhadas exatamente às colunas. No celular, as doze barras viram o seletor de mês e a tabela vira lista do mês escolhido.
 
@@ -303,17 +303,18 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 ### A planilha do ano (assinatura)
 - Tabela em papel com borda pedra e cantos de 12px; cabeçalho dos meses em areia funda, rótulos em caixa alta 0,8125rem; mês atual em tinta de petróleo forte com texto petróleo profundo e coluna inteira em tinta de petróleo translúcida.
 - Linhas de tipo (RECEITAS, DESPESAS) em areia, 700, separadas por 2px de pedra forte; grupos em 650 com seta que gira 90° ao abrir; categorias recuadas 1,5rem.
+- Categoria com mais de um item ganha uma seta que abre as linhas dos itens, recuadas e em texto menor, abaixo dela.
 - Célula prevista: coral claro com tracejado recuado. Total, Média, % ano e Rank numa faixa de indicadores depois dos meses: divisória dupla em pedra forte, fundo levemente tingido (`tinta-indicadores`, por cima do fundo da linha) e Média, % e Rank em 0,8125rem cinza; o Total segue em 700. Os nomes dos meses no cabeçalho em grafite, os indicadores em cinza.
 - A copa do ano acima dos meses: barras de 1,75rem por 4,25rem; realizado em petróleo cheio, previsto empilhado por cima em coral claro tracejado, traço verde de 3px marcando a renda; ano vazio mostra barras fantasma tracejadas em pedra forte. Legenda com amostras dos três.
 
 ### Olho (esconder valores)
 - Botão de ícone na barra, à esquerda do usuário: 2,75rem, olho Lucide em areia a 80%; ligado vira petróleo noite com o ícone de olho cortado e `aria-pressed`. Valores em reais viram "•••••" pelos formatadores (`reais`, `reaisCurtos`); campos de digitação não mudam.
 
-### Painel do mês (atalho do valor)
-- Célula de categoria × mês é um botão que ocupa a célula inteira; no hover, texto em petróleo profundo com sublinhado pedra forte. Abre o painel lateral com título = categoria (Fraunces) e subtítulo = mês. Blocos "Previsto"/"Previsto para receber" e "Lançado"/"Recebido" com rótulo em caixa alta 0,8125rem; itens de 3,5rem com seta. Um lançamento só abre direto a edição; mês vazio abre o "Lançar".
+### Faixa do mês (atalho do valor)
+- Célula de categoria (ou item) × mês é um botão que ocupa a célula inteira; no hover, texto em petróleo profundo com sublinhado pedra forte. Abre uma faixa logo abaixo da linha, na largura da tabela, com título = categoria (Fraunces) e subtítulo = mês; o painel lateral não é usado aqui. Cada previsto ocupa uma linha (descrição, valor e ações), nunca cartões. Blocos "Previsto"/"Previsto para receber" e "Lançado"/"Recebido" com rótulo em caixa alta 0,8125rem; itens de 3,5rem com seta. Um lançamento só abre direto a edição; mês vazio abre o "Lançar".
 
 ### Conferir ocorrência
-- O previsto num selo coral tracejado e três ações pequenas: primário (Confirmar / "Recebi R$ X"), secundário (Outro valor / "Veio outro valor") e sutil (Pular o mês / "Não recebi"). "Outro valor" troca as ações por um campo de valor com confirmar e voltar. O mesmo componente serve a lista de pendentes e o painel do mês.
+- O previsto num selo coral tracejado e três ações pequenas: primário (Confirmar / "Recebi R$ X"), secundário (Outro valor / "Veio outro valor") e sutil (Pular o mês / "Não recebi"). "Outro valor" troca as ações por um campo de valor com confirmar e voltar. Ações menos usadas (pular, vencimento do mês) ficam em "Mais". Se a data escolhida cai em outro mês, um aviso em texto pequeno diz em que mês o valor vai contar. O mesmo componente serve a lista de pendentes e a faixa do mês.
 
 ### Explicação de coluna
 - Cabeçalho com ícone de info abre um `popover` nativo em papel (26rem, borda pedra, 12px, sombra de menu), título Fraunces 1,125rem, texto 0,875rem e um exemplo do próprio ano em areia. Usado no Rank.

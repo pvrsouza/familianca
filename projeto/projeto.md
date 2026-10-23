@@ -150,6 +150,10 @@ Pontos de atenção constante na hora de desenvolver.
   com o termo vêm primeiro, até 8, com o trecho encontrado em destaque. Escrever uma existente de outro jeito mostra
   "Já existe X" com um botão para usar a já escrita. Objetivo: a família chamar a mesma coisa pelo mesmo nome, mesmo
   com o histórico grande.
+- **Repetir com vencimento (2026-10-22):** ao lançar uma despesa marcando "Repetir", dá para informar o dia do
+  vencimento (opcional). Em branco, a recorrência fica sem vencimento fixo.
+- **Data do pagamento na lista (2026-10-22):** em Lançamentos, cada item mostra "pago em" (despesa), "recebido em"
+  (receita) ou "entrou na conta em" (nota fiscal) com a data.
 
 ## Recorrências
 - Receita ou despesa que se repete: mensal, bimestral, trimestral, semestral ou anual, a partir de um mês de
@@ -187,7 +191,9 @@ Pontos de atenção constante na hora de desenvolver.
     antes ou depois), com "voltar ao dia X". Esse vencimento passa a ser a data da ocorrência: decide quando ela
     vence (e entra em "para conferir") e é a data sugerida ao confirmar. Conta sem vencimento ou no cartão não tem.
   - **Pagar = confirmar.** Ao confirmar uma conta com vencimento, informa-se "Pago em" (ou "Debitado em"): já vencida,
-    vem preenchido com o vencimento (supõe pago em dia; corrige-se se foi depois); ainda a vencer, com hoje. Comparando
+    vem preenchido com o vencimento (supõe pago em dia; corrige-se se foi depois); ainda a vencer, com hoje. Num mês
+    futuro (pagamento adiantado), vem com o vencimento, para o valor não ir para o mês atual; se a data escolhida cair
+    em outro mês, a tela avisa em que mês o valor vai contar (2026-10-23). Comparando
     com o vencimento, o lançamento fica **pago em dia** ou **com N dias de atraso** (selo nos Lançamentos e no mês da
     visão anual).
   - **Conta avulsa (uma vez só):** nova frequência "Uma vez só" para conta que não se repete (IPTU em cota única,
@@ -198,6 +204,12 @@ Pontos de atenção constante na hora de desenvolver.
 - **Atalho do valor (2026-10-17):** clicar no valor de uma categoria num mês abre o que forma aquele valor:
   lançamentos (editar, excluir ou desfazer a confirmação) e previstos (confirmar ou pular). Com um lançamento só,
   abre direto a edição; com o mês vazio, abre o "Lançar" com a categoria e a data preenchidas.
+  - **Edição na própria linha (2026-10-22):** o que forma o valor abre numa faixa logo abaixo da linha clicada, sem
+    painel lateral; um item por linha (não cartões), com confirmar, outro valor e "Mais" (pular, vencimento do mês).
+- **Categoria em itens (2026-10-22):** a seta ao lado da categoria abre as linhas dos itens que a compõem (ex.: três
+  telefones em "Telefone"): uma linha por recorrência, uma por descrição dos lançamentos avulsos (sem ligar para
+  acento e maiúscula) e uma para a estimativa. A célula do item abre só o que é dele. Quais categorias ficam abertas
+  é guardado só no navegador de cada pessoa.
 - **Rank:** posição da categoria pelo total do ano, 1º = a que mais pesa, contada à parte para receitas e
   despesas. Mostrado como "1º", com explicação e exemplo do próprio ano no cabeçalho da coluna.
 - **Esconder valores (olho na barra):** troca todo valor em reais por "•••••" em todas as telas, para usar em
@@ -288,7 +300,10 @@ Pontos de atenção constante na hora de desenvolver.
     - Investimento só entra como lugar se **não** for acompanhado na aba Investimentos; senão contaria duas vezes (a
       tela avisa).
     - Lugar que já entrou num saldo não pode ser excluído, só desativado: some dos meses novos e continua nos antigos.
-      Em Família, "Onde está o dinheiro" lista os lugares para renomear, trocar o dono, desativar ou excluir.
+      Em Família, "Onde está o dinheiro" lista os lugares para renomear, trocar o dono, desativar ou excluir. O
+      próprio painel do saldo também edita e exclui o lugar (para corrigir um nome errado sem sair dali), sem perder
+      os valores já digitados.
+    - Sem a lista de lugares carregada (falha da API), o painel não deixa guardar, para não gravar o saldo sem eles.
 - **Como começar (2026-10-18).** O saldo de hoje é o primeiro passo de quem chega:
   - na tela de entrar, "Como funciona, em 5 passos": (1) informar quanto têm hoje, (2) cadastrar o que se repete,
     (3) lançar e marcar o que foi pago, (4) ver o ano inteiro, (5) trazer a família;
