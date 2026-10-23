@@ -5,6 +5,7 @@ import br.com.familianca.adapter.in.web.dto.LancamentoResponse;
 import br.com.familianca.adapter.in.web.dto.ParceladoRequest;
 import br.com.familianca.application.port.in.GerenciarLancamentos;
 import br.com.familianca.application.port.in.GerenciarLancamentos.Filtro;
+import br.com.familianca.application.port.in.GerenciarLancamentos.Origem;
 import br.com.familianca.domain.model.TipoMovimento;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -54,8 +55,12 @@ public class LancamentoController {
             @RequestParam(required = false) Long categoriaId,
             @RequestParam(required = false) Long grupoId,
             @RequestParam(required = false) Long membroId,
-            @RequestParam(required = false) TipoMovimento tipo) {
-        return lancamentos.listar(new Filtro(de, ate, categoriaId, grupoId, membroId, tipo)).stream()
+            @RequestParam(required = false) TipoMovimento tipo,
+            @Parameter(description = "Parte da descrição, observação, categoria, grupo ou pessoa (sem ligar para "
+                    + "acento e maiúscula), até 200 caracteres") @RequestParam(required = false) String q,
+            @Parameter(description = "AVULSO, RECORRENTE (confirmação de algo que se repete) ou PARCELADO")
+            @RequestParam(required = false) Origem origem) {
+        return lancamentos.listar(new Filtro(de, ate, categoriaId, grupoId, membroId, tipo, q, origem)).stream()
                 .map(LancamentoResponse::de).toList();
     }
 

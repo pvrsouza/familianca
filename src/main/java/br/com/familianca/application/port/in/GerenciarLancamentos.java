@@ -42,8 +42,20 @@ public interface GerenciarLancamentos {
      */
     List<String> descricoesUsadas(Long categoriaId, String termo);
 
-    record Filtro(LocalDate de, LocalDate ate, Long categoriaId, Long grupoId, Long membroId, TipoMovimento tipo) {
+    /**
+     * termo: parte da descrição, observação, categoria, grupo ou pessoa, sem ligar para acento e maiúscula; nulo =
+     * todos. origem: de onde veio o lançamento; nulo = todos.
+     */
+    record Filtro(LocalDate de, LocalDate ate, Long categoriaId, Long grupoId, Long membroId, TipoMovimento tipo,
+                  String termo, Origem origem) {
+
+        public Filtro(LocalDate de, LocalDate ate, Long categoriaId, Long grupoId, Long membroId, TipoMovimento tipo) {
+            this(de, ate, categoriaId, grupoId, membroId, tipo, null, null);
+        }
     }
+
+    /** AVULSO: lançado uma vez; RECORRENTE: confirmação de algo que se repete; PARCELADO: parcela de uma compra. */
+    enum Origem { AVULSO, RECORRENTE, PARCELADO }
 
     /** membroId nulo = o membro logado. notaFiscal: só receita tributável; nulo = não informada. */
     record DadosLancamento(Long categoriaId, Long membroId, String descricao, Dinheiro valor, LocalDate data,

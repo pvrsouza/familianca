@@ -57,6 +57,28 @@ class LancamentoApiTest extends IntegracaoBase {
     }
 
     @Test
+    void filtraPorTermoEOrigem() throws Exception {
+        lancar("Habitação", "Supermercado", "Açougue do Zé", "120", "2026-10-05");
+        lancar("Habitação", "Supermercado", "Feira", "80", "2026-10-06");
+        mvc.perform(post("/api/lancamentos/parcelados").contentType(APPLICATION_JSON).content("""
+                        {"categoriaId": %d, "descricao": "Geladeira", "valorTotal": 3000, "parcelas": 3,
+                         "primeiraData": "2026-10-10"}""".formatted(categoria("Despesas temporárias e variáveis",
+                        "Utilidades domésticas e decoração"))))
+                .andExpect(status().isCreated());
+
+        // Sem acento nem maiúscula; acha também pelo nome da categoria.
+        mvc.perform(get("/api/lancamentos").param("q", "ACOUGUE"))
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].descricao").value("Açougue do Zé"));
+        mvc.perform(get("/api/lancamentos").param("q", "supermerc")).andExpect(jsonPath("$", hasSize(2)));
+        mvc.perform(get("/api/lancamentos").param("origem", "PARCELADO")).andExpect(jsonPath("$", hasSize(3)));
+        mvc.perform(get("/api/lancamentos").param("origem", "AVULSO").param("q", "feira"))
+                .andExpect(jsonPath("$", hasSize(1)));
+        mvc.perform(get("/api/lancamentos").param("q", "x".repeat(201)))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
     void notaFiscalGuardaCompetenciaEEmissaoEContaNoMesDoPagamento() throws Exception {
         mvc.perform(post("/api/categorias/modelos/pj")).andExpect(status().isCreated());
         Long notas = categoria("Receitas da empresa (PJ)", "Notas fiscais emitidas");

@@ -152,6 +152,12 @@ Pontos de atenção constante na hora de desenvolver.
   com o histórico grande.
 - **Repetir com vencimento (2026-10-22):** ao lançar uma despesa marcando "Repetir", dá para informar o dia do
   vencimento (opcional). Em branco, a recorrência fica sem vencimento fixo.
+- **Filtros da lista (2026-10-23):** período por **mês** (com setas), **ano** ou **entre datas**; **busca** por parte da
+  descrição, observação, categoria, grupo ou pessoa (sem ligar para acento e maiúscula, até 200 letras); **categoria**
+  (só as do tipo escolhido); **origem** (lançados uma vez, confirmações do que se repete ou parcelas de compras);
+  **tipo** e **pessoa**. Os totais somam só o que aparece. Os filtros ficam no endereço da página (dá para voltar,
+  recarregar e guardar o link); "Limpar filtros" tira tudo menos o período. Vindo da tabela do ano com uma
+  categoria, abre o ano inteiro dela.
 - **Data do pagamento na lista (2026-10-22):** em Lançamentos, cada item mostra "pago em" (despesa), "recebido em"
   (receita) ou "entrou na conta em" (nota fiscal) com a data.
 

@@ -319,6 +319,9 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 ### Explicação de coluna
 - Cabeçalho com ícone de info abre um `popover` nativo em papel (26rem, borda pedra, 12px, sombra de menu), título Fraunces 1,125rem, texto 0,875rem e um exemplo do próprio ano em areia. Usado no Rank.
 
+### Filtros da lista (Lançamentos)
+- Duas linhas: em cima o período (segmentado Mês / Ano / Entre datas, seguido das setas com o nome do período ou dos dois campos de data) e o tipo (Tudo / Despesas / Receitas); embaixo a busca com lupa (cresce para ocupar a linha), os selects de categoria (agrupados por grupo), origem e pessoa, e "Limpar filtros" sutil quando há filtro além do período. No celular, cada select ocupa a linha inteira. Sem resultado com filtro, o vazio diz "Nada encontrado" e oferece limpar.
+
 ### Estado vazio
 - Centralizado, ilustração mínima de barras (tinta de petróleo forte para realizado, coral claro tracejado para previsto), título 1,125rem, texto de 46ch e ações centralizadas.
 

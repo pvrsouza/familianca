@@ -93,7 +93,13 @@ export interface FiltroLancamentos {
   grupoId?: number
   membroId?: number
   tipo?: Tipo
+  /** Parte da descrição, observação, categoria, grupo ou pessoa (sem ligar para acento e maiúscula). */
+  q?: string
+  origem?: OrigemLancamento
 }
+
+/** AVULSO: lançado uma vez; RECORRENTE: confirmação de algo que se repete; PARCELADO: parcela de uma compra. */
+export type OrigemLancamento = 'AVULSO' | 'RECORRENTE' | 'PARCELADO'
 
 function consulta(filtro: object): string {
   const p = new URLSearchParams()

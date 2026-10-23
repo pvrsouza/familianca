@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -78,9 +79,15 @@ public class LancamentoService implements GerenciarLancamentos {
         if (ate.isBefore(de)) {
             throw new RegraNegocioException("Período inválido: " + de + " a " + ate);
         }
+        String termo = f.termo() == null || f.termo().isBlank() ? null : chaveDescricao(f.termo());
+        if (termo != null && termo.length() > TERMO_MAXIMO) {
+            throw new RegraNegocioException("A busca pode ter no máximo " + TERMO_MAXIMO + " caracteres");
+        }
         Detalhador d = detalhador();
         return lancamentos.listar(de, ate).stream()
                 .map(d::detalhar)
+                .filter(l -> f.origem() == null || origem(l.lancamento()) == f.origem())
+                .filter(l -> termo == null || contem(l, termo))
                 .filter(l -> f.categoriaId() == null || l.categoria().id().equals(f.categoriaId()))
                 .filter(l -> f.grupoId() == null || l.grupo().id().equals(f.grupoId()))
                 .filter(l -> f.membroId() == null || l.lancamento().membroId().equals(f.membroId()))
@@ -211,6 +218,18 @@ public class LancamentoService implements GerenciarLancamentos {
                 .thenComparing(DescricaoUsada::usos, Comparator.reverseOrder());
         return unicas.values().stream().sorted(relevancia).limit(MAXIMO_ENCONTRADAS)
                 .map(DescricaoUsada::descricao).toList();
+    }
+
+    private static Origem origem(Lancamento l) {
+        return l.recorrenciaId() != null ? Origem.RECORRENTE : l.parcela() != null ? Origem.PARCELADO : Origem.AVULSO;
+    }
+
+    /** O termo (já normalizado) aparece na descrição, observação, categoria, grupo ou nome da pessoa? */
+    private static boolean contem(LancamentoDetalhado l, String termo) {
+        return Stream.of(l.lancamento().descricao(), l.lancamento().observacao(), l.categoria().nome(),
+                        l.grupo().nome(), l.membro() != null ? l.membro().nome() : null)
+                .filter(Objects::nonNull)
+                .anyMatch(texto -> chaveDescricao(texto).contains(termo));
     }
 
     /** "Mercado", "mercado " e "Mércado" são a mesma descrição. */
