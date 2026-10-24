@@ -2,6 +2,15 @@
 
 Antes de desenvolver, leia as regras e os pontos de atenção em `projeto/projeto.md` e o lado técnico no `README.md`.
 
+## Discutir a solução antes de implementar
+
+Todo pedido de desenvolvimento (regra nova, funcionalidade, mudança de comportamento) começa com a skill `/grill-me`:
+antes de escrever código, conversar sobre a solução proposta e **criticá-la de verdade**. Isso inclui riscos, casos de
+borda, conflito com regras de `projeto/projeto.md`, alternativas mais simples, custo e o que pode dar errado. Uma
+pergunta por vez, com a recomendação de quem critica. Só implementar depois de fechar as decisões com quem pediu.
+Se a skill não estiver instalada, fazer a mesma conversa sem ela. Ficam de fora tarefas sem decisão de solução (rodar
+testes, commit, push, dúvida pontual).
+
 ## Segurança em todo desenvolvimento
 
 Toda mudança (backend, front, infra) passa pelo checklist de `docs/seguranca.md` ("Checklist para cada
