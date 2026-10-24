@@ -44,6 +44,22 @@ class RecorrenciaApiTest extends IntegracaoBase {
     }
 
     @Test
+    void ocorrenciaDepoisDoUltimoAnoPrevistoNaoSeMexe() throws Exception {
+        Long id = streaming();
+        // Hoje é 2026: a previsão vai até 2028.
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2028-12/pulo", id)).andExpect(status().isOk());
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2029-01/pulo", id))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value("A previsão vai até 2028: 2029-01 ainda não aparece"));
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2029-01/confirmacao", id))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(put("/api/recorrencias/{id}/ocorrencias/2029-01/valor", id).contentType(APPLICATION_JSON)
+                .content("{\"valor\": 60}")).andExpect(status().isUnprocessableEntity());
+        mvc.perform(put("/api/recorrencias/{id}/ocorrencias/2029-01/vencimento", id).contentType(APPLICATION_JSON)
+                .content("{\"vencimento\": \"2029-01-12\"}")).andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
     void confirmaPulaEAcompanhaPendentes() throws Exception {
         Long id = streaming();
         // Hoje é 17/10: agosto, setembro e outubro (dia 10) já passaram.

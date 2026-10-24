@@ -97,6 +97,13 @@ export function anoAtual(): number {
   return new Date().getFullYear()
 }
 
+/** A previsão vai até 2 anos depois do atual (mesma regra do servidor); mais adiante não há visão do ano. */
+export const ANOS_DE_PREVISAO = 2
+
+export function ultimoAnoPrevisto(): number {
+  return anoAtual() + ANOS_DE_PREVISAO
+}
+
 export function mesAtual(): number {
   return new Date().getMonth() + 1
 }

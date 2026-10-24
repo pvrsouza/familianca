@@ -219,6 +219,12 @@ Pontos de atenção constante na hora de desenvolver.
     **"Ainda não paguei (conta a pagar)"**: a data vira o vencimento e a despesa fica prevista, sem contar como paga.
 
 ## Visão anual (o diferencial)
+- **Previsão até 2 anos à frente (2026-10-24):** os previstos (recorrências e estimativas) alcançam só os dois anos
+  depois do atual (em 2026: 2027 e 2028). Mais adiante não há visão do ano (a seta para o próximo ano para no
+  último; a API responde 422 "A previsão vai até 2028") e as ocorrências dessas competências não se confirmam, pulam
+  nem ajustam (valor ou vencimento). Projetar tão longe não ajuda a família e custa processamento: cada ano é
+  calculado encadeando os anteriores, e um ajuste num mês distante seria dado guardado que ninguém vê. O horizonte
+  anda com o calendário (em 2027, vai até 2029). A recorrência continua podendo ter fim depois disso (ou nenhum).
 - **Atalho do valor (2026-10-17):** clicar no valor de uma categoria num mês abre o que forma aquele valor:
   lançamentos (editar, excluir ou desfazer a confirmação) e previstos (confirmar ou pular). Com um lançamento só,
   abre direto a edição; com o mês vazio, abre o "Lançar" com a categoria e a data preenchidas.

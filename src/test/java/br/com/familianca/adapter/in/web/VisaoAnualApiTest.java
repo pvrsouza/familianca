@@ -122,4 +122,18 @@ class VisaoAnualApiTest extends IntegracaoBase {
                 .andExpect(jsonPath("$.resumo.aplicacoes.ano").value(0));
         como.perform(get("/api/visao-anual/1999")).andExpect(status().isUnprocessableEntity());
     }
+
+    @Test
+    void previsaoVaiAteDoisAnosDepoisDoAtual() throws Exception {
+        postarERetornarId("/api/recorrencias", """
+                {"categoriaId": %d, "descricao": "Aluguel", "valor": 2000, "dia": 10, "frequencia": "MENSAL",
+                 "inicio": "2026-01"}""".formatted(categoria("Habitação", "Aluguel ou financiamento")));
+
+        mvc.perform(get("/api/visao-anual/2028"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resumo.despesasTotal.ano").value(24000));
+        mvc.perform(get("/api/visao-anual/2029"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value("A previsão vai até 2028: anos mais à frente não são mostrados"));
+    }
 }

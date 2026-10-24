@@ -7,7 +7,7 @@ import type { CategoriaVisao, Pendente, Tipo, VisaoAnual } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { guia } from '../estado/guia'
-import { MESES, anoAtual, mesAtual, reais, variacao } from '../util/formato'
+import { MESES, anoAtual, mesAtual, reais, ultimoAnoPrevisto, variacao } from '../util/formato'
 import { useMidia } from '../util/midia'
 import TabelaAno from '../componentes/ano/TabelaAno.vue'
 import AnoCelular from '../componentes/ano/AnoCelular.vue'
@@ -21,7 +21,7 @@ const route = useRoute()
 const router = useRouter()
 const celular = useMidia('(max-width: 760px)')
 
-const ano = computed(() => Number(route.params.ano) || anoAtual())
+const ano = computed(() => Math.min(Number(route.params.ano) || anoAtual(), ultimoAnoPrevisto()))
 const aba = computed(() => (['fluxo', 'pessoas'].includes(String(route.query.aba)) ? String(route.query.aba) : 'orcamento'))
 const dados = ref<VisaoAnual | null>(null)
 const carregando = ref(true)
@@ -203,6 +203,8 @@ const proximo = computed(() => passos.value.findIndex(pendente))
           </button>
           <span class="ano-numero num" aria-live="polite">{{ ano }}</span>
           <button type="button" class="botao botao-sutil botao-icone botao-pequeno" :aria-label="`Ver ${ano + 1}`"
+                  :disabled="ano >= ultimoAnoPrevisto()"
+                  :title="ano >= ultimoAnoPrevisto() ? `A previsão vai até ${ultimoAnoPrevisto()}` : undefined"
                   @click="irPara(ano + 1)">
             <ChevronRight aria-hidden="true" />
           </button>

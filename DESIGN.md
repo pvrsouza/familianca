@@ -305,6 +305,7 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 - Linhas de tipo (RECEITAS, DESPESAS) em areia, 700, separadas por 2px de pedra forte; grupos em 650 com seta que gira 90° ao abrir; categorias recuadas 1,5rem.
 - Categoria com mais de um item ganha uma seta que abre as linhas dos itens, recuadas e em texto menor, abaixo dela.
 - Célula prevista: coral claro com tracejado recuado. Total, Média, % ano e Rank numa faixa de indicadores depois dos meses: divisória dupla em pedra forte, fundo levemente tingido (`tinta-indicadores`, por cima do fundo da linha) e Média, % e Rank em 0,8125rem cinza; o Total segue em 700. Os nomes dos meses no cabeçalho em grafite, os indicadores em cinza.
+- Navegação do ano (setas ao lado do número): a seta para o próximo ano fica desabilitada no último ano com previsão (o atual + 2), com a dica "A previsão vai até 2028"; um endereço além disso abre esse último ano.
 - A copa do ano acima dos meses: barras de 1,75rem por 4,25rem; realizado em petróleo cheio, previsto empilhado por cima em coral claro tracejado, traço verde de 3px marcando a renda; ano vazio mostra barras fantasma tracejadas em pedra forte. Legenda com amostras dos três.
 
 ### Olho (esconder valores)

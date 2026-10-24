@@ -88,6 +88,10 @@ public class VisaoAnualService implements ConsultarVisaoAnual {
         if (ano < 2000 || ano > 2100) {
             throw new RegraNegocioException("Ano inválido: " + ano);
         }
+        int ultimo = VisaoAnual.ultimoAnoPrevisto(relogio.hoje());
+        if (ano > ultimo) {
+            throw new RegraNegocioException("A previsão vai até " + ultimo + ": anos mais à frente não são mostrados");
+        }
         confirmacaoAutomatica.processar();
         Familia familia = acesso.familia();
         Integer anoDoPrimeiroSaldo = saldos.primeira().map(Competencia::ano).orElse(null);

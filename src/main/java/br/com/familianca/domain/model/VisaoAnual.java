@@ -4,6 +4,7 @@ import br.com.familianca.domain.vo.Dinheiro;
 import br.com.familianca.domain.vo.Percentual;
 import br.com.familianca.domain.vo.SerieMensal;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -15,6 +16,17 @@ import java.util.List;
  */
 public record VisaoAnual(int ano, List<LinhaGrupo> receitas, List<LinhaGrupo> despesas, Fluxo fluxo,
                          Variacao inflacaoFamiliar, List<LinhaMembro> membros) {
+
+    /**
+     * Até quantos anos depois do atual a previsão alcança (2026 → 2027 e 2028). Mais adiante não há visão do ano nem
+     * ocorrência de recorrência para confirmar, pular ou ajustar: projetar tão longe não ajuda e só custa.
+     */
+    public static final int ANOS_DE_PREVISAO = 2;
+
+    /** Último ano com previsão (e com visão anual). */
+    public static int ultimoAnoPrevisto(LocalDate hoje) {
+        return hoje.getYear() + ANOS_DE_PREVISAO;
+    }
 
     /**
      * @param realizado     lançamentos (e o cálculo por alíquota sobre receitas realizadas)

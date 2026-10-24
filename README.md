@@ -181,7 +181,7 @@ Rotas públicas: `GET /api/auth/csrf`, `POST /api/auth/login`, `POST /api/cadast
 | Recorrências | `GET/POST /api/recorrencias`, `GET /api/recorrencias/pendentes`, `GET/PUT/DELETE /api/recorrencias/{id}`, `POST /api/recorrencias/{id}/ocorrencias/{AAAA-MM}/confirmacao` (também mês já chegado antes do início: histórico da conta), `POST/DELETE /api/recorrencias/{id}/ocorrencias/{AAAA-MM}/pulo`, `PUT /api/recorrencias/{id}/ocorrencias/{AAAA-MM}/vencimento`, `PUT /api/recorrencias/{id}/ocorrencias/{AAAA-MM}/valor` (só o mês ou `daquiEmDiante`), `PUT /api/recorrencias/{id}/estimativa` (`{estimativa, desde?}`; a resposta traz `previsoes`, um trecho por regra do mês atual em diante) |
 | Saldos | `GET /api/saldos?ano=`, `PUT/DELETE /api/saldos/{AAAA-MM}` |
 | Investimentos | `GET/POST /api/investimentos`, `PUT/DELETE /api/investimentos/{id}`, `GET /api/investimentos/{id}/movimentos`, `PUT/DELETE /api/investimentos/{id}/movimentos/{AAAA-MM}`, `GET /api/investimentos/carteira?ano=` |
-| Visão anual | `GET /api/visao-anual`, `GET /api/visao-anual/{ano}` (categorias e itens trazem `previsoes`: como são previstos do mês atual em diante), `POST /api/impacto` |
+| Visão anual | `GET /api/visao-anual`, `GET /api/visao-anual/{ano}` (categorias e itens trazem `previsoes`: como são previstos do mês atual em diante; `ano` até o atual + 2, `VisaoAnual.ANOS_DE_PREVISAO`, senão 422 — a mesma trava vale para confirmar, pular e ajustar ocorrências), `POST /api/impacto` |
 | Administração (ADMIN) | `GET /api/admin/familias`, `PUT /api/admin/familias/{id}/assinatura` |
 
 Detalhes, regras e códigos de erro de cada rota no Swagger.

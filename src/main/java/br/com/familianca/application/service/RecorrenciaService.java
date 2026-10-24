@@ -20,6 +20,7 @@ import br.com.familianca.domain.model.Membro;
 import br.com.familianca.domain.model.NotaFiscal;
 import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.model.TipoMovimento;
+import br.com.familianca.domain.model.VisaoAnual;
 import br.com.familianca.domain.service.CalculadoraVisaoAnual.Ocorrencia;
 import br.com.familianca.domain.service.PrevisaoRecorrencias;
 import br.com.familianca.domain.vo.Competencia;
@@ -207,6 +208,7 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         if (!r.agendadaEm(competencia)) {
             throw new RegraNegocioException("A recorrência não tem ocorrência em " + competencia);
         }
+        exigirNoHorizonte(competencia);
         if (!r.temVencimento()) {
             throw new RegraNegocioException(r.formaPagamento() == FormaPagamento.CARTAO_CREDITO
                     ? "Conta cobrada no cartão não tem vencimento próprio: vale o vencimento da fatura"
@@ -286,10 +288,19 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         if (!r.agendadaEm(competencia)) {
             throw new RegraNegocioException("A recorrência não tem ocorrência em " + competencia);
         }
+        exigirNoHorizonte(competencia);
         if (lancamentos.existeOcorrencia(id, competencia)) {
             throw new ConflitoException("A ocorrência de " + competencia + " já foi confirmada");
         }
         return r;
+    }
+
+    /** Ocorrência depois do último ano com previsão não aparece em lugar nenhum, então não se mexe nela. */
+    private void exigirNoHorizonte(Competencia competencia) {
+        int ultimo = VisaoAnual.ultimoAnoPrevisto(relogio.hoje());
+        if (competencia.ano() > ultimo) {
+            throw new RegraNegocioException("A previsão vai até " + ultimo + ": " + competencia + " ainda não aparece");
+        }
     }
 
     private Membro validar(DadosRecorrencia dados) {
