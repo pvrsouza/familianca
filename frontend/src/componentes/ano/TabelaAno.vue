@@ -3,11 +3,19 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ChevronRight, Info } from 'lucide-vue-next'
 import type { Bloco, CategoriaVisao, GrupoVisao, ItemVisao, SeriePercentual, Tipo, VisaoAnual } from '../../api/tipos'
-import { MESES, MESES_CURTOS, ordinal, pct, reais, reaisCurtos, variacao } from '../../util/formato'
+import {
+  MESES, MESES_CURTOS, anoAtual, competenciaCurta, explicarTrecho, ordinal, pct, previsaoCurta, previsaoDaCategoria, reais, reaisCurtos,
+  variacao,
+} from '../../util/formato'
 import { centavos } from '../../estado/centavos'
 import { inflacao } from '../../estado/inflacao'
 import { detalhes } from '../../estado/detalhes'
+import { catalogo } from '../../estado/catalogo'
+import { sessao } from '../../estado/sessao'
 import SelosCategoria from '../SelosCategoria.vue'
+import ConfigPrevisao from '../ConfigPrevisao.vue'
+import FaixaEdicao from '../FaixaEdicao.vue'
+import Mensagem from '../Mensagem.vue'
 import PainelMes, { type AlvoMes } from './PainelMes.vue'
 
 // A planilha viva: grupos que abrem em categorias, 12 meses, total, média, % do ano e rank. Acima dos meses, a
@@ -40,6 +48,7 @@ function abrirAqui(c: CategoriaVisao, tipo: Tipo, mes: number, item?: ItemVisao)
     return
   }
   medir()
+  previsao.value = null
   edicao.value = {
     chave,
     alvo: {
@@ -49,14 +58,109 @@ function abrirAqui(c: CategoriaVisao, tipo: Tipo, mes: number, item?: ItemVisao)
   }
 }
 
-watch(() => props.visao.ano, () => (edicao.value = null))
-
-/** A base da estimativa da categoria aberta, na visão atual (muda quando a regra muda). */
-const baseAtual = computed(() => {
-  const id = edicao.value?.alvo.categoria.id
-  return [...props.visao.receitas.grupos, ...props.visao.despesas.grupos].flatMap((g) => g.categorias)
-    .find((c) => c.id === id)?.baseEstimativa ?? null
+watch(() => props.visao.ano, () => {
+  edicao.value = null
+  previsao.value = null
 })
+
+function categoriaDaVisao(id: number | undefined): CategoriaVisao | undefined {
+  return [...props.visao.receitas.grupos, ...props.visao.despesas.grupos].flatMap((g) => g.categorias)
+    .find((c) => c.id === id)
+}
+
+/** Como a estimativa da categoria aberta é prevista, na visão atual (muda quando a regra muda). */
+const previsoesAtuais = computed(() => categoriaDaVisao(edicao.value?.alvo.categoria.id)?.previsoes ?? [])
+
+// ——— Como a despesa é prevista ———
+// Ao lado do nome da despesa (a conta que se repete ou a estimativa), um texto discreto diz o que a previsão usa
+// ("média 3 meses", "valor cadastrado"). Clicar no nome (ou nesse texto) abre, logo abaixo da linha, a configuração
+// atual e a troca da regra.
+const previsao = ref<{ chave: string; categoriaId: number; recorrenciaId: number | null; titulo: string; descricao: string } | null>(null)
+const avisoPrevisao = ref('')
+
+/**
+ * O item tem regra de previsão para mostrar: despesa com trechos de previsão, no ano atual ou adiante. Mesmo com o
+ * ano todo confirmado, a regra vale para os anos seguintes.
+ */
+function temPrevisao(item: ItemVisao | undefined, tipo: Tipo): boolean {
+  return !!item && tipo === 'DESPESA' && item.previsoes?.length > 0 && props.visao.ano >= anoAtual()
+}
+
+catalogo.carregar().catch(() => {})
+
+/** Despesa não calculada tem regra de previsão da categoria (vale para as contas dela e a estimativa dos avulsos). */
+function categoriaPrevisivel(c: CategoriaVisao, tipo: Tipo): boolean {
+  return tipo === 'DESPESA' && !c.calculada && c.ativa
+}
+
+function regraDaCategoria(c: CategoriaVisao): string {
+  const doCatalogo = catalogo.estado.grupos.flatMap((g) => g.categorias).find((x) => x.id === c.id)
+  return previsaoDaCategoria(doCatalogo ?? { estimativa: c.estimativa, estimativaDesde: null, estimativaAntes: null },
+    sessao.estado.familia?.estimativa ?? 'MEDIA_3M')
+}
+
+/** Só a regra, curta ("média 3 meses"); de quem é e as contas com regra própria ficam na dica. */
+function textoCategoria(c: CategoriaVisao): string {
+  return regraDaCategoria(c).replace(' (como a família)', '')
+}
+
+function dicaPrevisaoCategoria(c: CategoriaVisao): string {
+  const proprias = c.itens.filter((i) => i.previsoes?.some((t) => t.origem === 'DESPESA')).map((i) => i.descricao)
+  return `Previsão da categoria: ${regraDaCategoria(c)}.`
+    + (proprias.length ? ` Com regra própria: ${proprias.join(', ')}.` : ' Todas as contas seguem esta regra.')
+    + ' Clique para ver ou mudar.'
+}
+
+/**
+ * O item só mostra a regra quando ela foge da categoria (regra própria, mudança marcada ou sem histórico): o que
+ * segue a categoria já está dito na linha dela.
+ */
+function mostraTextoItem(item: ItemVisao): boolean {
+  const t = item.previsoes ?? []
+  return t.length > 1 || t.some((x) => x.origem === 'DESPESA' || (x.valor == null && x.regra !== 'NENHUMA'))
+}
+
+function abrirPrevisaoCategoria(c: CategoriaVisao) {
+  const chave = chaveDe(c)
+  if (previsao.value?.chave === chave) {
+    previsao.value = null
+    return
+  }
+  medir()
+  edicao.value = null
+  avisoPrevisao.value = ''
+  previsao.value = { chave, categoriaId: c.id, recorrenciaId: null, titulo: c.nome, descricao: 'Regra da categoria' }
+}
+
+function textoPrevisao(item: ItemVisao): string {
+  return previsaoCurta(item.previsoes, item.recorrenciaId != null)
+}
+
+function dicaPrevisao(item: ItemVisao): string {
+  const conta = item.recorrenciaId != null
+  return item.previsoes.map((t, i) => `${i === 0 ? 'Agora' : `A partir de ${competenciaCurta(t.desde ?? '')}`}: ${explicarTrecho(t, conta)}`)
+    .join('\n') + '\nClique para ver ou mudar.'
+}
+
+function abrirPrevisao(c: CategoriaVisao, item: ItemVisao) {
+  const chave = chaveDe(c, item)
+  if (previsao.value?.chave === chave) {
+    previsao.value = null
+    return
+  }
+  medir()
+  edicao.value = null
+  avisoPrevisao.value = ''
+  previsao.value = {
+    chave, categoriaId: c.id, recorrenciaId: item.recorrenciaId,
+    titulo: item.estimativa ? `${c.nome}: estimativa` : item.descricao,
+    descricao: item.estimativa ? 'Despesas avulsas da categoria' : c.nome,
+  }
+}
+
+function previsaoFeita(mensagem: string) {
+  avisoPrevisao.value = mensagem
+}
 window.addEventListener('resize', medir)
 onBeforeUnmount(() => window.removeEventListener('resize', medir))
 
@@ -368,6 +472,10 @@ function linkCategoria(c: CategoriaVisao): string {
                 </button>
                 <RouterLink :to="linkCategoria(c)" class="nome-categoria">{{ c.nome }}</RouterLink>
                 <SelosCategoria class="selos" :categoria="c" :tipo="b.chave" />
+                <button v-if="categoriaPrevisivel(c, b.chave)" type="button" class="como-previsto da-categoria"
+                        :title="dicaPrevisaoCategoria(c)" :aria-expanded="previsao?.chave === chaveDe(c)"
+                        :aria-label="`Como ${c.nome} é prevista: ${textoCategoria(c)}. Ver ou mudar`"
+                        @click="abrirPrevisaoCategoria(c)">{{ textoCategoria(c) }}</button>
                 <span v-if="!c.ativa" class="selo">desativada</span>
               </th>
               <td v-for="(v, i) in c.total.valores" :key="i" class="num"
@@ -385,14 +493,33 @@ function linkCategoria(c: CategoriaVisao): string {
             <tr v-if="edicao?.chave === chaveDe(c)" class="linha-edicao">
               <td colspan="17">
                 <div class="faixa-dentro" :style="{ width: larguraFaixa ? `${larguraFaixa}px` : undefined }">
-                  <PainelMes embutido :alvo="edicao.alvo" :base-estimativa="baseAtual" @fechar="edicao = null" />
+                  <PainelMes embutido :alvo="edicao.alvo" :previsoes="previsoesAtuais" @fechar="edicao = null" />
+                </div>
+              </td>
+            </tr>
+            <tr v-if="previsao?.chave === chaveDe(c)" class="linha-edicao">
+              <td colspan="17">
+                <div class="faixa-dentro" :style="{ width: larguraFaixa ? `${larguraFaixa}px` : undefined }">
+                  <FaixaEdicao aberto :titulo="previsao.titulo" :descricao="previsao.descricao" @fechar="previsao = null">
+                    <Mensagem v-if="avisoPrevisao" tipo="sucesso">{{ avisoPrevisao }}</Mensagem>
+                    <ConfigPrevisao :categoria-id="previsao.categoriaId" :recorrencia-id="previsao.recorrenciaId"
+                                    :previsoes="categoriaDaVisao(previsao.categoriaId)?.previsoes" @feito="previsaoFeita" />
+                  </FaixaEdicao>
                 </div>
               </td>
             </tr>
             <template v-if="aberta(c)">
               <template v-for="item in c.itens" :key="item.descricao">
               <tr class="linha-item">
-                <th scope="row"><span class="nome-item">{{ item.descricao }}</span></th>
+                <th scope="row">
+                  <button v-if="temPrevisao(item, b.chave)" type="button" class="nome-item clicavel"
+                          :aria-expanded="previsao?.chave === chaveDe(c, item)" :title="dicaPrevisao(item)"
+                          @click="abrirPrevisao(c, item)">
+                    {{ item.descricao }}
+                    <span v-if="mostraTextoItem(item)" class="como-previsto">{{ textoPrevisao(item) }}</span>
+                  </button>
+                  <span v-else class="nome-item">{{ item.descricao }}</span>
+                </th>
                 <td v-for="(v, i) in item.total.valores" :key="i" class="num"
                     :class="[classesCelula(i, item.previsto[i]), { editando: editando(chaveDe(c, item), i) }]"
                     @mouseenter="realce = i">
@@ -410,7 +537,18 @@ function linkCategoria(c: CategoriaVisao): string {
               <tr v-if="edicao?.chave === chaveDe(c, item)" class="linha-edicao">
               <td colspan="17">
                 <div class="faixa-dentro" :style="{ width: larguraFaixa ? `${larguraFaixa}px` : undefined }">
-                  <PainelMes embutido :alvo="edicao.alvo" :base-estimativa="baseAtual" @fechar="edicao = null" />
+                  <PainelMes embutido :alvo="edicao.alvo" :previsoes="previsoesAtuais" @fechar="edicao = null" />
+                </div>
+              </td>
+            </tr>
+            <tr v-if="previsao?.chave === chaveDe(c, item)" class="linha-edicao">
+              <td colspan="17">
+                <div class="faixa-dentro" :style="{ width: larguraFaixa ? `${larguraFaixa}px` : undefined }">
+                  <FaixaEdicao aberto :titulo="previsao.titulo" :descricao="previsao.descricao" @fechar="previsao = null">
+                    <Mensagem v-if="avisoPrevisao" tipo="sucesso">{{ avisoPrevisao }}</Mensagem>
+                    <ConfigPrevisao :categoria-id="previsao.categoriaId" :recorrencia-id="previsao.recorrenciaId"
+                                    :previsoes="categoriaDaVisao(previsao.categoriaId)?.previsoes" @feito="previsaoFeita" />
+                  </FaixaEdicao>
                 </div>
               </td>
             </tr>
@@ -883,6 +1021,60 @@ tbody + tbody .linha-tipo td {
 
 .nome-item {
   overflow-wrap: anywhere;
+}
+
+/* O nome da despesa que é prevista por regra abre a configuração; parece texto até passar o mouse. A regra fica
+   sempre na linha de baixo. */
+.nome-item.clicavel {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nome-item.clicavel:hover,
+.nome-item.clicavel[aria-expanded='true'] {
+  color: var(--texto);
+  text-decoration: underline;
+  text-decoration-color: var(--linha);
+  text-underline-offset: 3px;
+}
+
+/* Como a despesa é prevista ("média 3 meses"): discreto, em itálico e menor, para não competir com o nome. */
+.como-previsto {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--texto-2);
+  font: inherit;
+  font-size: 0.625rem;
+  font-style: italic;
+  font-weight: 400;
+  opacity: 0.55;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Na categoria, a regra fica na linha de baixo do nome (depois da seta, quando há). */
+.como-previsto.da-categoria {
+  display: block;
+  text-align: left;
+}
+
+.linha-categoria.detalhavel .como-previsto.da-categoria {
+  margin-left: 1.5rem;
+}
+
+.nome-item.clicavel:hover .como-previsto,
+.como-previsto:hover {
+  opacity: 1;
 }
 
 .linha-categoria .selos {

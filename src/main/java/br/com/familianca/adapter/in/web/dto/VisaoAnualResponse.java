@@ -126,14 +126,18 @@ public record VisaoAnualResponse(int ano, List<String> meses, Resumo resumo, Blo
                                          + "recorrência, cada descrição avulsa e a estimativa. Vazio se calculada por alíquota.")
                                  List<ItemVisao> itens,
                                  @Schema(description = "De onde saiu a estimativa dos próximos meses; nulo sem estimativa.")
-                                 BaseEstimativaDto baseEstimativa) {
+                                 BaseEstimativaDto baseEstimativa,
+                                 @Schema(description = "Como a despesa avulsa é estimada do mês atual em diante: um "
+                                         + "trecho por regra. Vazio sem estimativa (receita, categoria que se repete "
+                                         + "ou calculada, outro ano).") List<BaseEstimativaDto> previsoes) {
 
         static CategoriaVisao de(LinhaCategoria l) {
             Categoria c = l.categoria();
             return new CategoriaVisao(c.id(), c.nome(), c.ativa(), c.calculada(), Valores.valor(c.aliquota()),
                     c.recorrente(), c.tributavel(), c.estimativa(), Serie.de(l.total()), Valores.meses(l.realizado()), Valores.meses(l.previsto()),
                     Valores.meses(l.estimado()), Valores.valor(l.participacao()), l.rank(),
-                    l.itens().stream().map(ItemVisao::de).toList(), BaseEstimativaDto.de(l.baseEstimativa()));
+                    l.itens().stream().map(ItemVisao::de).toList(), BaseEstimativaDto.de(l.baseEstimativa()),
+                    BaseEstimativaDto.de(l.previsoes()));
         }
     }
 
@@ -141,11 +145,14 @@ public record VisaoAnualResponse(int ano, List<String> meses, Resumo resumo, Blo
                             @Schema(description = "A recorrência que é este item; nulo = descrição avulsa ou estimativa.")
                             Long recorrenciaId,
                             @Schema(description = "true = a estimativa dos próximos meses.") boolean estimativa,
-                            Serie total, List<BigDecimal> previsto) {
+                            Serie total, List<BigDecimal> previsto,
+                            @Schema(description = "Como o item é previsto do mês atual em diante (a conta que se "
+                                    + "repete e a estimativa), um trecho por regra; vazio nos outros.")
+                            List<BaseEstimativaDto> previsoes) {
 
         static ItemVisao de(LinhaItem i) {
             return new ItemVisao(i.descricao(), i.recorrenciaId(), i.estimativa(), Serie.de(i.total()),
-                    Valores.meses(i.previsto()));
+                    Valores.meses(i.previsto()), BaseEstimativaDto.de(i.previsoes()));
         }
     }
 

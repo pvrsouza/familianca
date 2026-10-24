@@ -2,6 +2,7 @@ package br.com.familianca.application.port.in;
 
 import br.com.familianca.domain.model.Categoria;
 import br.com.familianca.domain.model.Estimativa;
+import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Natureza;
 import br.com.familianca.domain.model.TipoMovimento;
@@ -28,8 +29,13 @@ public interface GerenciarCategorias {
     /** Pode mudar para outro grupo do mesmo tipo. */
     Categoria atualizarCategoria(Long id, DadosCategoria dados, boolean ativa);
 
-    /** Regra própria de estimativa da categoria; nula = segue a da família. */
-    Categoria definirEstimativa(Long id, Estimativa estimativa);
+    /**
+     * Regra própria de estimativa da categoria; nula = segue a da família. Vale para todas as contas da categoria: a
+     * regra própria delas é substituída. desde nulo: vale para todos os meses previstos e os valores ajustados à mão
+     * ficam. desde (o mês atual ou depois): os meses antes continuam com a regra de hoje e os ajustados à mão das
+     * contas da categoria, dele em diante, saem.
+     */
+    Categoria definirEstimativa(Long id, Estimativa estimativa, Competencia desde);
 
     /** Só categoria sem lançamentos nem recorrências; com uso, desative. */
     void removerCategoria(Long id);

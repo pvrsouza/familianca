@@ -96,7 +96,8 @@ public class RecorrenciaController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Confirmar ocorrência", description = """
             Cria o lançamento da ocorrência da competência (AAAA-MM). Sem corpo, usa o valor e o dia da recorrência.
-            Já confirmada: 409. Pulada ou fora da agenda: 422.""")
+            Mês antes do início (já chegado): lança o histórico da conta, que entra na base da previsão sem mudar a
+            agenda. Já confirmada: 409. Pulada, fora da agenda ou antes do início num mês futuro: 422.""")
     @ApiResponse(responseCode = "201", description = "Lançamento criado")
     public LancamentoResponse confirmar(@PathVariable Long id, @PathVariable String competencia,
                                         @Valid @RequestBody(required = false) ConfirmacaoRequest r) {
@@ -139,9 +140,12 @@ public class RecorrenciaController {
     @Operation(summary = "Regra própria para prever os próximos meses desta conta", description = """
             Conta de valor variável (energia, DAS): os próximos meses ficam previstos pela regra (MEDIA_3M: média das 3
             últimas confirmações; MEDIA, MAXIMO, MINIMO: das confirmações do ano; NENHUMA: o valor cadastrado). Nulo
-            volta a seguir a regra da categoria. Receita ou conta que confirma sozinha: 422.""")
-    public RecorrenciaResponse definirEstimativa(@PathVariable Long id, @RequestBody EstimativaPropriaRequest r) {
-        return RecorrenciaResponse.de(recorrencias.definirEstimativa(id, r.estimativa()));
+            volta a seguir a regra da categoria. Sem `desde`, vale para todos os meses previstos e os valores ajustados
+            à mão ficam; com `desde` (AAAA-MM, o mês atual ou depois), os meses antes continuam com a regra de hoje e
+            os ajustados à mão desse mês em diante voltam a seguir a regra. Receita ou conta que confirma sozinha: 422.""")
+    public RecorrenciaResponse definirEstimativa(@PathVariable Long id, @Valid @RequestBody EstimativaPropriaRequest r) {
+        return RecorrenciaResponse.de(recorrencias.definirEstimativa(id, r.estimativa(),
+                r.desde() != null ? Competencia.parse(r.desde()) : null));
     }
 
     @DeleteMapping("/{id}/ocorrencias/{competencia}/pulo")

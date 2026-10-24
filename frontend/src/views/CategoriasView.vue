@@ -7,7 +7,8 @@ import { ErroApi, mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { catalogo } from '../estado/catalogo'
 import { avisar } from '../estado/avisos'
-import { ESTIMATIVAS, MESES, mesAtual, pct } from '../util/formato'
+import { ESTIMATIVAS, MESES, mesAtual, pct, previsaoDaCategoria } from '../util/formato'
+import ConfigPrevisao from '../componentes/ConfigPrevisao.vue'
 import Mensagem from '../componentes/Mensagem.vue'
 import SelosCategoria from '../componentes/SelosCategoria.vue'
 
@@ -119,7 +120,6 @@ function dadosDe(c: Categoria) {
 const editando = ref<string | null>(null)
 const form = reactive({
   nome: '', natureza: 'FIXA' as Natureza, grupoId: 0, aliquota: null as number | null, tributavel: false, recorrente: false,
-  estimativa: 'FAMILIA' as Estimativa | 'FAMILIA',
 })
 
 function editarGrupo(g: Grupo) {
@@ -135,7 +135,6 @@ function editarCategoria(c: Categoria) {
   form.aliquota = c.aliquota
   form.tributavel = c.tributavel
   form.recorrente = c.recorrente
-  form.estimativa = c.estimativa ?? 'FAMILIA'
 }
 
 async function salvarGrupo(g: Grupo) {
@@ -147,18 +146,13 @@ async function salvarGrupo(g: Grupo) {
 async function salvarCategoria(c: Categoria) {
   if (!form.nome.trim()) return
   const movida = form.grupoId !== c.grupoId
-  const novaRegra = form.estimativa !== (c.estimativa ?? 'FAMILIA')
-  const regraVale = form.estimativa === 'FAMILIA' ? estimativaFamilia.value : form.estimativa
-  const msg = novaRegra
-    ? `${form.nome.trim()} atualizada. Os previstos dela já foram recalculados ${ESTIMATIVAS[regraVale].como}.`
-    : movida ? 'Categoria movida.' : 'Categoria atualizada.'
+  const msg = movida ? 'Categoria movida.' : 'Categoria atualizada.'
   if (await executar(() => api.atualizar(c.id, {
     ...dadosDe(c),
     grupoId: form.grupoId, nome: form.nome.trim(),
     tributavel: temPj.value ? form.tributavel : c.tributavel,
     aliquota: temPj.value ? form.aliquota : c.aliquota,
     recorrente: form.aliquota == null ? form.recorrente : false,
-    estimativa: form.estimativa,
   }), msg))
     editando.value = null
 }
@@ -256,9 +250,24 @@ async function definirEstimativa() {
   }
 }
 
-/** A categoria recebe estimativa? Só despesa que não se repete e não é calculada. */
-function estimavel(c: Categoria, g: Grupo) {
-  return g.tipo === 'DESPESA' && !c.recorrente && !c.calculada
+// ——— Como cada categoria é prevista ———
+// Despesa não calculada tem uma regra de previsão (a dela ou a da família): vale para a estimativa das despesas
+// avulsas e para as contas que se repetem nela sem regra própria. Um texto discreto sob o nome diz qual é; clicar abre
+// a configuração atual e a troca da regra, logo abaixo da linha.
+const configurando = ref<number | null>(null)
+const avisoPrevisao = ref('')
+
+function previsivel(c: Categoria, g: Grupo) {
+  return g.tipo === 'DESPESA' && !c.calculada
+}
+
+function textoPrevisao(c: Categoria): string {
+  return `previsão: ${previsaoDaCategoria(c, estimativaFamilia.value)}`
+}
+
+function abrirPrevisao(c: Categoria) {
+  avisoPrevisao.value = ''
+  configurando.value = configurando.value === c.id ? null : c.id
 }
 
 function aplicarPj() {
@@ -475,18 +484,6 @@ const rotuloNatureza = (n: Natureza) => (n === 'FIXA' ? 'fixa' : 'variável')
                 <label v-if="!c.calculada" class="caixa-marcar">
                   <input v-model="form.recorrente" type="checkbox" /> Repete todo mês
                 </label>
-                <label v-if="g.tipo === 'DESPESA' && !c.calculada && !form.recorrente" class="estimar">
-                  <span>Estimar</span>
-                  <select v-model="form.estimativa" class="selecao">
-                    <option value="FAMILIA">Como a família ({{ ESTIMATIVAS[estimativaFamilia].rotulo.toLowerCase() }})</option>
-                    <option v-for="e in opcoesEstimativa" :key="e" :value="e">{{ ESTIMATIVAS[e].rotulo }}</option>
-                  </select>
-                </label>
-                <p v-if="g.tipo === 'DESPESA' && !c.calculada && !form.recorrente && form.estimativa !== (c.estimativa ?? 'FAMILIA')"
-                   class="ajuda aviso-regra">
-                  Ao salvar, os previstos desta categoria são recalculados
-                  {{ ESTIMATIVAS[form.estimativa === 'FAMILIA' ? estimativaFamilia : form.estimativa].como }}.
-                </p>
                 <label v-if="temPj && g.tipo === 'DESPESA' && g.empresa" class="aliquota">
                   <span>Alíquota %</span>
                   <input v-model.number="form.aliquota" class="entrada num" type="number" min="0" max="100" step="0.01" />
@@ -504,15 +501,14 @@ const rotuloNatureza = (n: Natureza) => (n === 'FIXA' ? 'fixa' : 'variável')
                 <span class="categoria">
                   <span class="nome">{{ c.nome }} <SelosCategoria :categoria="c" :tipo="g.tipo" /></span>
                   <button v-if="termo" type="button" class="no-grupo" @click="escolherGrupo(g)">em {{ g.nome }}</button>
+                  <button v-if="previsivel(c, g)" type="button" class="como-previsto" :aria-expanded="configurando === c.id"
+                          title="Como os próximos meses desta categoria e das contas dela são previstos. Clique para ver ou mudar."
+                          @click="abrirPrevisao(c)">{{ textoPrevisao(c) }}</button>
                 </span>
                 <span class="marcas">
                   <span v-if="c.calculada" class="selo selo-petroleo num">{{ pct(c.aliquota, 2) }} das notas</span>
                   <span v-if="c.tributavel" class="selo selo-petroleo">tributável</span>
                   <span v-if="!c.ativa" class="selo">desativada</span>
-                  <span v-if="c.estimativa && estimavel(c, g)" class="selo" :class="{ 'selo-previsto': c.estimativa !== 'NENHUMA' }"
-                        :title="`Estima os próximos meses ${ESTIMATIVAS[c.estimativa].como}`">
-                    {{ c.estimativa === 'NENHUMA' ? 'sem estimativa' : `estima: ${ESTIMATIVAS[c.estimativa].rotulo.toLowerCase()}` }}
-                  </span>
                 </span>
                 <span class="repete">
                   <label v-if="dono && !c.calculada" class="caixa-marcar" :title="c.recorrente ? 'Ao lançar, já sugere repetir no ano' : 'Ao lançar, vale só para o mês'">
@@ -532,6 +528,11 @@ const rotuloNatureza = (n: Natureza) => (n === 'FIXA' ? 'fixa' : 'variável')
                     <button type="button" class="botao botao-sutil botao-pequeno" @click="excluirAlvo = `c${c.id}`">Excluir</button>
                   </template>
                 </span>
+                <div v-if="configurando === c.id" class="config-previsao">
+                  <Mensagem v-if="avisoPrevisao" tipo="sucesso">{{ avisoPrevisao }}</Mensagem>
+                  <ConfigPrevisao :categoria-id="c.id" @feito="avisoPrevisao = $event" />
+                  <button type="button" class="botao botao-sutil botao-pequeno fechar-config" @click="configurando = null">Fechar</button>
+                </div>
               </template>
             </li>
           </ul>
@@ -632,25 +633,6 @@ const rotuloNatureza = (n: Natureza) => (n === 'FIXA' ? 'fixa' : 'variável')
   padding-left: var(--e-5);
   color: var(--texto-2);
   line-height: 1.45;
-}
-
-.aviso-regra {
-  flex-basis: 100%;
-  font-size: var(--t-xs);
-  color: var(--texto-2);
-}
-
-.estimar {
-  display: flex;
-  align-items: center;
-  gap: var(--e-2);
-  font-size: var(--t-xs);
-  font-weight: 600;
-}
-
-.editar-linha .estimar .selecao {
-  flex: none;
-  width: auto;
 }
 
 /* ——— Ferramentas: tipo, busca e filtro ——— */
@@ -931,6 +913,35 @@ const rotuloNatureza = (n: Natureza) => (n === 'FIXA' ? 'fixa' : 'variável')
 
 .no-grupo:hover {
   color: var(--acao);
+}
+
+/* Como a categoria é prevista: discreto, sob o nome, para não competir com ele. */
+.como-previsto {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-style: italic;
+  color: var(--texto-2);
+  text-align: left;
+  cursor: pointer;
+}
+
+.como-previsto:hover,
+.como-previsto[aria-expanded='true'] {
+  color: var(--acao);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.config-previsao {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--e-3);
+  justify-items: start;
+  padding: var(--e-3) 0 var(--e-4);
 }
 
 .marcas {

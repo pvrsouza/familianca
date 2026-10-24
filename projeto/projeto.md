@@ -255,17 +255,60 @@ Pontos de atenção constante na hora de desenvolver.
     cadastrado (reajuste) zera a base: só as confirmações a partir daquele mês contam.
   - **Média dos últimos 3 meses e regra por conta (2026-10-23):**
     - Nova regra **"Média dos últimos 3 meses"**: na despesa avulsa, a média dos 3 meses que já passaram (sem o mês
-      em andamento); na conta que se repete, das 3 últimas confirmações. Cruza o ano (em janeiro usa outubro a
+      em andamento); na conta que se repete, das 3 últimas confirmações (de competência mais recente). Cruza o ano (em janeiro usa outubro a
       dezembro), então funciona desde o começo do ano e acompanha reajustes. Só contam meses a partir de quando a
       família começou a lançar. Média do ano, maior e menor mês continuam olhando só o ano corrente.
     - Virou o **padrão da família**: as famílias que seguiam a média passaram a ela (inclusive as que já existiam);
       categorias com regra própria não mudaram.
     - **Quem manda:** a regra da própria conta que se repete (nova), senão a da categoria, senão a da família. O
       previsto ajustado à mão num mês ("Só mudar o previsto") vale acima de tudo.
-    - **Fica claro e muda ali mesmo:** na faixa do mês, cada conta prevista e a estimativa da categoria mostram a regra,
-      de quem ela é e os meses usados ("Previsto pela média das 3 últimas confirmações (padrão da família): ago
-      R$ 410 · set R$ 380 · out R$ 395 → R$ 395"), com "Mudar a regra". A regra da conta muda quem cadastrou ou quem
-      organiza; a da categoria, só quem organiza. Receita e conta que confirma sozinha não têm regra.
+    - **Fica claro:** na faixa do mês, cada conta prevista e a estimativa da categoria mostram a regra, de quem ela é
+      e os meses usados ("Média dos últimos 3 meses (padrão da família): ago R$ 410 · set R$ 380 · out R$ 395 →
+      R$ 395 por mês"). A regra da conta muda quem cadastrou ou quem organiza; a da categoria, só quem organiza.
+      Receita e conta que confirma sozinha não têm regra.
+  - **Regra no nome da despesa e a partir de um mês (2026-10-24):**
+    - **Onde muda:** a regra saiu da faixa do mês (clicar no valor é para confirmar, pular, lançar). Na visão anual,
+      clicar no **nome da despesa** (a conta que se repete ou a linha da estimativa) abre logo abaixo a configuração;
+      em **Categorias**, o texto "previsão: …" sob o nome da categoria abre a da categoria (agora também nas
+      categorias que se repetem, porque a regra delas vale para as contas da categoria).
+    - **Primeiro a configuração atual:** ao abrir, mostra a regra que vale agora, de quem é, os meses usados, o que
+      muda adiante ("A partir de jan/27: …") e os meses ajustados à mão. Na escolha, a opção atual vem marcada.
+    - **Menos informação (2026-10-24):** na linha da categoria fica só a regra ("média 3 meses"); "como a
+      família" e as contas com regra própria vão para a dica. No item, a regra só aparece quando foge da categoria
+      (regra própria, mudança marcada ou sem histórico). O texto ficou menor e mais claro que o nome.
+    - **Sempre à vista, sem chamar atenção:** sempre na linha de baixo do nome da despesa (na categoria fechada com um item só, depois dos selos),
+      um texto pequeno e cinza diz a regra configurada: "média 3 meses", "maior mês", "valor cadastrado"
+      (não estimar), "menor mês · sem histórico" (a conta ainda não tem mês confirmado para calcular) e, se a regra muda depois, "→ maior mês em jan/27". O detalhe fica na
+      dica ao passar o mouse.
+    - **Alcance:** sem mês, a regra vale para **todos os meses previstos**, deste ano e dos próximos, e **não
+      sobrescreve** os valores ajustados à mão. Com um mês (o atual ou um dos próximos 17), vale **daquele mês em
+      diante**: os meses antes continuam com a regra de hoje e os ajustados à mão daquele mês em diante deixam de
+      valer (na categoria, também os das contas que a seguem). A tela diz antes de aplicar o que vai acontecer.
+    - Fica guardado na categoria e na conta: a regra, o mês em que começa e a regra de antes. Só a última mudança
+      guarda o "antes". Trocar a regra pela edição da categoria (API antiga) vale para todos os meses.
+    - **Toda confirmação entra na base (2026-10-24):** na conta que se repete, a regra usa todas as confirmações,
+      inclusive a do mês atual e as pagas adiantado (confirmou dezembro em outubro, dezembro já conta). Conta
+      confirmada é valor real e fechado; a regra de não usar o mês em andamento vale só para a estimativa das
+      despesas avulsas. Reajuste do valor cadastrado com o mês atual já confirmado passa a valer do mês seguinte
+      (a confirmação feita com o valor antigo não volta a contar). Sem nenhuma confirmação, toda regra cai no valor
+      cadastrado e a tela diz isso ("… · sem histórico").
+    - **Despesa nova nasce com a média dos últimos 3 meses (2026-10-24):** toda conta de despesa criada (inclusive
+      pelo "Repetir" do lançamento e a conta a pagar) já vem com a regra própria "Média dos últimos 3 meses", e não
+      "segue a categoria". Dá para trocar depois no nome da despesa. Fica de fora a conta que confirma sozinha (valor
+      fixo) e a receita. As contas que já existiam não mudam.
+    - **Regra da categoria vale para todas as contas dela (2026-10-24):** mudar a regra da categoria **substitui a
+      regra própria** de cada conta dela (passam a seguir a categoria) e recalcula todos os previstos; com "a partir
+      de", só desse mês em diante (antes, cada conta fica como estava). A conta que confirma sozinha fica de fora.
+      Depois, cada conta ainda pode ganhar uma regra própria pelo nome dela. Onde muda: na visão anual, o texto sob
+      o nome da categoria ("menor mês", "média 3 meses (como a família)", "· 1 conta com regra própria"); em
+      Categorias, o "previsão: …" sob o nome. O painel lista as contas da categoria e a regra de cada uma, e avisa
+      quais regras próprias serão substituídas.
+    - **Histórico antes do início (2026-10-24):** a conta começou depois (Vivo - Moto em outubro), mas a família
+      quer registrar meses anteriores. Na linha da conta, o mês antes do início (já chegado) oferece "Lançar
+      <mês>": vira lançamento **ligado à conta** (mesma linha, conta no mês e entra na base da previsão) sem mudar
+      a agenda. Só meses que já chegaram e não em conta avulsa. Antes, o "Lançar" abria o formulário comum, sem a
+      descrição, e o lançamento ficava solto, numa linha à parte e fora da previsão. O "Lançar" de um item avulso
+      agora já vem com a descrição dele.
   - **Nada é gravado:** os previstos são calculados a cada consulta. Mudar a regra (da família, da categoria ou da conta),
     editar um lançamento ou confirmar um mês recalcula tudo na hora. A tela pede confirmação antes de trocar a
     regra da família e explica o que vai ser recalculado.

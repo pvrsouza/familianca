@@ -9,6 +9,7 @@ import br.com.familianca.adapter.in.web.dto.GrupoRequest;
 import br.com.familianca.application.port.in.GerenciarCategorias;
 import br.com.familianca.domain.exception.RegraNegocioException;
 import br.com.familianca.domain.model.Grupo;
+import br.com.familianca.domain.vo.Competencia;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -98,10 +99,14 @@ public class CategoriaController {
 
     @PutMapping("/{id}/estimativa")
     @Operation(summary = "Regra própria de estimativa da categoria", description = """
-            Como prever os próximos meses das despesas desta categoria (e das contas dela sem regra própria). Nulo
-            volta a seguir a regra da família. Só quem organiza a família.""")
-    public CategoriaResponse definirEstimativa(@PathVariable Long id, @RequestBody EstimativaPropriaRequest r) {
-        return CategoriaResponse.de(categorias.definirEstimativa(id, r.estimativa()));
+            Como prever os próximos meses das despesas desta categoria e de todas as contas dela (a regra própria de
+            cada conta é substituída: passam a seguir a categoria). Nulo
+            volta a seguir a regra da família. Sem `desde`, vale para todos os meses previstos e os valores ajustados
+            à mão ficam; com `desde` (AAAA-MM), vale desse mês em diante e os ajustados à mão das contas da categoria,
+            desse mês em diante, voltam a seguir a regra. Só quem organiza a família.""")
+    public CategoriaResponse definirEstimativa(@PathVariable Long id, @Valid @RequestBody EstimativaPropriaRequest r) {
+        return CategoriaResponse.de(categorias.definirEstimativa(id, r.estimativa(),
+                r.desde() != null ? Competencia.parse(r.desde()) : null));
     }
 
     @DeleteMapping("/{id}")

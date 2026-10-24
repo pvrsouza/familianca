@@ -49,6 +49,9 @@ public class RecorrenciaEntity {
     String formaPagamento;
     /** Regra própria de estimativa; nulo = segue a da categoria. */
     String estimativa;
+    /** A regra mudou a partir deste mês (AAAA-MM); até lá vale estimativaAntes (nulo = segue a categoria). */
+    String estimativaDesde;
+    String estimativaAntes;
     /** Vencimento ajustado por competência (AAAA-MM). */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "recorrencia_vencimento", joinColumns = @JoinColumn(name = "recorrencia_id"))

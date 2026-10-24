@@ -1,6 +1,7 @@
 package br.com.familianca.application.port.in;
 
 import br.com.familianca.application.port.in.GerenciarLancamentos.LancamentoDetalhado;
+import br.com.familianca.domain.model.BaseEstimativa;
 import br.com.familianca.domain.model.Categoria;
 import br.com.familianca.domain.model.Estimativa;
 import br.com.familianca.domain.model.FormaPagamento;
@@ -65,9 +66,10 @@ public interface GerenciarRecorrencias {
 
     /**
      * Regra própria para prever os próximos meses desta conta (só despesa que não confirma sozinha); nula = segue a
-     * da categoria.
+     * da categoria. desde nulo: vale para todos os meses previstos e os valores ajustados à mão ficam. desde (o mês
+     * atual ou depois): os meses antes continuam com a regra de hoje e os ajustados à mão dele em diante saem.
      */
-    RecorrenciaDetalhada definirEstimativa(Long id, Estimativa estimativa);
+    RecorrenciaDetalhada definirEstimativa(Long id, Estimativa estimativa, Competencia desde);
 
     /**
      * membroId nulo = o membro logado; fim nulo = sem prazo. confirmarSozinha: as ocorrências que vencem a partir de
@@ -93,9 +95,11 @@ public interface GerenciarRecorrencias {
     /**
      * @param valorNoAno valor previsto de cada ocorrência do ano (confirmadas pelo valor previsto), sem as puladas
      * @param previsao   estimativa do valor das próximas ocorrências pela regra; nula = vale o valor cadastrado
+     * @param previsoes  como a conta é prevista do mês atual em diante, um trecho por regra (vazio = o cadastrado)
      */
     record RecorrenciaDetalhada(Recorrencia recorrencia, Categoria categoria, Grupo grupo, Membro membro, int ano,
-                                Dinheiro valorNoAno, Dinheiro valorAnualizado, Previsao previsao) {
+                                Dinheiro valorNoAno, Dinheiro valorAnualizado, Previsao previsao,
+                                List<BaseEstimativa> previsoes) {
     }
 
     /** @param vencimento nulo = conta sem vencimento (ou receita) */

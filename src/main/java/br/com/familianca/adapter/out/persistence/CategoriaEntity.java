@@ -26,4 +26,7 @@ public class CategoriaEntity {
     BigDecimal aliquota;
     boolean recorrente;
     String estimativa;
+    /** A regra mudou a partir deste mês (AAAA-MM); até lá vale estimativaAntes (nulo = a da família). */
+    String estimativaDesde;
+    String estimativaAntes;
 }

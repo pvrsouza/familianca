@@ -13,7 +13,9 @@ import Mensagem from './Mensagem.vue'
 import SeletorCategoria from './SeletorCategoria.vue'
 import SaldoInicialPrimeiro from './SaldoInicialPrimeiro.vue'
 
-const props = defineProps<{ lancamento?: Lancamento | null; tipoInicial?: Tipo; categoriaInicial?: number; dataInicial?: string }>()
+const props = defineProps<{
+  lancamento?: Lancamento | null; tipoInicial?: Tipo; categoriaInicial?: number; dataInicial?: string; descricaoInicial?: string
+}>()
 const emit = defineEmits<{ salvo: [mensagem: string]; cancelar: [] }>()
 
 const editando = computed(() => !!props.lancamento)
@@ -21,7 +23,7 @@ const l = props.lancamento
 const form = reactive({
   tipo: (l?.tipo ?? props.tipoInicial ?? 'DESPESA') as Tipo,
   valor: l?.valor ?? (null as number | null),
-  descricao: l?.descricao ?? '',
+  descricao: l?.descricao ?? props.descricaoInicial ?? '',
   categoriaId: l?.categoria.id ?? props.categoriaInicial ?? (null as number | null),
   data: l?.data ?? props.dataInicial ?? hoje(),
   membroId: l?.membro?.id ?? sessao.estado.usuario?.membroId ?? null,

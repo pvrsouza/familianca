@@ -44,11 +44,16 @@ public record PlanoContasResponse(List<GrupoResponse> grupos) {
                                     @Schema(description = "Costuma se repetir: ao lançar, o app sugere repetir no ano.")
                                     boolean recorrente,
                                     @Schema(description = "Regra própria para estimar os próximos meses; nulo = segue a família.")
-                                    Estimativa estimativa) {
+                                    Estimativa estimativa,
+                                    @Schema(description = "A regra muda a partir deste mês (AAAA-MM); nulo = vale para "
+                                            + "todos os meses previstos.") String estimativaDesde,
+                                    @Schema(description = "A regra até estimativaDesde; nulo = a da família.")
+                                    Estimativa estimativaAntes) {
 
         public static CategoriaResponse de(Categoria c) {
             return new CategoriaResponse(c.id(), c.grupoId(), c.nome(), c.ordem(), c.ativa(), c.tributavel(),
-                    Valores.valor(c.aliquota()), c.calculada(), c.recorrente(), c.estimativa());
+                    Valores.valor(c.aliquota()), c.calculada(), c.recorrente(), c.estimativa(),
+                    c.estimativaDesde() != null ? c.estimativaDesde().toString() : null, c.estimativaAntes());
         }
     }
 }

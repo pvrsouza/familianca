@@ -55,18 +55,21 @@ const selos = computed<Selo[]>(() => {
         + 'As categorias calculadas por alíquota usam a soma destas receitas em cada mês.',
     })
   }
-  // Só despesa que não se repete e não é calculada recebe estimativa: nas outras a regra guardada não vale.
-  if (c.estimativa && props.tipo !== 'RECEITA' && !c.recorrente && !c.calculada) {
+  // Regra própria de previsão: na despesa avulsa, a estimativa; na que se repete, as contas dela sem regra própria.
+  if (c.estimativa && props.tipo !== 'RECEITA' && !c.calculada) {
     const regra = ESTIMATIVAS[c.estimativa]
+    const doQue = c.recorrente ? 'as contas desta categoria (sem regra própria) são previstas'
+      : 'os próximos meses desta categoria são estimados'
     lista.push({
       letra: 'E',
-      nome: 'Estimativa própria',
+      nome: 'Previsão própria',
       classe: 'e',
       texto: c.estimativa === 'NENHUMA'
-        ? 'Estimativa própria: os próximos meses desta categoria não são estimados, mesmo que a família estime '
-          + 'as outras. Só conta o que for lançado.'
-        : `Estimativa própria (${regra.rotulo.toLowerCase()}): os próximos meses desta categoria são estimados `
-          + `${regra.como}, em vez da regra da família. A estimativa aparece como prevista até o gasto ser lançado.`,
+        ? (c.recorrente
+          ? 'Previsão própria: as contas desta categoria valem o valor cadastrado, mesmo que a família estime as outras.'
+          : 'Previsão própria: os próximos meses desta categoria não são estimados, mesmo que a família estime '
+            + 'as outras. Só conta o que for lançado.')
+        : `Previsão própria (${regra.rotulo.toLowerCase()}): ${doQue} ${regra.como}, em vez da regra da família.`,
     })
   }
   return lista

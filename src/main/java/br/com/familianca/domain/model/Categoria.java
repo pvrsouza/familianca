@@ -1,9 +1,11 @@
 package br.com.familianca.domain.model;
 
 import br.com.familianca.domain.exception.RegraNegocioException;
+import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Percentual;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 
 import static br.com.familianca.domain.Validacoes.obrigatorio;
 
@@ -14,10 +16,14 @@ import static br.com.familianca.domain.Validacoes.obrigatorio;
  *   lançamentos nem recorrências; o valor sai do cálculo.
  * - recorrente: o que costuma se repetir todo mês (ex.: aluguel, telefone, salário). Ao lançar nela, o sistema já
  *   sugere repetir o valor no ano (cria a recorrência). Não obriga: dá para lançar uma vez só.
- * - estimativa: como estimar os próximos meses quando a despesa não se repete; nulo = segue a regra da família.
+ * - estimativa: como prever os próximos meses (a estimativa da despesa avulsa e o previsto das contas que se repetem
+ *   e seguem a categoria); nulo = segue a regra da família.
+ * - estimativaDesde/estimativaAntes: a regra mudou a partir de um mês futuro; até lá vale estimativaAntes (nula =
+ *   a da família). Sem estimativaDesde, a regra vale para todos os meses previstos.
  */
 public record Categoria(Long id, Long grupoId, String nome, int ordem, boolean ativa, boolean tributavel,
-                        Percentual aliquota, boolean recorrente, Estimativa estimativa) {
+                        Percentual aliquota, boolean recorrente, Estimativa estimativa, Competencia estimativaDesde,
+                        Estimativa estimativaAntes) {
 
     public static final int NOME_MAXIMO = 120;
 
@@ -36,23 +42,53 @@ public record Categoria(Long id, Long grupoId, String nome, int ordem, boolean a
         if (aliquota != null && recorrente) {
             throw new RegraNegocioException("Categoria calculada por alíquota não recebe lançamentos: não pode ser recorrente");
         }
+        if (estimativaDesde == null) {
+            estimativaAntes = null;
+        }
+    }
+
+    public Categoria(Long id, Long grupoId, String nome, int ordem, boolean ativa, boolean tributavel,
+                     Percentual aliquota, boolean recorrente, Estimativa estimativa) {
+        this(id, grupoId, nome, ordem, ativa, tributavel, aliquota, recorrente, estimativa, null, null);
     }
 
     /** Categoria que segue a estimativa da família. */
     public Categoria(Long id, Long grupoId, String nome, int ordem, boolean ativa, boolean tributavel,
                      Percentual aliquota, boolean recorrente) {
-        this(id, grupoId, nome, ordem, ativa, tributavel, aliquota, recorrente, null);
+        this(id, grupoId, nome, ordem, ativa, tributavel, aliquota, recorrente, null, null, null);
     }
 
     /** Categoria que não se repete por padrão e segue a estimativa da família. */
     public Categoria(Long id, Long grupoId, String nome, int ordem, boolean ativa, boolean tributavel,
                      Percentual aliquota) {
-        this(id, grupoId, nome, ordem, ativa, tributavel, aliquota, false, null);
+        this(id, grupoId, nome, ordem, ativa, tributavel, aliquota, false, null, null, null);
     }
 
     /** A regra que vale para estimar os próximos meses: a da categoria ou, sem ela, a da família. */
     public Estimativa estimativaOu(Estimativa daFamilia) {
         return estimativa != null ? estimativa : daFamilia;
+    }
+
+    /** A regra própria que vale no mês (nula = segue a família): antes de estimativaDesde, a de antes da mudança. */
+    public Estimativa estimativaEm(Competencia mes) {
+        return estimativaDesde != null && mes.antesDe(estimativaDesde) ? estimativaAntes : estimativa;
+    }
+
+    /** A regra que vale no mês: a da categoria naquele mês ou, sem ela, a da família. */
+    public Estimativa estimativaOu(Estimativa daFamilia, Competencia mes) {
+        Estimativa propria = estimativaEm(mes);
+        return propria != null ? propria : daFamilia;
+    }
+
+    /**
+     * Nova regra própria (nula = segue a família). Sem mês (ou no mês atual), vale para todos os meses previstos. A
+     * partir de um mês depois do atual, os meses antes dele continuam com a regra que vale hoje.
+     */
+    public Categoria comEstimativa(Estimativa nova, Competencia desde, Competencia mesAtual) {
+        Estimativa antes = estimativaEm(mesAtual);
+        boolean depois = desde != null && mesAtual.antesDe(desde) && !Objects.equals(antes, nova);
+        return new Categoria(id, grupoId, nome, ordem, ativa, tributavel, aliquota, recorrente, nova,
+                depois ? desde : null, depois ? antes : null);
     }
 
     public boolean calculada() {

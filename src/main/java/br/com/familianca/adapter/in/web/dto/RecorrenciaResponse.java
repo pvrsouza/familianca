@@ -51,7 +51,14 @@ public record RecorrenciaResponse(Long id, TipoMovimento tipo, CategoriaRef cate
                                   @Schema(description = "Regra própria para prever os próximos meses; nulo = segue a "
                                           + "categoria (ou a família).") Estimativa estimativa,
                                   @Schema(description = "De onde saiu o valorPrevisto: regra, de quem é e as "
-                                          + "confirmações usadas; nulo = valor cadastrado.") BaseEstimativaDto basePrevisao) {
+                                          + "confirmações usadas; nulo = valor cadastrado.") BaseEstimativaDto basePrevisao,
+                                  @Schema(description = "A regra própria muda a partir deste mês (AAAA-MM); nulo = "
+                                          + "vale para todos os meses previstos.") String estimativaDesde,
+                                  @Schema(description = "A regra própria até estimativaDesde; nulo = segue a categoria.")
+                                  Estimativa estimativaAntes,
+                                  @Schema(description = "Como a conta é prevista do mês atual em diante: um trecho por "
+                                          + "regra (valor nulo = o cadastrado). Vazio em receita e conta que confirma "
+                                          + "sozinha.") List<BaseEstimativaDto> previsoes) {
 
     public record VencimentoAjustado(String competencia, LocalDate vencimento) {
     }
@@ -74,6 +81,8 @@ public record RecorrenciaResponse(Long id, TipoMovimento tipo, CategoriaRef cate
                         .map(e -> new VencimentoAjustado(e.getKey().toString(), e.getValue())).toList(),
                 r.valoresAjustados().entrySet().stream().sorted(Map.Entry.comparingByKey())
                         .map(e -> new ValorAjustado(e.getKey().toString(), e.getValue().valor())).toList(),
-                r.estimativa(), d.previsao() != null ? BaseEstimativaDto.de(d.previsao().base()) : null);
+                r.estimativa(), d.previsao() != null ? BaseEstimativaDto.de(d.previsao().base()) : null,
+                r.estimativaDesde() != null ? r.estimativaDesde().toString() : null, r.estimativaAntes(),
+                BaseEstimativaDto.de(d.previsoes()));
     }
 }

@@ -10,6 +10,7 @@ import br.com.familianca.domain.model.TipoMovimento;
 import br.com.familianca.domain.model.VisaoAnual;
 import br.com.familianca.domain.model.VisaoAnual.LinhaCategoria;
 import br.com.familianca.domain.service.CalculadoraVisaoAnual.Entrada;
+import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Dinheiro;
 import br.com.familianca.domain.vo.SerieMensal;
 import org.junit.jupiter.api.Test;
@@ -122,6 +123,26 @@ class CalculadoraEstimativaTest {
         assertThat(l.estimado().mes(2)).isEqualTo(Dinheiro.of("1100.00"));
         assertThat(l.baseEstimativa().meses()).extracting(m -> m.competencia().toString())
                 .containsExactly("2026-10", "2026-11", "2026-12");
+    }
+
+    @Test
+    void regraDaCategoriaAPartirDeUmMes() {
+        // Até agosto segue a família (média = 1.200); de setembro em diante, o maior mês (1.400).
+        Categoria mercado = SUPERMERCADO.comEstimativa(Estimativa.MAXIMO, Competencia.of(2026, 9),
+                Competencia.of(2026, 5));
+        VisaoAnual visao = new CalculadoraVisaoAnual().calcular(new Entrada(2026, List.of(RECEITAS, CASA),
+                List.of(SALARIO, mercado), LANCAMENTOS.stream().filter(l -> !l.categoriaId().equals(21L)
+                        && !l.categoriaId().equals(22L) && !l.categoriaId().equals(23L)).toList(), List.of(), Set.of(),
+                List.of(), SerieMensal.ZERO, SerieMensal.ZERO, null, Estimativa.MEDIA, HOJE));
+        LinhaCategoria l = linha(visao, mercado);
+        assertThat(l.estimado().mes(8)).isEqualTo(Dinheiro.of("1200.00"));
+        assertThat(l.estimado().mes(9)).isEqualTo(Dinheiro.of("1400"));
+        assertThat(l.previsoes()).extracting(BaseEstimativa::regra).containsExactly(Estimativa.MEDIA, Estimativa.MAXIMO);
+        assertThat(l.previsoes()).extracting(BaseEstimativa::origem)
+                .containsExactly(BaseEstimativa.Origem.FAMILIA, BaseEstimativa.Origem.CATEGORIA);
+        assertThat(l.previsoes().get(1).desde()).isEqualTo(Competencia.of(2026, 9));
+        // Sem mês, vale para todos os meses previstos.
+        assertThat(mercado.comEstimativa(Estimativa.MINIMO, null, Competencia.of(2026, 5)).estimativaDesde()).isNull();
     }
 
     private static VisaoAnual calcular(Estimativa daFamilia, LocalDate hoje) {

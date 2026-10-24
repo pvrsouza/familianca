@@ -13,6 +13,7 @@ import br.com.familianca.domain.exception.RegraNegocioException;
 import br.com.familianca.domain.model.Categoria;
 import br.com.familianca.domain.model.Estimativa;
 import br.com.familianca.domain.model.FormaPagamento;
+import br.com.familianca.domain.model.Frequencia;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Lancamento;
 import br.com.familianca.domain.model.Membro;
@@ -85,10 +86,14 @@ public class RecorrenciaService implements GerenciarRecorrencias {
     public RecorrenciaDetalhada criar(DadosRecorrencia dados) {
         Membro membro = validar(dados);
         acesso.exigirSaldoInicial();
+        // Despesa nova já nasce prevista pela média dos últimos 3 meses (regra própria, que dá para trocar depois).
+        boolean estimavel = !dados.confirmarSozinha() && planoContas.buscarCategoria(dados.categoriaId())
+                .flatMap(c -> planoContas.buscarGrupo(c.grupoId()))
+                .map(g -> g.tipo() == TipoMovimento.DESPESA).orElse(false);
         Recorrencia nova = new Recorrencia(null, dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
                 dados.dia(), dados.frequencia(), dados.inicio(), dados.fim(), dados.observacao(), Set.of(),
                 dados.confirmarSozinha() ? relogio.hoje() : null, null, dados.semVencimento(),
-                dados.formaPagamento(), Map.of());
+                dados.formaPagamento(), Map.of(), Map.of(), estimavel ? Estimativa.MEDIA_3M : null);
         return detalhar(recorrencias.salvar(nova));
     }
 
@@ -100,13 +105,15 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         // Ligada continua valendo desde quando foi ligada; ligar agora vale a partir de hoje.
         LocalDate desde = !dados.confirmarSozinha() ? null
                 : atual.confirmaSozinha() ? atual.confirmarSozinhaDesde() : relogio.hoje();
-        // Mudou o valor (reajuste): a estimativa passa a considerar só as confirmações daqui em diante.
+        // Mudou o valor (reajuste): a estimativa passa a considerar só as confirmações daqui em diante. Se o mês atual
+        // já foi confirmado (com o valor antigo), o reajuste vale a partir do mês seguinte.
+        Competencia mes = Competencia.de(relogio.hoje());
         Competencia valorDesde = dados.valor().equals(atual.valor()) ? atual.valorDesde()
-                : Competencia.de(relogio.hoje());
+                : lancamentos.existeOcorrencia(id, mes) ? mes.seguinte() : mes;
         Recorrencia editada = new Recorrencia(id, dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
                 dados.dia(), dados.frequencia(), dados.inicio(), dados.fim(), dados.observacao(), atual.puladas(),
                 desde, valorDesde, dados.semVencimento(), dados.formaPagamento(), atual.vencimentosAjustados(),
-                atual.valoresAjustados(), atual.estimativa());
+                atual.valoresAjustados(), atual.estimativa(), atual.estimativaDesde(), atual.estimativaAntes());
         return detalhar(recorrencias.salvar(editada));
     }
 
@@ -152,7 +159,8 @@ public class RecorrenciaService implements GerenciarRecorrencias {
     @Override
     public LancamentoDetalhado confirmar(Long id, Competencia competencia, Dinheiro valor, LocalDate data,
                                          NotaFiscal notaFiscal) {
-        Recorrencia r = exigirOcorrencia(id, competencia);
+        Recorrencia r = antesDoInicio(id, competencia) ? exigirHistorico(id, competencia)
+                : exigirOcorrencia(id, competencia);
         acesso.exigirSaldoInicial();
         if (r.puladas().contains(competencia)) {
             throw new RegraNegocioException("A ocorrência de " + competencia + " foi pulada: desfaça o pulo antes");
@@ -230,7 +238,7 @@ public class RecorrenciaService implements GerenciarRecorrencias {
     }
 
     @Override
-    public RecorrenciaDetalhada definirEstimativa(Long id, Estimativa estimativa) {
+    public RecorrenciaDetalhada definirEstimativa(Long id, Estimativa estimativa, Competencia desde) {
         Recorrencia r = exigir(id);
         acesso.exigirPodeAlterar(r.membroId());
         Categoria categoria = planoContas.buscarCategoria(r.categoriaId()).orElseThrow();
@@ -240,7 +248,34 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         if (r.confirmaSozinha()) {
             throw new RegraNegocioException("Conta que confirma sozinha tem valor fixo: não é estimada");
         }
-        return detalhar(recorrencias.salvar(r.comEstimativa(estimativa)));
+        Competencia mesAtual = Competencia.de(relogio.hoje());
+        if (desde != null && desde.antesDe(mesAtual)) {
+            throw new RegraNegocioException("A regra muda a partir do mês atual ou de um mês à frente");
+        }
+        return detalhar(recorrencias.salvar(r.comEstimativa(estimativa, desde, mesAtual)));
+    }
+
+    private boolean antesDoInicio(Long id, Competencia competencia) {
+        return competencia != null && recorrencias.buscar(id).map(r -> competencia.antesDe(r.inicio())).orElse(false);
+    }
+
+    /**
+     * Mês de antes do início da conta (já passado ou o atual), lançado como histórico dela: vira um lançamento ligado à
+     * recorrência, conta naquele mês e entra na base da previsão, mas não muda a agenda. Conta avulsa não tem histórico.
+     */
+    private Recorrencia exigirHistorico(Long id, Competencia competencia) {
+        Recorrencia r = exigir(id);
+        acesso.exigirPodeAlterar(r.membroId());
+        if (r.frequencia() == Frequencia.UNICA) {
+            throw new RegraNegocioException("Conta avulsa só tem o mês dela: lance " + competencia + " como despesa");
+        }
+        if (competencia.depoisDe(Competencia.de(relogio.hoje()))) {
+            throw new RegraNegocioException("Antes do início, só dá para lançar meses que já chegaram");
+        }
+        if (lancamentos.existeOcorrencia(id, competencia)) {
+            throw new ConflitoException(r.descricao() + " de " + competencia + " já foi lançada");
+        }
+        return r;
     }
 
     /** Recorrência com ocorrência agendada na competência e ainda não confirmada, que o usuário pode alterar. */
@@ -292,6 +327,6 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         Dinheiro noAno = r.ocorrenciasNoAno(ano).stream().map(comp -> previsao.valorEm(r, comp))
                 .reduce(Dinheiro.ZERO, Dinheiro::somar);
         return new RecorrenciaDetalhada(r, c, d.grupo(c.grupoId()), d.membro(r.membroId()), ano, noAno,
-                r.valorAnualizado(), previsao.de(r));
+                r.valorAnualizado(), previsao.de(r), previsao.trechos(r));
     }
 }

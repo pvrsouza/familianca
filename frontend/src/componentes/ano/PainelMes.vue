@@ -7,12 +7,15 @@ import type { BaseEstimativa, Lancamento, Recorrencia, Tipo } from '../../api/ti
 import { ErroApi, mensagemDeErro } from '../../api/http'
 import { sessao } from '../../estado/sessao'
 import { avisar } from '../../estado/avisos'
-import { MESES, anoAtual, competencia, dataPorExtenso, hoje, mesAtual, reais, situacaoPagamento } from '../../util/formato'
+import {
+  MESES, anoAtual, competencia, competenciaCurta, dataPorExtenso, hoje, mesAtual, reais, situacaoPagamento, trechoEm,
+} from '../../util/formato'
 import { catalogo } from '../../estado/catalogo'
 import PainelLateral from '../PainelLateral.vue'
 import FaixaEdicao from '../FaixaEdicao.vue'
 import FormLancamento from '../FormLancamento.vue'
 import ConferirOcorrencia from '../ConferirOcorrencia.vue'
+import CampoValor from '../CampoValor.vue'
 import RegraPrevisao from './RegraPrevisao.vue'
 import Mensagem from '../Mensagem.vue'
 
@@ -28,15 +31,16 @@ export interface ItemAlvo {
 }
 
 export interface AlvoMes {
-  categoria: { id: number; nome: string; ativa: boolean; calculada: boolean; estimado?: number[]; baseEstimativa?: BaseEstimativa | null }
+  categoria: { id: number; nome: string; ativa: boolean; calculada: boolean; estimado?: number[]; previsoes?: BaseEstimativa[] }
   tipo: Tipo
   ano: number
   mes: number
   item?: ItemAlvo | null
 }
 
-// baseEstimativa: a da visão recarregada (o alvo guarda a linha de quando a célula foi aberta).
-const props = defineProps<{ alvo: AlvoMes | null; embutido?: boolean; baseEstimativa?: BaseEstimativa | null }>()
+// previsoes: como a estimativa da categoria é prevista, na visão recarregada (o alvo guarda a linha de quando a célula
+// foi aberta).
+const props = defineProps<{ alvo: AlvoMes | null; embutido?: boolean; previsoes?: BaseEstimativa[] }>()
 const emit = defineEmits<{ fechar: [] }>()
 
 // UNICA: o fim é o próprio início, então o intervalo não importa (a faixa início–fim já limita a um mês).
@@ -97,6 +101,7 @@ const dataNova = computed(() => {
 const variasPessoas = computed(() => (sessao.estado.familia?.membros ?? []).filter((m) => m.ativo).length > 1)
 const total = computed(() => itens.value.reduce((s, l) => s + l.valor, 0))
 /** Estimativa do mês (despesa que não se repete, meses à frente): o que falta para chegar na média/máximo/mínimo. */
+const previsoesCategoria = computed(() => props.previsoes ?? props.alvo?.categoria.previsoes ?? [])
 const estimadoNoMes = computed(() => (props.alvo ? props.alvo.categoria.estimado?.[props.alvo.mes - 1] ?? 0 : 0))
 /** A estimativa aparece no mês da categoria inteira, ou quando o item clicado é ela. */
 const mostrarEstimativa = computed(() => estimadoNoMes.value > 0.004 && (!item.value || item.value.estimativa))
@@ -222,14 +227,20 @@ function conferido(mensagem: string) {
   carregar(false)
 }
 
-/** Do mês atual em diante, a recorrência de valor variável é prevista pela regra (média, maior ou menor confirmação). */
-function usaEstimativa(r: Recorrencia) {
+/** Do mês atual em diante, a despesa que se repete segue o trecho da previsão daquele mês (a regra que vale nele). */
+function trechoDe(r: Recorrencia) {
   const a = props.alvo
-  return !!a && !!r.previstoPor && (a.ano > anoAtual() || (a.ano === anoAtual() && a.mes >= mesAtual()))
+  if (!a || !(a.ano > anoAtual() || (a.ano === anoAtual() && a.mes >= mesAtual()))) return null
+  return trechoEm(r.previsoes ?? [], comp.value)
+}
+
+/** O valor do mês sai da regra (média, maior ou menor confirmação), e não do cadastrado. */
+function usaEstimativa(r: Recorrencia) {
+  return trechoDe(r)?.valor != null
 }
 
 /** O ajustado só neste mês vale acima da estimativa e do valor cadastrado. */
-/** Despesa que se repete, do mês atual em diante e sem confirmação automática: mostra (e deixa mudar) a regra. */
+/** Despesa que se repete, do mês atual em diante e sem confirmação automática: explica a regra. */
 function mostraRegra(r: Recorrencia) {
   const a = props.alvo
   return !!a && a.tipo === 'DESPESA' && !r.confirmarSozinha
@@ -239,11 +250,45 @@ function mostraRegra(r: Recorrencia) {
 function previstoDe(r: Recorrencia) {
   const ajustado = r.valoresAjustados.find((v) => v.competencia === comp.value)
   if (ajustado) return ajustado.valor
-  return usaEstimativa(r) ? r.valorPrevisto : r.valor
+  return usaEstimativa(r) ? trechoDe(r)!.valor! : r.valor
 }
 
 function podeAlterarRecorrencia(r: Recorrencia) {
   return sessao.dono.value || r.membro?.id === sessao.estado.usuario?.membroId
+}
+
+// ——— Mês antes do início da conta ———
+// A conta começou depois (Vivo - Moto em outubro) e o mês clicado já chegou: lançar aqui guarda o histórico da própria
+// conta (ligado a ela, conta no mês e entra na previsão), em vez de um lançamento avulso com o mesmo nome.
+const historico = computed(() => {
+  const i = item.value
+  if (!props.alvo || i?.recorrenciaId == null) return null
+  const r = daCategoria.value.find((x) => x.id === i.recorrenciaId)
+  if (!r || r.frequencia === 'UNICA' || comp.value >= r.inicio || comp.value > competencia(anoAtual(), mesAtual())) return null
+  return itens.value.some((l) => l.recorrenciaId === r.id) ? null : r
+})
+const valorHistorico = ref<number | null>(null)
+const dataHistorico = ref('')
+const lancandoHistorico = ref(false)
+watch(historico, (r) => {
+  valorHistorico.value = r?.valor ?? null
+  dataHistorico.value = r ? `${comp.value}-${String(Math.min(r.dia, 28)).padStart(2, '0')}` : ''
+})
+
+async function lancarHistorico() {
+  const r = historico.value
+  if (!r || !valorHistorico.value || valorHistorico.value <= 0 || !dataHistorico.value) return
+  lancandoHistorico.value = true
+  erro.value = ''
+  try {
+    await apiRecorrencias.confirmar(r.id, comp.value, valorHistorico.value, dataHistorico.value)
+    sessao.avisarMudanca()
+    conferido(`${r.descricao}: ${MESES[props.alvo!.mes - 1]} lançado no histórico da conta.`)
+  } catch (e) {
+    erro.value = mensagemDeErro(e)
+  } finally {
+    lancandoHistorico.value = false
+  }
 }
 
 const voltando = ref<number | null>(null)
@@ -323,6 +368,7 @@ async function voltarAPrever(r: Recorrencia) {
       </template>
 
       <FormLancamento v-else-if="modo === 'novo'" :tipo-inicial="alvo.tipo" :categoria-inicial="alvo.categoria.id"
+                      :descricao-inicial="item && !item.estimativa ? item.descricao : undefined"
                       :data-inicial="dataNova" @salvo="terminou" @cancelar="direto ? emit('fechar') : voltar()" />
 
       <template v-else>
@@ -337,8 +383,7 @@ async function voltarAPrever(r: Recorrencia) {
               <li v-for="r in previstas" :key="r.id" class="prevista">
                 <div v-if="!item || mostraRegra(r)" class="nome-prevista">
                   <span v-if="!item" class="descricao">{{ r.descricao }}</span>
-                  <RegraPrevisao v-if="mostraRegra(r)" :base="usaEstimativa(r) ? r.basePrevisao : null" :recorrencia="r"
-                                 :categoria-id="alvo.categoria.id" @feito="conferido" />
+                  <RegraPrevisao v-if="mostraRegra(r)" :trecho="trechoDe(r)" conta :cadastrado="r.valor" />
                 </div>
                 <ConferirOcorrencia v-if="confirmandoRemoverPrevista !== r.id" :recorrencia="r" :competencia="comp"
                                     :valor-previsto="previstoDe(r)" :compacto="enxuto" :em-linha="enxuto && !item"
@@ -391,7 +436,7 @@ async function voltarAPrever(r: Recorrencia) {
             <div class="estimativa">
               <span class="selo selo-previsto num">{{ reais(estimadoNoMes) }}</span>
               <div>
-                <RegraPrevisao :base="baseEstimativa !== undefined ? baseEstimativa : alvo.categoria.baseEstimativa ?? null" :categoria-id="alvo.categoria.id" @feito="conferido" />
+                <RegraPrevisao :trecho="trechoEm(previsoesCategoria, comp)" />
                 <p class="texto-2 nota-estimativa">
                   {{ itens.length ? 'Já descontado o que foi lançado. ' : '' }}Quando vocês lançarem o gasto real, ele
                   ocupa o lugar da estimativa.
@@ -438,14 +483,33 @@ async function voltarAPrever(r: Recorrencia) {
             <p v-if="itens.length > 1" class="total num">Total lançado: <strong>{{ reais(total) }}</strong></p>
           </section>
 
-          <p v-if="item && !itens.length && !previstas.length && !puladas.length && !mostrarEstimativa" class="texto-2 vazio">
+          <section v-if="historico && podeAlterarRecorrencia(historico)" class="bloco">
+            <h3>Antes do início da conta</h3>
+            <p class="texto-2 nota-historico">
+              {{ historico.descricao }} começa em {{ competenciaCurta(historico.inicio) }}. Lançar o valor de
+              {{ MESES[alvo.mes - 1] }} guarda o histórico da conta: entra nas despesas do mês e na previsão dos
+              próximos meses.
+            </p>
+            <form class="historico" @submit.prevent="lancarHistorico">
+              <CampoValor :id="`historico-${historico.id}`" v-model="valorHistorico" obrigatorio class="campo-historico" />
+              <label class="pago-em">
+                <span>Pago em</span>
+                <input v-model="dataHistorico" class="entrada data" type="date" required />
+              </label>
+              <button type="submit" class="botao botao-primario botao-pequeno" :disabled="lancandoHistorico">
+                <Plus aria-hidden="true" /> Lançar {{ MESES[alvo.mes - 1] }}
+              </button>
+            </form>
+          </section>
+
+          <p v-else-if="item && !itens.length && !previstas.length && !puladas.length && !mostrarEstimativa" class="texto-2 vazio">
             Nada de {{ item.descricao }} em {{ MESES[alvo.mes - 1] }}.
           </p>
 
           <Mensagem v-if="erro" tipo="erro">{{ erro }}</Mensagem>
 
           <div class="acoes rodape" :class="{ enxuto: enxuto }">
-            <button v-if="podeLancar && (!item || (!itens.length && !previstas.length))" type="button" class="botao botao-primario" @click="abrirNovo()">
+            <button v-if="podeLancar && !historico && (!item || (!itens.length && !previstas.length))" type="button" class="botao botao-primario" @click="abrirNovo()">
               <Plus aria-hidden="true" /> Lançar em {{ MESES[alvo.mes - 1] }}
             </button>
             <RouterLink :to="`/lancamentos?categoriaId=${alvo.categoria.id}&ano=${alvo.ano}`" class="botao botao-sutil"
@@ -460,6 +524,30 @@ async function voltarAPrever(r: Recorrencia) {
 </template>
 
 <style scoped>
+.nota-historico {
+  margin: 0 0 var(--e-3);
+  font-size: var(--t-sm);
+}
+
+.historico {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-2) var(--e-3);
+}
+
+.campo-historico {
+  max-width: 10rem;
+}
+
+.pago-em {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
 .voltar {
   margin: calc(var(--e-2) * -1) 0 var(--e-4) calc(var(--e-3) * -1);
 }

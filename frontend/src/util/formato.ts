@@ -1,6 +1,7 @@
 // Números e datas no jeito brasileiro. Tudo com algarismos tabulares no CSS (font-variant-numeric).
 import { privacidade } from '../estado/privacidade'
 import { centavos } from '../estado/centavos'
+import type { BaseEstimativa } from '../api/tipos'
 
 /** Valor escondido pelo olhinho da barra. Ler `ocultos` aqui faz a tela redesenhar ao alternar. */
 const OCULTO = '•••••'
@@ -164,13 +165,13 @@ export function situacaoPagamento(diasAtraso: number | null | undefined): string
   return `Pago com ${diasAtraso} ${diasAtraso === 1 ? 'dia' : 'dias'} de atraso`
 }
 
-/** Regras de estimativa dos próximos meses: rótulo curto e "como" (para frases). */
-export const ESTIMATIVAS: Record<string, { rotulo: string; como: string }> = {
-  MEDIA_3M: { rotulo: 'Média dos últimos 3 meses', como: 'pela média dos últimos 3 meses' },
-  MEDIA: { rotulo: 'Média do ano', como: 'pela média dos meses que já passaram no ano' },
-  MAXIMO: { rotulo: 'Maior mês', como: 'pelo maior mês do ano até aqui' },
-  MINIMO: { rotulo: 'Menor mês', como: 'pelo menor mês do ano até aqui' },
-  NENHUMA: { rotulo: 'Não estimar', como: 'sem estimativa' },
+/** Regras de estimativa dos próximos meses: rótulo, "como" (para frases) e curto (ao lado do nome, na tabela). */
+export const ESTIMATIVAS: Record<string, { rotulo: string; como: string; curto: string }> = {
+  MEDIA_3M: { rotulo: 'Média dos últimos 3 meses', como: 'pela média dos últimos 3 meses', curto: 'média 3 meses' },
+  MEDIA: { rotulo: 'Média do ano', como: 'pela média dos meses que já passaram no ano', curto: 'média do ano' },
+  MAXIMO: { rotulo: 'Maior mês', como: 'pelo maior mês do ano até aqui', curto: 'maior mês' },
+  MINIMO: { rotulo: 'Menor mês', como: 'pelo menor mês do ano até aqui', curto: 'menor mês' },
+  NENHUMA: { rotulo: 'Não estimar', como: 'sem estimativa', curto: 'sem estimativa' },
 }
 
 /** Ordem em que as regras aparecem para escolher. */
@@ -181,6 +182,65 @@ export const ORIGENS_ESTIMATIVA: Record<string, string> = {
   DESPESA: 'regra desta conta',
   CATEGORIA: 'regra da categoria',
   FAMILIA: 'padrão da família',
+}
+
+/**
+ * A regra configurada, em poucas palavras, para ficar ao lado do nome da despesa: "média 3 meses", "valor cadastrado"
+ * (conta que não estima), "menor mês · sem histórico" (a conta ainda não tem mês confirmado para calcular) e, se a regra
+ * muda depois, "→ maior mês em jan/27".
+ * conta: é uma conta que se repete (sem estimativa vale o cadastrado); senão, a estimativa da despesa avulsa.
+ */
+export function previsaoCurta(trechos: BaseEstimativa[], conta: boolean): string {
+  const curto = (t: BaseEstimativa) => {
+    if (conta && t.regra === 'NENHUMA') return 'valor cadastrado'
+    return `${ESTIMATIVAS[t.regra].curto}${t.valor == null && t.regra !== 'NENHUMA' ? ' · sem histórico' : ''}`
+  }
+  if (!trechos.length) return ''
+  const [agora, ...depois] = trechos
+  return [curto(agora), ...depois.map((t) => `→ ${curto(t)} em ${competenciaCurta(t.desde ?? '')}`)].join(' ')
+}
+
+/**
+ * A regra da categoria em poucas palavras: "menor mês", "média 3 meses (como a família)" ou, com mudança marcada,
+ * "média do ano → maior mês em jan/27".
+ */
+export function previsaoDaCategoria(
+  c: { estimativa: string | null; estimativaDesde: string | null; estimativaAntes: string | null },
+  daFamilia: string,
+): string {
+  const hojeComp = competencia(anoAtual(), mesAtual())
+  const futura = c.estimativaDesde && c.estimativaDesde > hojeComp ? c.estimativaDesde : null
+  const curto = (e: string | null) => (e ? ESTIMATIVAS[e].curto : `${ESTIMATIVAS[daFamilia].curto} (como a família)`)
+  const agora = futura ? c.estimativaAntes : c.estimativa
+  return `${curto(agora)}${futura ? ` → ${curto(c.estimativa)} em ${competenciaCurta(futura)}` : ''}`
+}
+
+/**
+ * A frase completa de um trecho: "Média dos últimos 3 meses (padrão da família): ago R$ 410 · set R$ 380 · out R$ 395
+ * → R$ 395 por mês." Na conta sem base, explica por que vale o cadastrado.
+ */
+export function explicarTrecho(t: BaseEstimativa, conta: boolean, cadastrado?: number): string {
+  const de = ORIGENS_ESTIMATIVA[t.origem]
+  const regra = `${ESTIMATIVAS[t.regra].rotulo} (${de})`
+  const valorCadastrado = cadastrado != null ? `, ${reais(cadastrado)}` : ''
+  if (t.regra === 'NENHUMA') {
+    return conta ? `Não estimar (${de}): todo mês previsto vale o valor cadastrado${valorCadastrado}.`
+      : `Não estimar (${de}): os próximos meses só mostram o que for lançado.`
+  }
+  if (t.valor == null) {
+    return conta
+      ? `${regra}. Por enquanto todo mês previsto fica no valor cadastrado${valorCadastrado}: esta conta ainda não tem `
+        + 'nenhum mês confirmado para a regra calcular.'
+      : `${regra}. Ainda não há meses anteriores com gasto para calcular: nada é estimado.`
+  }
+  return `${regra}: ${mesesDaBase(t.meses)} → ${reais(t.valor)} por mês.`
+}
+
+/** O trecho que vale na competência (AAAA-MM): o último que começa nela ou antes. */
+export function trechoEm(trechos: BaseEstimativa[], comp: string): BaseEstimativa | null {
+  let vale: BaseEstimativa | null = null
+  for (const t of trechos) if (!t.desde || t.desde <= comp) vale = t
+  return vale
 }
 
 /** "ago R$ 410 · set R$ 380 · out R$ 395": os meses que entraram na estimativa. */

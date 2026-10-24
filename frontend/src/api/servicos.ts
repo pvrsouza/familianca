@@ -72,9 +72,12 @@ export const categorias = {
   criar: (d: DadosCategoria) => api.post<Categoria>('/api/categorias', d),
   atualizar: (id: number, d: DadosCategoria) => api.put<Categoria>(`/api/categorias/${id}`, d),
   remover: (id: number) => api.delete(`/api/categorias/${id}`),
-  /** Regra própria de estimativa; null volta a seguir a da família. */
-  definirEstimativa: (id: number, estimativa: Estimativa | null) =>
-    api.put<Categoria>(`/api/categorias/${id}/estimativa`, { estimativa }),
+  /**
+   * Regra própria de estimativa; null volta a seguir a da família. Sem desde, vale para todos os meses previstos (os
+   * ajustados à mão ficam); com desde (AAAA-MM), desse mês em diante (os ajustados à mão dali em diante seguem a regra).
+   */
+  definirEstimativa: (id: number, estimativa: Estimativa | null, desde: string | null = null) =>
+    api.put<Categoria>(`/api/categorias/${id}/estimativa`, { estimativa, desde }),
   aplicarModeloPj: () => api.post<{ grupos: Grupo[] }>('/api/categorias/modelos/pj'),
 }
 
@@ -146,6 +149,7 @@ export interface DadosRecorrencia {
 
 export const recorrencias = {
   listar: () => api.get<Recorrencia[]>('/api/recorrencias'),
+  buscar: (id: number) => api.get<Recorrencia>(`/api/recorrencias/${id}`),
   pendentes: () => api.get<Pendente[]>('/api/recorrencias/pendentes'),
   criar: (d: DadosRecorrencia) => api.post<Recorrencia>('/api/recorrencias', d),
   atualizar: (id: number, d: DadosRecorrencia) => api.put<Recorrencia>(`/api/recorrencias/${id}`, d),
@@ -163,9 +167,9 @@ export const recorrencias = {
    * Valor previsto diferente, sem confirmar. Só neste mês (null volta ao previsto de sempre) ou, com daquiEmDiante,
    * deste mês em diante: os meses antes ainda previstos ficam como estavam.
    */
-  /** Regra própria para prever os próximos meses desta conta; null volta a seguir a categoria. */
-  definirEstimativa: (id: number, estimativa: Estimativa | null) =>
-    api.put<Recorrencia>(`/api/recorrencias/${id}/estimativa`, { estimativa }),
+  /** Regra própria para prever os próximos meses desta conta; null volta a seguir a categoria. desde: ver categorias. */
+  definirEstimativa: (id: number, estimativa: Estimativa | null, desde: string | null = null) =>
+    api.put<Recorrencia>(`/api/recorrencias/${id}/estimativa`, { estimativa, desde }),
   ajustarValor: (id: number, competencia: string, valor: number | null, daquiEmDiante = false) =>
     api.put<Recorrencia>(`/api/recorrencias/${id}/ocorrencias/${competencia}/valor`, { valor, daquiEmDiante }),
 }

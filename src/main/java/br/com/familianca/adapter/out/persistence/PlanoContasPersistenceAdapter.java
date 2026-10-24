@@ -10,6 +10,7 @@ import br.com.familianca.domain.model.Natureza;
 import br.com.familianca.domain.model.TipoMovimento;
 import br.com.familianca.domain.service.CatalogoCategorias.ModeloCategoria;
 import br.com.familianca.domain.service.CatalogoCategorias.ModeloGrupo;
+import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Percentual;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -172,6 +173,8 @@ public class PlanoContasPersistenceAdapter implements PlanoContasRepository {
         e.aliquota = c.aliquota() != null ? c.aliquota().valor() : null;
         e.recorrente = c.recorrente();
         e.estimativa = c.estimativa() != null ? c.estimativa().name() : null;
+        e.estimativaDesde = c.estimativaDesde() != null ? c.estimativaDesde().toString() : null;
+        e.estimativaAntes = c.estimativaAntes() != null ? c.estimativaAntes().name() : null;
     }
 
     private static Grupo paraDominio(GrupoCategoriaEntity e) {
@@ -182,6 +185,8 @@ public class PlanoContasPersistenceAdapter implements PlanoContasRepository {
     private static Categoria paraDominio(CategoriaEntity e) {
         return new Categoria(e.id, e.grupoId, e.nome, e.ordem, e.ativa, e.tributavel,
                 e.aliquota != null ? Percentual.of(e.aliquota) : null, e.recorrente,
-                e.estimativa != null ? Estimativa.valueOf(e.estimativa) : null);
+                e.estimativa != null ? Estimativa.valueOf(e.estimativa) : null,
+                e.estimativaDesde != null ? Competencia.parse(e.estimativaDesde) : null,
+                e.estimativaAntes != null ? Estimativa.valueOf(e.estimativaAntes) : null);
     }
 }

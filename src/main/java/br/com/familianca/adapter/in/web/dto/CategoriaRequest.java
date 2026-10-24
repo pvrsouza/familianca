@@ -22,11 +22,11 @@ public record CategoriaRequest(
         @Schema(description = "Costuma se repetir todo mês: ao lançar, o app sugere repetir no ano. "
                 + "Nulo = não (na criação) ou mantém (na edição).") Boolean recorrente,
         @Schema(description = "Como estimar os próximos meses da despesa: FAMILIA (segue a regra da família), "
-                + "NENHUMA, MEDIA, MAXIMO ou MINIMO. Nulo = segue a família (na criação) ou mantém (na edição).")
+                + "NENHUMA, MEDIA_3M, MEDIA, MAXIMO ou MINIMO. Nulo = segue a família (na criação) ou mantém (na edição).")
         EscolhaEstimativa estimativa) {
 
     /** A escolha da categoria: a regra da família ou uma regra própria. */
-    public enum EscolhaEstimativa { FAMILIA, NENHUMA, MEDIA, MAXIMO, MINIMO }
+    public enum EscolhaEstimativa { FAMILIA, NENHUMA, MEDIA_3M, MEDIA, MAXIMO, MINIMO }
 
     public DadosCategoria paraDados() {
         return new DadosCategoria(grupoId, nome, ordem, Boolean.TRUE.equals(tributavel), Valores.percentual(aliquota),

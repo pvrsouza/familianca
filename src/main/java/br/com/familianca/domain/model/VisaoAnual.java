@@ -24,19 +24,27 @@ public record VisaoAnual(int ano, List<LinhaGrupo> receitas, List<LinhaGrupo> de
      * @param rank          posição entre as categorias do mesmo tipo pelo total do ano (1 = maior); nulo sem valor
      * @param itens         o que compõe a categoria (cada recorrência, cada descrição avulsa, a estimativa), do
      *                      maior para o menor no ano; vazio na categoria calculada por alíquota
-     * @param baseEstimativa de onde saiu a estimativa dos próximos meses (regra e meses usados); nulo sem estimativa
+     * @param previsoes     como a despesa avulsa da categoria é estimada do mês atual em diante: um trecho por regra
+     *                      (regra, de quem é, desde quando e os meses usados); vazio quando não recebe estimativa
+     *                      (receita, categoria que se repete ou calculada, ano que não é o atual)
      */
     public record LinhaCategoria(Categoria categoria, SerieMensal realizado, SerieMensal previsto,
                                  SerieMensal estimado, Percentual participacao, Integer rank, List<LinhaItem> itens,
-                                 BaseEstimativa baseEstimativa) {
+                                 List<BaseEstimativa> previsoes) {
 
         public LinhaCategoria(Categoria categoria, SerieMensal realizado, SerieMensal previsto, SerieMensal estimado,
                               Percentual participacao, Integer rank, List<LinhaItem> itens) {
-            this(categoria, realizado, previsto, estimado, participacao, rank, itens, null);
+            this(categoria, realizado, previsto, estimado, participacao, rank, itens, List.of());
         }
 
         public LinhaCategoria {
             itens = List.copyOf(itens);
+            previsoes = previsoes == null ? List.of() : List.copyOf(previsoes);
+        }
+
+        /** A estimativa que vale no mês atual, se a categoria estima algo. */
+        public BaseEstimativa baseEstimativa() {
+            return previsoes.isEmpty() || !previsoes.getFirst().estima() ? null : previsoes.getFirst();
         }
 
         public SerieMensal total() {
@@ -47,9 +55,20 @@ public record VisaoAnual(int ano, List<LinhaGrupo> receitas, List<LinhaGrupo> de
     /**
      * Um item dentro da categoria, para abrir a linha agrupada (ex.: os três telefones de "Telefone e celular").
      * recorrenciaId: o item é essa recorrência (nulo = descrição avulsa ou estimativa); estimativa: é a estimativa.
+     * previsoes: como o item é previsto do mês atual em diante (a conta que se repete e a estimativa); vazio nos
+     * outros.
      */
     public record LinhaItem(String descricao, Long recorrenciaId, boolean estimativa, SerieMensal realizado,
-                            SerieMensal previsto) {
+                            SerieMensal previsto, List<BaseEstimativa> previsoes) {
+
+        public LinhaItem {
+            previsoes = previsoes == null ? List.of() : List.copyOf(previsoes);
+        }
+
+        public LinhaItem(String descricao, Long recorrenciaId, boolean estimativa, SerieMensal realizado,
+                         SerieMensal previsto) {
+            this(descricao, recorrenciaId, estimativa, realizado, previsto, List.of());
+        }
 
         public SerieMensal total() {
             return realizado.somar(previsto);

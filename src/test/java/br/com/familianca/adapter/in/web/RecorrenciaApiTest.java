@@ -67,8 +67,6 @@ class RecorrenciaApiTest extends IntegracaoBase {
                 .andExpect(jsonPath("$.valor").value(59.90));
         mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-09/confirmacao", id))
                 .andExpect(status().isConflict());
-        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-07/confirmacao", id))
-                .andExpect(status().isUnprocessableEntity());
 
         mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-10/pulo", id))
                 .andExpect(status().isOk())
@@ -292,6 +290,10 @@ class RecorrenciaApiTest extends IntegracaoBase {
         Long das = postarERetornarId("/api/recorrencias", """
                 {"categoriaId": %d, "descricao": "DAS", "valor": 3000, "dia": 20, "frequencia": "MENSAL",
                  "inicio": "2026-07"}""".formatted(categoria("Outras despesas fixas", "Tarifas bancárias")));
+        // Despesa nova já nasce com a média dos últimos 3 meses como regra própria; aqui ela passa a seguir a família.
+        mvc.perform(get("/api/recorrencias/{id}", das)).andExpect(jsonPath("$.estimativa").value("MEDIA_3M"));
+        mvc.perform(put("/api/recorrencias/{id}/estimativa", das).contentType(APPLICATION_JSON)
+                .content("{\"estimativa\": null}")).andExpect(status().isOk());
         for (String[] c : new String[][]{{"2026-07", "3184.15"}, {"2026-08", "4959.84"}, {"2026-09", "1511.61"}}) {
             mvc.perform(post("/api/recorrencias/{id}/ocorrencias/{c}/confirmacao", das, c[0])
                     .contentType(APPLICATION_JSON).content("{\"valor\": %s}".formatted(c[1])))
@@ -355,5 +357,130 @@ class RecorrenciaApiTest extends IntegracaoBase {
         mvc.perform(put("/api/familia/estimativa").contentType(APPLICATION_JSON).content("{\"estimativa\": \"NENHUMA\"}"))
                 .andExpect(status().isOk());
         mvc.perform(get("/api/recorrencias/{id}", das)).andExpect(jsonPath("$.valorPrevisto").value(3500));
+    }
+
+    @Test
+    void regraDaContaParaTodosOsMesesOuAPartirDeUmMes() throws Exception {
+        Long tarifas = categoria("Outras despesas fixas", "Tarifas bancárias");
+        Long das = postarERetornarId("/api/recorrencias", """
+                {"categoriaId": %d, "descricao": "DAS", "valor": 3000, "dia": 20, "frequencia": "MENSAL",
+                 "inicio": "2026-07"}""".formatted(tarifas));
+        for (String[] c : new String[][]{{"2026-07", "3000"}, {"2026-08", "3300"}, {"2026-09", "3600"}}) {
+            mvc.perform(post("/api/recorrencias/{id}/ocorrencias/{c}/confirmacao", das, c[0])
+                    .contentType(APPLICATION_JSON).content("{\"valor\": %s}".formatted(c[1])))
+                    .andExpect(status().isCreated());
+        }
+        for (String[] c : new String[][]{{"2026-11", "5000"}, {"2027-01", "4000"}}) {
+            mvc.perform(put("/api/recorrencias/{id}/ocorrencias/{c}/valor", das, c[0])
+                    .contentType(APPLICATION_JSON).content("{\"valor\": %s}".formatted(c[1])))
+                    .andExpect(status().isOk());
+        }
+        String prevista = "$.despesas.grupos[?(@.nome == 'Outras despesas fixas')].categorias[?(@.nome == 'Tarifas bancárias')].previsto[%d]";
+
+        // Sem mês: vale para todos os meses previstos (inclusive do ano que vem) e os ajustados à mão ficam.
+        mvc.perform(put("/api/recorrencias/{id}/estimativa", das).contentType(APPLICATION_JSON)
+                        .content("{\"estimativa\": \"MAXIMO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estimativaDesde").doesNotExist())
+                .andExpect(jsonPath("$.previsoes", hasSize(1)))
+                .andExpect(jsonPath("$.previsoes[0].regra").value("MAXIMO"))
+                .andExpect(jsonPath("$.previsoes[0].desde").value("2026-10"))
+                .andExpect(jsonPath("$.valoresAjustados", hasSize(2)));
+        mvc.perform(get("/api/visao-anual/2026"))
+                .andExpect(jsonPath(prevista.formatted(10)).value(5000.0))
+                .andExpect(jsonPath(prevista.formatted(11)).value(3600.0));
+        mvc.perform(get("/api/visao-anual/2027"))
+                .andExpect(jsonPath(prevista.formatted(0)).value(4000.0))
+                .andExpect(jsonPath(prevista.formatted(1)).value(3600.0));
+
+        // A partir de dezembro: novembro continua como estava; os ajustados de dezembro em diante seguem a regra nova.
+        mvc.perform(put("/api/recorrencias/{id}/estimativa", das).contentType(APPLICATION_JSON)
+                        .content("{\"estimativa\": \"MINIMO\", \"desde\": \"2026-12\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estimativa").value("MINIMO"))
+                .andExpect(jsonPath("$.estimativaDesde").value("2026-12"))
+                .andExpect(jsonPath("$.estimativaAntes").value("MAXIMO"))
+                .andExpect(jsonPath("$.previsoes", hasSize(2)))
+                .andExpect(jsonPath("$.previsoes[0].valor").value(3600))
+                .andExpect(jsonPath("$.previsoes[1].desde").value("2026-12"))
+                .andExpect(jsonPath("$.previsoes[1].valor").value(3000))
+                .andExpect(jsonPath("$.valoresAjustados", hasSize(1)))
+                .andExpect(jsonPath("$.valoresAjustados[0].competencia").value("2026-11"));
+        mvc.perform(get("/api/visao-anual/2026"))
+                .andExpect(jsonPath(prevista.formatted(9)).value(3600.0))
+                .andExpect(jsonPath(prevista.formatted(10)).value(5000.0))
+                .andExpect(jsonPath(prevista.formatted(11)).value(3000.0));
+        mvc.perform(get("/api/visao-anual/2027")).andExpect(jsonPath(prevista.formatted(0)).value(3000.0));
+
+        // A regra da categoria a partir de um mês também leva os ajustados das contas que a seguem.
+        mvc.perform(put("/api/recorrencias/{id}/estimativa", das).contentType(APPLICATION_JSON)
+                .content("{\"estimativa\": null}")).andExpect(status().isOk());
+        mvc.perform(put("/api/categorias/{id}/estimativa", tarifas).contentType(APPLICATION_JSON)
+                        .content("{\"estimativa\": \"MEDIA\", \"desde\": \"2026-11\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estimativaDesde").value("2026-11"))
+                .andExpect(jsonPath("$.estimativaAntes").doesNotExist());
+        mvc.perform(get("/api/recorrencias/{id}", das))
+                .andExpect(jsonPath("$.valoresAjustados", hasSize(0)))
+                .andExpect(jsonPath("$.previsoes", hasSize(2)))
+                .andExpect(jsonPath("$.previsoes[0].origem").value("FAMILIA"))
+                .andExpect(jsonPath("$.previsoes[1].origem").value("CATEGORIA"))
+                .andExpect(jsonPath("$.previsoes[1].valor").value(3300));
+
+        // Mudar a categoria substitui a regra própria das contas dela.
+        mvc.perform(put("/api/recorrencias/{id}/estimativa", das).contentType(APPLICATION_JSON)
+                .content("{\"estimativa\": \"MAXIMO\"}")).andExpect(status().isOk());
+        mvc.perform(put("/api/categorias/{id}/estimativa", tarifas).contentType(APPLICATION_JSON)
+                .content("{\"estimativa\": \"MINIMO\"}")).andExpect(status().isOk());
+        mvc.perform(get("/api/recorrencias/{id}", das))
+                .andExpect(jsonPath("$.estimativa").doesNotExist())
+                .andExpect(jsonPath("$.previsoes", hasSize(1)))
+                .andExpect(jsonPath("$.previsoes[0].origem").value("CATEGORIA"))
+                .andExpect(jsonPath("$.previsoes[0].valor").value(3000));
+
+        // O mês tem que ser o atual ou um à frente.
+        mvc.perform(put("/api/recorrencias/{id}/estimativa", das).contentType(APPLICATION_JSON)
+                        .content("{\"estimativa\": \"MINIMO\", \"desde\": \"2026-09\"}"))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(put("/api/recorrencias/{id}/estimativa", das).contentType(APPLICATION_JSON)
+                        .content("{\"estimativa\": \"MINIMO\", \"desde\": \"2026-13\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void mesAntesDoInicioEntraNoHistoricoDaConta() throws Exception {
+        Long moto = postarERetornarId("/api/recorrencias", """
+                {"categoriaId": %d, "descricao": "Vivo - Moto", "valor": 35, "dia": 1, "frequencia": "MENSAL",
+                 "inicio": "2026-10"}""".formatted(categoria("Outras despesas fixas", "Tarifas bancárias")));
+        mvc.perform(put("/api/recorrencias/{id}/estimativa", moto).contentType(APPLICATION_JSON)
+                .content("{\"estimativa\": \"MAXIMO\"}")).andExpect(status().isOk());
+        // Setembro é antes do início: vira lançamento ligado à conta e entra na base da previsão.
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-09/confirmacao", moto)
+                        .contentType(APPLICATION_JSON).content("{\"valor\": 40}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.descricao").value("Vivo - Moto"))
+                .andExpect(jsonPath("$.data").value("2026-09-01"));
+        mvc.perform(get("/api/recorrencias/{id}", moto))
+                .andExpect(jsonPath("$.inicio").value("2026-10"))
+                .andExpect(jsonPath("$.valorPrevisto").value(40))
+                .andExpect(jsonPath("$.previsoes[0].meses[0].competencia").value("2026-09"));
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-09/confirmacao", moto))
+                .andExpect(status().isConflict());
+        // Confirmação do mês atual e paga adiantada (dezembro) também entram na base.
+        for (String[] c : new String[][]{{"2026-10", "50"}, {"2026-12", "60"}}) {
+            mvc.perform(post("/api/recorrencias/{id}/ocorrencias/{c}/confirmacao", moto, c[0])
+                    .contentType(APPLICATION_JSON).content("{\"valor\": %s}".formatted(c[1])))
+                    .andExpect(status().isCreated());
+        }
+        mvc.perform(get("/api/recorrencias/{id}", moto)).andExpect(jsonPath("$.valorPrevisto").value(60));
+        mvc.perform(get("/api/visao-anual/2027"))
+                .andExpect(jsonPath("$.despesas.grupos[?(@.nome == 'Outras despesas fixas')].categorias[?(@.nome == 'Tarifas bancárias')].previsto[0]")
+                        .value(60.0));
+        // Antes do início, só um mês que já chegou.
+        Long seguro = postarERetornarId("/api/recorrencias", """
+                {"categoriaId": %d, "descricao": "Seguro", "valor": 90, "dia": 5, "frequencia": "MENSAL",
+                 "inicio": "2027-01"}""".formatted(categoria("Outras despesas fixas", "Tarifas bancárias")));
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-12/confirmacao", seguro))
+                .andExpect(status().isUnprocessableEntity());
     }
 }

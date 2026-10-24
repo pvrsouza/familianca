@@ -71,6 +71,8 @@ public class RecorrenciaPersistenceAdapter implements RecorrenciaRepository {
         e.semVencimento = r.semVencimento();
         e.formaPagamento = r.formaPagamento() != null ? r.formaPagamento().name() : null;
         e.estimativa = r.estimativa() != null ? r.estimativa().name() : null;
+        e.estimativaDesde = r.estimativaDesde() != null ? r.estimativaDesde().toString() : null;
+        e.estimativaAntes = r.estimativaAntes() != null ? r.estimativaAntes().name() : null;
         e.vencimentos.clear();
         r.vencimentosAjustados().forEach((c, v) -> e.vencimentos.put(c.toString(), v));
         e.valores.clear();
@@ -94,7 +96,9 @@ public class RecorrenciaPersistenceAdapter implements RecorrenciaRepository {
                         v -> Competencia.parse(v.getKey()), Map.Entry::getValue)),
                 e.valores.entrySet().stream().collect(Collectors.toMap(
                         v -> Competencia.parse(v.getKey()), v -> Dinheiro.of(v.getValue()))),
-                e.estimativa != null ? Estimativa.valueOf(e.estimativa) : null);
+                e.estimativa != null ? Estimativa.valueOf(e.estimativa) : null,
+                e.estimativaDesde != null ? Competencia.parse(e.estimativaDesde) : null,
+                e.estimativaAntes != null ? Estimativa.valueOf(e.estimativaAntes) : null);
     }
 
     @Override

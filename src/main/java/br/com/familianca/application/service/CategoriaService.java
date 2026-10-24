@@ -2,6 +2,8 @@ package br.com.familianca.application.service;
 
 import br.com.familianca.application.port.in.GerenciarCategorias;
 import br.com.familianca.application.port.out.PlanoContasRepository;
+import br.com.familianca.application.port.out.RecorrenciaRepository;
+import br.com.familianca.application.port.out.Relogio;
 import br.com.familianca.application.port.out.UsuarioAtual;
 import br.com.familianca.domain.exception.ConflitoException;
 import br.com.familianca.domain.exception.NaoEncontradoException;
@@ -9,9 +11,11 @@ import br.com.familianca.domain.exception.RegraNegocioException;
 import br.com.familianca.domain.model.Categoria;
 import br.com.familianca.domain.model.Estimativa;
 import br.com.familianca.domain.model.Grupo;
+import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.model.Recurso;
 import br.com.familianca.domain.service.CatalogoCategorias;
 import br.com.familianca.domain.service.CatalogoCategorias.ModeloGrupo;
+import br.com.familianca.domain.vo.Competencia;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,13 +31,18 @@ import static br.com.familianca.domain.Validacoes.obrigatorio;
 public class CategoriaService implements GerenciarCategorias {
 
     private final PlanoContasRepository planoContas;
+    private final RecorrenciaRepository recorrencias;
     private final AcessoFamilia acesso;
     private final UsuarioAtual usuarioAtual;
+    private final Relogio relogio;
 
-    public CategoriaService(PlanoContasRepository planoContas, AcessoFamilia acesso, UsuarioAtual usuarioAtual) {
+    public CategoriaService(PlanoContasRepository planoContas, RecorrenciaRepository recorrencias, AcessoFamilia acesso,
+                            UsuarioAtual usuarioAtual, Relogio relogio) {
         this.planoContas = planoContas;
+        this.recorrencias = recorrencias;
         this.acesso = acesso;
         this.usuarioAtual = usuarioAtual;
+        this.relogio = relogio;
     }
 
     @Override
@@ -101,11 +110,24 @@ public class CategoriaService implements GerenciarCategorias {
     }
 
     @Override
-    public Categoria definirEstimativa(Long id, Estimativa estimativa) {
+    public Categoria definirEstimativa(Long id, Estimativa estimativa, Competencia desde) {
         Categoria c = exigirCategoria(id);
-        Categoria nova = new Categoria(c.id(), c.grupoId(), c.nome(), c.ordem(), c.ativa(), c.tributavel(), c.aliquota(),
-                c.recorrente(), estimativa);
+        Competencia mesAtual = Competencia.de(relogio.hoje());
+        if (desde != null && desde.antesDe(mesAtual)) {
+            throw new RegraNegocioException("A regra muda a partir do mês atual ou de um mês à frente");
+        }
+        Categoria nova = c.comEstimativa(estimativa, desde, mesAtual);
         nova.validarNo(exigirGrupo(c.grupoId()));
+        // A regra da categoria vale para todas as contas dela: a regra própria de cada uma é substituída (desde o mês,
+        // se houver; antes dele cada conta fica como estava) e, a partir do mês, os ajustados à mão também saem.
+        recorrencias.listar().stream()
+                .filter(r -> r.categoriaId().equals(id) && !r.confirmaSozinha())
+                .forEach(r -> {
+                    Recorrencia daConta = r.comEstimativa(null, desde, mesAtual);
+                    if (!daConta.equals(r)) {
+                        recorrencias.salvar(daConta);
+                    }
+                });
         return planoContas.salvarCategoria(nova);
     }
 
@@ -114,13 +136,16 @@ public class CategoriaService implements GerenciarCategorias {
         Categoria atual = exigirCategoria(id);
         Grupo grupoAtual = exigirGrupo(atual.grupoId());
         Grupo grupo = dados.grupoId() != null ? exigirGrupo(dados.grupoId()) : grupoAtual;
+        // Trocar a regra pela edição vale para todos os meses previstos (sem "a partir de").
+        boolean mantemRegra = !dados.estimativaInformada() || dados.estimativa() == atual.estimativa();
         if (grupo.tipo() != grupoAtual.tipo()) {
             throw new RegraNegocioException("A categoria só pode mudar para um grupo do mesmo tipo");
         }
         Categoria categoria = new Categoria(id, grupo.id(), dados.nome(),
                 dados.ordem() != null ? dados.ordem() : atual.ordem(), ativa, dados.tributavel(), dados.aliquota(),
                 dados.recorrente() != null ? dados.recorrente() : atual.recorrente(),
-                dados.estimativaInformada() ? dados.estimativa() : atual.estimativa());
+                dados.estimativaInformada() ? dados.estimativa() : atual.estimativa(),
+                mantemRegra ? atual.estimativaDesde() : null, mantemRegra ? atual.estimativaAntes() : null);
         categoria.validarNo(grupo);
         boolean passaAUsarPj = (categoria.tributavel() && !atual.tributavel())
                 || (categoria.calculada() && !Objects.equals(categoria.aliquota(), atual.aliquota()));

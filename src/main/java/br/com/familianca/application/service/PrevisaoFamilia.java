@@ -33,11 +33,14 @@ class PrevisaoFamilia {
 
     /** Quantos meses de confirmações olhar para trás: cobre o ano corrente e a média recente em janeiro. */
     private static final int HISTORICO_MESES = 12;
+    /** Contas pagas adiantado também entram na base: confirmações até este número de meses à frente. */
+    private static final int ADIANTADAS_MESES = 24;
 
     PrevisaoRecorrencias calcular(List<Recorrencia> recorrencias) {
         LocalDate hoje = relogio.hoje();
         return PrevisaoRecorrencias.calcular(recorrencias, planoContas.listarCategorias(), planoContas.listarGrupos(),
-                lancamentos.listarOcorrenciasConfirmadas(Competencia.de(hoje).mais(-HISTORICO_MESES), Competencia.de(hoje)),
+                lancamentos.listarOcorrenciasConfirmadas(Competencia.de(hoje).mais(-HISTORICO_MESES),
+                        Competencia.de(hoje).mais(ADIANTADAS_MESES)),
                 acesso.familia().estimativa(), hoje);
     }
 }

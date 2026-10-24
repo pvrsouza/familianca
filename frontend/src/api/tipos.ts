@@ -62,12 +62,18 @@ export interface Convite {
  */
 export type Estimativa = 'NENHUMA' | 'MEDIA_3M' | 'MEDIA' | 'MAXIMO' | 'MINIMO'
 
-/** De onde saiu a estimativa: a regra, de quem ela é e os meses (ou confirmações) usados. */
+/**
+ * Como os próximos meses são previstos: a regra, de quem ela é, desde quando vale e os meses (ou confirmações) usados.
+ * Uma lista delas (previsoes) é a linha do tempo: um trecho por regra, do mês atual em diante.
+ */
 export interface BaseEstimativa {
   regra: Estimativa
   origem: 'DESPESA' | 'CATEGORIA' | 'FAMILIA'
   meses: { competencia: string; valor: number }[]
-  valor: number
+  /** Nulo = a regra não estima (Não estimar) ou ainda não há base: vale o cadastrado. */
+  valor: number | null
+  /** AAAA-MM: primeiro mês em que vale (o atual, ou o mês a partir do qual a regra muda). */
+  desde: string | null
 }
 
 export interface Familia {
@@ -103,6 +109,10 @@ export interface Categoria {
   recorrente: boolean
   /** Regra própria para estimar os próximos meses; nulo = segue a família. */
   estimativa: Estimativa | null
+  /** AAAA-MM: a regra muda a partir deste mês; nulo = vale para todos os meses previstos. */
+  estimativaDesde: string | null
+  /** A regra até estimativaDesde; nulo = a da família. */
+  estimativaAntes: Estimativa | null
 }
 
 export interface Grupo {
@@ -183,6 +193,12 @@ export interface Recorrencia {
   estimativa: Estimativa | null
   /** De onde saiu o valorPrevisto; nulo = valor cadastrado. */
   basePrevisao: BaseEstimativa | null
+  /** AAAA-MM: a regra própria muda a partir deste mês; nulo = vale para todos os meses previstos. */
+  estimativaDesde: string | null
+  /** A regra própria até estimativaDesde; nulo = segue a categoria. */
+  estimativaAntes: Estimativa | null
+  /** Como a conta é prevista do mês atual em diante: um trecho por regra (vazio em receita e conta automática). */
+  previsoes: BaseEstimativa[]
   /** Valores previstos diferentes do de sempre, por mês (sem confirmar). */
   valoresAjustados: { competencia: string; valor: number }[]
 }
@@ -228,6 +244,8 @@ export interface CategoriaVisao {
   itens: ItemVisao[]
   /** De onde saiu a estimativa dos próximos meses; nulo sem estimativa. */
   baseEstimativa: BaseEstimativa | null
+  /** Como a despesa avulsa é estimada do mês atual em diante, um trecho por regra; vazio sem estimativa. */
+  previsoes: BaseEstimativa[]
 }
 
 export interface ItemVisao {
@@ -238,6 +256,8 @@ export interface ItemVisao {
   estimativa: boolean
   total: Serie
   previsto: number[]
+  /** Como o item é previsto do mês atual em diante (conta que se repete e estimativa); vazio nos outros. */
+  previsoes: BaseEstimativa[]
 }
 
 export interface GrupoVisao {
