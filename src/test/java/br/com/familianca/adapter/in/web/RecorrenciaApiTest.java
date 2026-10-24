@@ -47,6 +47,30 @@ class RecorrenciaApiTest extends IntegracaoBase {
     }
 
     @Test
+    void confirmacaoSoMudaValorDataEObservacao() throws Exception {
+        Long id = streaming();
+        String corpo = mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-09/confirmacao", id))
+                .andReturn().getResponse().getContentAsString();
+        Long lancamento = ((Number) JsonPath.read(corpo, "$.id")).longValue();
+        Long assinaturas = categoria("Outras despesas fixas", "Assinaturas e streaming");
+        String edicao = """
+                {"categoriaId": %d, "descricao": "%s", "valor": 59.90, "data": "2026-09-12"}""";
+
+        mvc.perform(put("/api/lancamentos/{id}", lancamento).contentType(APPLICATION_JSON)
+                        .content(edicao.formatted(categoria("Habitação", "Água"), "Streaming")))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.startsWith("É a confirmação de Streaming")));
+        mvc.perform(put("/api/lancamentos/{id}", lancamento).contentType(APPLICATION_JSON)
+                        .content(edicao.formatted(assinaturas, "Netflix")))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(put("/api/lancamentos/{id}", lancamento).contentType(APPLICATION_JSON)
+                        .content(edicao.formatted(assinaturas, "Streaming")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valor").value(59.90))
+                .andExpect(jsonPath("$.data").value("2026-09-12"));
+    }
+
+    @Test
     void contasAPagarDoMes() throws Exception {
         String conta = """
                 {"categoriaId": %d, "descricao": "%s", "valor": %s, "dia": %d, "frequencia": "MENSAL",

@@ -138,6 +138,13 @@ public class LancamentoService implements GerenciarLancamentos {
         Membro membro = validar(dados);
         Lancamento editado = atual.editado(dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
                 dados.data(), dados.observacao(), dados.notaFiscal());
+        // Confirmação de recorrência: categoria, descrição e pessoa são da recorrência (senão o mês contaria noutra
+        // categoria e entraria na previsão da conta). Muda-se a recorrência, que vale para todos os meses.
+        if (atual.recorrenciaId() != null && (!editado.categoriaId().equals(atual.categoriaId())
+                || !editado.descricao().equals(atual.descricao()) || !editado.membroId().equals(atual.membroId()))) {
+            throw new RegraNegocioException("É a confirmação de " + atual.descricao() + ": a categoria, a descrição e "
+                    + "de quem é vêm da recorrência. Para mudar, editem a recorrência");
+        }
         return detalhador().detalhar(lancamentos.salvar(editado));
     }
 

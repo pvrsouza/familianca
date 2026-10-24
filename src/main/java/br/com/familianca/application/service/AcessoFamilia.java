@@ -1,5 +1,6 @@
 package br.com.familianca.application.service;
 
+import br.com.familianca.application.port.out.DadosFamiliaRepository;
 import br.com.familianca.application.port.out.FamiliaRepository;
 import br.com.familianca.application.port.out.MembroRepository;
 import br.com.familianca.application.port.out.Relogio;
@@ -29,10 +30,12 @@ public class AcessoFamilia {
     private final MembroRepository membros;
     private final Relogio relogio;
     private final SaldoRepository saldos;
+    private final DadosFamiliaRepository dados;
 
     public AcessoFamilia(UsuarioAtual usuarioAtual, FamiliaRepository familias, MembroRepository membros,
-                         Relogio relogio, SaldoRepository saldos) {
+                         Relogio relogio, SaldoRepository saldos, DadosFamiliaRepository dados) {
         this.saldos = saldos;
+        this.dados = dados;
         this.usuarioAtual = usuarioAtual;
         this.familias = familias;
         this.membros = membros;
@@ -53,6 +56,15 @@ public class AcessoFamilia {
             throw new RecursoForaDoPlanoException(plano, recurso,
                     recurso.rotulo() + " não faz parte do plano " + plano.rotulo());
         }
+    }
+
+    /**
+     * Até onde as telas voltam no passado: o ano mais antigo com algum dado da família, nunca depois do atual (família
+     * nova começa no ano corrente).
+     */
+    public int primeiroAno() {
+        int atual = relogio.hoje().getYear();
+        return Math.min(dados.primeiroAno().orElse(atual), atual);
     }
 
     /** Se a família já informou o saldo inicial (o saldo de algum mês). */

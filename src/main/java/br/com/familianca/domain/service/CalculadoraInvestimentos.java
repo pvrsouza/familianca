@@ -1,6 +1,7 @@
 package br.com.familianca.domain.service;
 
 import br.com.familianca.domain.model.CarteiraAnual;
+import br.com.familianca.domain.model.CarteiraAnual.Abertura;
 import br.com.familianca.domain.model.CarteiraAnual.Posicao;
 import br.com.familianca.domain.model.Investimento;
 import br.com.familianca.domain.model.MovimentoInvestimento;
@@ -54,6 +55,8 @@ public final class CalculadoraInvestimentos {
         SerieMensal aportes = SerieMensal.ZERO;
         SerieMensal rendimentos = SerieMensal.ZERO;
         SerieMensal saldos = SerieMensal.ZERO;
+        Abertura abertura = null;
+        boolean comecou = false;
         for (Competencia c = inicio; c.ano() <= ano; c = c.seguinte()) {
             if (c.equals(janeiro)) {
                 saldoInicial = saldo;
@@ -62,7 +65,12 @@ public final class CalculadoraInvestimentos {
             Dinheiro aporte = m != null ? m.aporte() : Dinheiro.ZERO;
             Dinheiro anterior = saldo;
             Dinheiro rendimento;
-            if (m != null && m.saldoInformado() != null) {
+            if (m != null && m.saldoInformado() != null && !comecou) {
+                // Primeiro saldo do extrato: o dinheiro já existia. Não rendeu nem saiu da conta neste mês.
+                saldo = m.saldoInformado();
+                rendimento = Dinheiro.ZERO;
+                abertura = new Abertura(c, saldo.subtrair(aporte));
+            } else if (m != null && m.saldoInformado() != null) {
                 saldo = m.saldoInformado();
                 rendimento = saldo.subtrair(anterior).subtrair(aporte);
             } else {
@@ -70,6 +78,7 @@ public final class CalculadoraInvestimentos {
                         : Dinheiro.ZERO;
                 saldo = anterior.somar(rendimento).somar(aporte);
             }
+            comecou = comecou || m != null;
             if (c.ano() == ano) {
                 aportes = aportes.comMes(c.numeroMes(), aporte);
                 rendimentos = rendimentos.comMes(c.numeroMes(), rendimento);
@@ -78,7 +87,7 @@ public final class CalculadoraInvestimentos {
         }
         List<Percentual> rentabilidade = rentabilidade(saldoInicial, rendimentos, saldos);
         return new Posicao(investimento, saldoInicial, aportes, rendimentos, saldos, rentabilidade,
-                composta(rentabilidade, saldoInicial, rendimentos, saldos));
+                composta(rentabilidade, saldoInicial, rendimentos, saldos), abertura);
     }
 
     private static SerieMensal soma(List<Posicao> posicoes, Function<Posicao, SerieMensal> serie) {

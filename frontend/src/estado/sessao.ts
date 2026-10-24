@@ -17,6 +17,8 @@ export const sessao = {
   logado: computed(() => estado.usuario !== null),
   dono: computed(() => estado.usuario?.papelFamilia === 'DONO'),
   recursos: computed(() => new Set<Recurso>(estado.familia?.planoEmVigor.recursos ?? [])),
+  /** Até onde as setas de ano e mês voltam: o ano mais antigo com algum dado da família. */
+  primeiroAno: computed(() => estado.familia?.primeiroAno ?? new Date().getFullYear()),
 
   /** Lê a sessão do servidor (cookie). Sem sessão: usuario fica nulo. */
   async carregar(): Promise<void> {
@@ -56,6 +58,8 @@ export const sessao = {
 
   avisarMudanca(): void {
     estado.versaoDados++
+    // Um lançamento antigo pode levar o primeiro ano para trás.
+    this.recarregarFamilia().catch(() => {})
   },
 
   tem(recurso: Recurso): boolean {

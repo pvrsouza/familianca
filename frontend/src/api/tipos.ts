@@ -87,6 +87,8 @@ export interface Familia {
   convitesPendentes: Convite[]
   /** Sem saldo inicial, nada se lança (o servidor responde 422). */
   temSaldoInicial: boolean
+  /** Ano mais antigo com algum dado: as telas não voltam antes dele. */
+  primeiroAno: number
 }
 
 export interface ConviteAberto {
@@ -401,6 +403,8 @@ export interface Posicao {
   saldos: number[]
   rentabilidadeMensal: (number | null)[]
   rentabilidadeAno: number | null
+  /** Saldo que já existia no primeiro saldo informado: não conta como rendimento nem aporte. */
+  abertura: { competencia: string; valor: number } | null
 }
 
 export interface Carteira {

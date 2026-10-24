@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import { lancamentos, recorrencias } from '../api/servicos'
 import type { Frequencia, Lancamento, NotaFiscal, Tipo } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
@@ -44,7 +45,9 @@ const erro = ref('')
 const tentou = ref(false)
 
 const membros = computed(() => (sessao.estado.familia?.membros ?? []).filter((m) => m.ativo))
-const podeEscolherPessoa = computed(() => sessao.dono.value && membros.value.length > 1)
+// Confirmação de recorrência: categoria, descrição e pessoa vêm da recorrência (o servidor recusa mudar aqui).
+const confirmacao = computed(() => !!props.lancamento?.recorrenciaId)
+const podeEscolherPessoa = computed(() => sessao.dono.value && membros.value.length > 1 && !confirmacao.value)
 const valorParcela = computed(() =>
   form.valor && form.parcelas >= 2 ? Math.floor((form.valor / form.parcelas) * 100) / 100 : null,
 )
@@ -196,14 +199,20 @@ async function salvar() {
       <span v-if="tentou && !form.valor" class="erro-campo">Informe o valor.</span>
     </div>
 
-    <div class="campo">
+    <p v-if="confirmacao" class="da-recorrencia">
+      <span><strong>{{ props.lancamento!.descricao }}</strong> · {{ props.lancamento!.categoria.nome }}</span>
+      <span>Confirmação do que se repete: a categoria, a descrição e de quem é vêm da recorrência.
+        Para mudar, <RouterLink to="/recorrencias">editem a recorrência</RouterLink> (vale para todos os meses).</span>
+    </p>
+
+    <div v-if="!confirmacao" class="campo">
       <label for="l-categoria">Categoria</label>
       <SeletorCategoria id="l-categoria" v-model="form.categoriaId" :tipo="form.tipo"
                         :invalido="tentou && !form.categoriaId" />
       <span v-if="tentou && !form.categoriaId" class="erro-campo">Escolha a categoria.</span>
     </div>
 
-    <div class="campo">
+    <div v-if="!confirmacao" class="campo">
       <label for="l-descricao">Descrição</label>
       <CampoDescricao id="l-descricao" v-model="form.descricao" :categoria-id="form.categoriaId"
                       :placeholder="form.tipo === 'RECEITA' ? 'Ex.: salário de outubro' : 'Ex.: mercado da semana'"
@@ -330,6 +339,20 @@ async function salvar() {
 </template>
 
 <style scoped>
+.da-recorrencia {
+  display: grid;
+  gap: var(--e-1);
+  padding: var(--e-3) var(--e-4);
+  border-radius: var(--raio);
+  background: var(--areia);
+  font-size: var(--t-sm);
+}
+
+.da-recorrencia span + span {
+  color: var(--texto-2);
+  font-size: var(--t-xs);
+}
+
 .parcelas {
   display: grid;
   gap: var(--e-3);

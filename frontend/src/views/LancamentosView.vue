@@ -217,7 +217,8 @@ const tituloMes = computed(() => tituloPeriodo.value.charAt(0).toUpperCase() + t
         </div>
 
         <div v-if="modo === 'mes'" class="periodo" role="group" aria-label="Mês">
-          <button type="button" class="botao botao-icone botao-pequeno" aria-label="Mês anterior" @click="mudarMes(-1)">
+          <button type="button" class="botao botao-icone botao-pequeno" aria-label="Mês anterior"
+                  :disabled="ano <= sessao.primeiroAno.value && (mes ?? 1) <= 1" @click="mudarMes(-1)">
             <ChevronLeft aria-hidden="true" />
           </button>
           <span class="periodo-nome">{{ tituloMes }}</span>
@@ -226,7 +227,8 @@ const tituloMes = computed(() => tituloPeriodo.value.charAt(0).toUpperCase() + t
           </button>
         </div>
         <div v-else-if="modo === 'ano'" class="periodo" role="group" aria-label="Ano">
-          <button type="button" class="botao botao-icone botao-pequeno" aria-label="Ano anterior" @click="filtrar({ ano: ano - 1 })">
+          <button type="button" class="botao botao-icone botao-pequeno" aria-label="Ano anterior"
+                  :disabled="ano <= sessao.primeiroAno.value" @click="filtrar({ ano: ano - 1 })">
             <ChevronLeft aria-hidden="true" />
           </button>
           <span class="periodo-nome">{{ ano }}</span>

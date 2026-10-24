@@ -136,4 +136,19 @@ class VisaoAnualApiTest extends IntegracaoBase {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.detail").value("A previsão vai até 2028: anos mais à frente não são mostrados"));
     }
+
+    @Test
+    void naoVoltaAntesDoPrimeiroAnoComDados() throws Exception {
+        // Família nova: começa no ano atual.
+        mvc.perform(get("/api/familia")).andExpect(jsonPath("$.primeiroAno").value(2026));
+        mvc.perform(get("/api/visao-anual/2025"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value("Não há dados antes de 2026: anos mais antigos não são mostrados"));
+
+        // Um lançamento antigo (a carga da planilha, por exemplo) leva o limite para trás.
+        lancar("Habitação", "Água", "Conta de água", "90", "2023-05-10");
+        mvc.perform(get("/api/familia")).andExpect(jsonPath("$.primeiroAno").value(2023));
+        mvc.perform(get("/api/visao-anual/2023")).andExpect(status().isOk());
+        mvc.perform(get("/api/visao-anual/2022")).andExpect(status().isUnprocessableEntity());
+    }
 }

@@ -21,9 +21,10 @@ const router = useRouter()
 
 const mesHoje = hoje().slice(0, 7)
 const ultimoMes = `${ultimoAnoPrevisto()}-12`
+const primeiroMes = computed(() => `${sessao.primeiroAno.value}-01`)
 const mes = computed(() => {
   const q = route.query.mes
-  return typeof q === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(q) && q <= ultimoMes ? q : mesHoje
+  return typeof q === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(q) && q <= ultimoMes && q >= primeiroMes.value ? q : mesHoje
 })
 const nomeMes = computed(() => competenciaPorExtenso(mes.value))
 
@@ -144,7 +145,8 @@ function salvo(mensagem: string) {
         <p>As contas do mês que alguém precisa pagar. Pagou, marque aqui: o mês fecha quando todas estiverem pagas.</p>
       </div>
       <div class="periodo" role="group" aria-label="Mês">
-        <button type="button" class="botao botao-icone botao-pequeno" aria-label="Mês anterior" @click="mudarMes(-1)">
+        <button type="button" class="botao botao-icone botao-pequeno" aria-label="Mês anterior"
+                :disabled="mes <= primeiroMes" @click="mudarMes(-1)">
           <ChevronLeft aria-hidden="true" />
         </button>
         <span class="periodo-nome">{{ nomeMes }}</span>

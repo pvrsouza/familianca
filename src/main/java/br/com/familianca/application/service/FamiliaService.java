@@ -83,7 +83,7 @@ public class FamiliaService implements GerenciarFamilia {
         Familia familia = acesso.familia();
         return new FamiliaDetalhe(familia, familia.assinatura().planoEmVigor(relogio.hoje()),
                 membros.listar(familia.id()), convites.listarPendentes(familia.id(), relogio.agora()),
-                acesso.temSaldoInicial());
+                acesso.temSaldoInicial(), acesso.primeiroAno());
     }
 
     @Override

@@ -105,7 +105,9 @@ public class LancamentoController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Editar lançamento", description = "Substitui os campos. Numa parcela, só ela muda.")
+    @Operation(summary = "Editar lançamento", description = """
+            Substitui os campos. Numa parcela, só ela muda. Na confirmação de uma recorrência, só valor, data,
+            observação e nota mudam: outra categoria, descrição ou pessoa responde 422 (mude a recorrência).""")
     public LancamentoResponse atualizar(@PathVariable Long id, @Valid @RequestBody LancamentoRequest r) {
         return LancamentoResponse.de(lancamentos.atualizar(id, r.paraDados()));
     }

@@ -27,12 +27,21 @@ public record CarteiraResponse(int ano,
 
     public record PosicaoResponse(InvestimentoResponse investimento, BigDecimal saldoInicial, List<BigDecimal> aportes,
                                   List<BigDecimal> rendimentos, List<BigDecimal> saldos,
-                                  List<BigDecimal> rentabilidadeMensal, BigDecimal rentabilidadeAno) {
+                                  List<BigDecimal> rentabilidadeMensal, BigDecimal rentabilidadeAno,
+                                  @Schema(description = "Saldo que já existia no primeiro saldo informado (menos o "
+                                          + "aporte do mês): não conta como rendimento nem aporte. Nulo = começou do zero.")
+                                  AberturaResponse abertura) {
 
         static PosicaoResponse de(Posicao p) {
             return new PosicaoResponse(InvestimentoResponse.de(p.investimento()), p.saldoInicial().valor(),
                     Valores.meses(p.aportes()), Valores.meses(p.rendimentos()), Valores.meses(p.saldos()),
-                    Valores.percentuais(p.rentabilidadeMensal()), Valores.valor(p.rentabilidadeAno()));
+                    Valores.percentuais(p.rentabilidadeMensal()), Valores.valor(p.rentabilidadeAno()),
+                    p.abertura() != null
+                            ? new AberturaResponse(p.abertura().competencia().toString(), p.abertura().valor().valor())
+                            : null);
         }
+    }
+
+    public record AberturaResponse(String competencia, BigDecimal valor) {
     }
 }

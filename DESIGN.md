@@ -290,6 +290,9 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 - **Valor:** o campo de dinheiro tem o prefixo "R$" fixo à esquerda e número tabular em 600.
 - **Rótulo:** acima do campo, 0,875rem 600 grafite; ajuda em 0,8125rem cinza.
 
+### Setas de ano e mês
+- A seta para trás fica desabilitada no primeiro ano com dados da família (no mês, em janeiro desse ano), com "Não há dados antes de <ano>" no mouse na visão anual; a para frente, no último ano da previsão.
+
 ### Navigation
 - **Desktop:** links em areia a 80% sobre petróleo, 0,875rem 600; hover e ativo em branco; o ativo ganha um traço de 3px em areia na base, que cresce do centro (200ms).
 - **Celular:** barra inferior em papel com borda de pedra, cinco itens de ícone 1,375rem + rótulo 0,75rem; ativo em petróleo.
@@ -310,6 +313,13 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 
 ### Olho (esconder valores)
 - Botão de ícone na barra, à esquerda do usuário: 2,75rem, olho Lucide em areia a 80%; ligado vira petróleo noite com o ícone de olho cortado e `aria-pressed`. Valores em reais viram "•••••" pelos formatadores (`reais`, `reaisCurtos`); campos de digitação não mudam.
+
+### Inflação só de mês fechado
+- No ano corrente, as células de inflação do mês em andamento e dos previstos mostram "–" (o mouse explica: "mês em andamento…" / "só previsto…"); a nota da coluna Total diz "até set" em vez de "no ano", e o resumo do topo "Inflação da família até set". Ano futuro não tem as linhas de inflação; no celular, "mês em andamento". Na aba Fluxo de caixa, a tabela "Inflação da família" segue a mesma regra: a última coluna vira "Até set" e a legenda explica que só conta mês fechado.
+
+### Investimentos: abertura e salto de saldo
+- Sob o nome do investimento, no mesmo estilo do tipo (cinza pequeno): "abertura 50.000,00 em set/26", com a explicação no mouse.
+- No "Registrar mês": primeiro registro com saldo do extrato mostra um aviso informativo de que ele entra como abertura; saldo com rendimento implícito acima de 3% mostra um aviso informativo com o valor e o %, sugerindo informar o aporte (ou resgate). Nunca bloqueia o salvar.
 
 ### Filtro rápido da tabela do ano
 - Campo de busca com lupa (o mesmo da busca dos Lançamentos, até 17rem) no começo da barra acima da tabela, antes da legenda; as opções ficam à direita. Filtrando, somem "Mostrar categorias sem valor", "Abrir as categorias em itens" e "Recolher os grupos" (o filtro já decide o que aparece).
@@ -337,6 +347,9 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 - "Pagas" é um `details` fechado com a contagem e o total; cada paga tem o selo petróleo "paga" com check (o azul da planilha), "em dia"/"N dias de atraso" e "Desfazer" sutil, que pede confirmação ali mesmo.
 - "Só para conferir" é uma seção à parte (título + explicação curta), mesma linha, com "Conferir" secundário e o selo "conferida" quando confirmada.
 - Navegação: item "Contas a pagar" (ícone de lista com checks) depois de "O ano". No celular a barra continua com cinco posições: Família vai para o "Mais".
+
+### Editar uma confirmação
+- No formulário do lançamento que confirmou uma recorrência, no lugar de Categoria e Descrição, uma caixa em areia (8px de raio): "**Descrição** · Categoria" em 0,875rem e, abaixo em 0,75rem cinza, que esses dados vêm da recorrência, com o link "editem a recorrência". "De quem é" fica travado.
 
 ### Explicação de coluna
 - Cabeçalho com ícone de info abre um `popover` nativo em papel (26rem, borda pedra, 12px, sombra de menu), título Fraunces 1,125rem, texto 0,875rem e um exemplo do próprio ano em areia. Usado no Rank.

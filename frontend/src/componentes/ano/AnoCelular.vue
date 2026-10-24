@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { ChevronRight } from 'lucide-vue-next'
 import type { CategoriaVisao, GrupoVisao, Tipo, VisaoAnual } from '../../api/tipos'
-import { MESES, MESES_CURTOS, ordinal, pct, reais, variacao } from '../../util/formato'
+import { MESES, MESES_CURTOS, alcanceInflacao, ordinal, pct, reais, ultimoMesFechado, variacao } from '../../util/formato'
 import { inflacao } from '../../estado/inflacao'
 import SelosCategoria from '../SelosCategoria.vue'
 
@@ -79,12 +79,12 @@ function escolherComTeclado(e: KeyboardEvent) {
           <dt>{{ sobraMes < 0 ? 'Faltou' : 'Sobra' }}</dt>
           <dd class="num" :class="{ negativo: sobraMes < 0 }">{{ reais(Math.abs(sobraMes)) }}</dd>
         </div>
-        <div v-if="inflacao.ligada.value" class="inflacao"
-             :title="'Quanto as despesas variaram em relação ao mês anterior. No ano, a inflação acumulada (composta).'">
+        <div v-if="inflacao.ligada.value && ultimoMesFechado(visao.ano) >= 2" class="inflacao"
+             :title="'Quanto as despesas variaram em relação ao mês anterior, só nos meses fechados. Ao lado, a acumulada (composta).'">
           <dt>Inflação</dt>
           <dd class="num">
-            {{ variacao(inflacaoMes) }}
-            <span class="texto-2">· {{ variacao(visao.resumo.inflacaoFamiliar.ano) }} no ano</span>
+            {{ mes + 1 > ultimoMesFechado(visao.ano) ? (mes + 1 === mesAtual ? 'mês em andamento' : 'só previsto') : variacao(inflacaoMes) }}
+            <span class="texto-2">· {{ variacao(visao.resumo.inflacaoFamiliar.ano) }} {{ alcanceInflacao(visao.ano) }}</span>
           </dd>
         </div>
       </dl>

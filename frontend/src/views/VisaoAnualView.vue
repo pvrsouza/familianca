@@ -7,7 +7,7 @@ import type { CategoriaVisao, Pendente, Tipo, VisaoAnual } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { guia } from '../estado/guia'
-import { MESES, anoAtual, mesAtual, reais, ultimoAnoPrevisto, variacao } from '../util/formato'
+import { MESES, alcanceInflacao, anoAtual, mesAtual, reais, ultimoAnoPrevisto, variacao } from '../util/formato'
 import { useMidia } from '../util/midia'
 import TabelaAno from '../componentes/ano/TabelaAno.vue'
 import AnoCelular from '../componentes/ano/AnoCelular.vue'
@@ -21,7 +21,7 @@ const route = useRoute()
 const router = useRouter()
 const celular = useMidia('(max-width: 760px)')
 
-const ano = computed(() => Math.min(Number(route.params.ano) || anoAtual(), ultimoAnoPrevisto()))
+const ano = computed(() => Math.max(Math.min(Number(route.params.ano) || anoAtual(), ultimoAnoPrevisto()), sessao.primeiroAno.value))
 const aba = computed(() => (['fluxo', 'pessoas'].includes(String(route.query.aba)) ? String(route.query.aba) : 'orcamento'))
 const dados = ref<VisaoAnual | null>(null)
 const carregando = ref(true)
@@ -200,6 +200,8 @@ const proximo = computed(() => passos.value.findIndex(pendente))
         <h1>O ano de vocês</h1>
         <div class="ano" role="group" aria-label="Ano">
           <button type="button" class="botao botao-sutil botao-icone botao-pequeno" :aria-label="`Ver ${ano - 1}`"
+                  :disabled="ano <= sessao.primeiroAno.value"
+                  :title="ano <= sessao.primeiroAno.value ? `Não há dados antes de ${sessao.primeiroAno.value}` : undefined"
                   @click="irPara(ano - 1)">
             <ChevronLeft aria-hidden="true" />
           </button>
@@ -245,7 +247,7 @@ const proximo = computed(() => passos.value.findIndex(pendente))
         <span v-if="previsto > 0.004" class="linha-previsto">
           <span class="selo selo-previsto num">{{ reais(previsto) }}</span> das despesas ainda estão previstos.
         </span>
-        <span v-if="inflacao !== null" class="linha-previsto">Inflação da família no ano: <strong class="num">{{ variacao(inflacao) }}</strong>.</span>
+        <span v-if="inflacao !== null" class="linha-previsto">Inflação da família {{ alcanceInflacao(dados!.ano) }}: <strong class="num">{{ variacao(inflacao) }}</strong>.</span>
       </p>
 
       <Mensagem v-if="pendentes.length > 0 && !vazio" class="pendentes">

@@ -46,6 +46,32 @@ class CalculadoraInvestimentosTest {
     }
 
     @Test
+    void primeiroSaldoInformadoEhAberturaNaoRendimento() {
+        // Começou a acompanhar em out/26 um CDB que já tinha 50 mil; em out ainda aportou 1 mil.
+        CarteiraAnual c = new CalculadoraInvestimentos().calcular(2026, List.of(CDB), List.of(
+                movimento("2026-10", "1000", null, "51000"),
+                movimento("2026-11", null, "1", null),
+                movimento("2026-12", null, null, "53000")));
+
+        var cdb = c.investimentos().get(0);
+        assertThat(cdb.abertura().competencia()).isEqualTo(Competencia.of(2026, 10));
+        assertThat(cdb.abertura().valor()).isEqualTo(Dinheiro.of("50000"));
+        assertThat(c.rendimentos().mes(10)).isEqualTo(Dinheiro.ZERO);
+        assertThat(c.aportes().mes(10)).isEqualTo(Dinheiro.of("1000"));
+        assertThat(c.saldos().mes(10)).isEqualTo(Dinheiro.of("51000"));
+        assertThat(c.rendimentos().mes(11)).isEqualTo(Dinheiro.of("510"));
+        // Depois da abertura, o saldo do extrato volta a valer como sempre: a diferença é rendimento.
+        assertThat(c.rendimentos().mes(12)).isEqualTo(Dinheiro.of("1490"));
+        assertThat(c.rendimentos().total()).isEqualTo(Dinheiro.of("2000"));
+
+        // No ano seguinte, a abertura já está no saldo inicial.
+        CarteiraAnual depois = new CalculadoraInvestimentos().calcular(2027, List.of(CDB), List.of(
+                movimento("2026-10", "1000", null, "51000"), movimento("2026-12", null, null, "53000")));
+        assertThat(depois.saldoInicial()).isEqualTo(Dinheiro.of("53000"));
+        assertThat(depois.rendimentos().total()).isEqualTo(Dinheiro.ZERO);
+    }
+
+    @Test
     void semMovimentosNaoHaRentabilidade() {
         CarteiraAnual c = new CalculadoraInvestimentos().calcular(2026, List.of(CDB), List.of());
         assertThat(c.saldos().ehZero()).isTrue();

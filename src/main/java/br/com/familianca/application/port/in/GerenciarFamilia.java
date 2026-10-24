@@ -38,8 +38,9 @@ public interface GerenciarFamilia {
     void apagarDados(String senha);
 
     /** temSaldoInicial: sem ele não se lança nada (o front leva para informar o saldo antes). */
+    /** @param primeiroAno ano mais antigo com algum dado (as telas não voltam antes dele) */
     record FamiliaDetalhe(Familia familia, Plano planoEmVigor, List<Membro> membros, List<Convite> convitesPendentes,
-                          boolean temSaldoInicial) {
+                          boolean temSaldoInicial, int primeiroAno) {
     }
 
     record ConviteCriado(Convite convite, String token) {

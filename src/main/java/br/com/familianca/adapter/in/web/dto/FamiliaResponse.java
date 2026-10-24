@@ -17,13 +17,17 @@ public record FamiliaResponse(Long id, String nome,
                               PlanoResponse planoEmVigor,
                               List<MembroResponse> membros, List<ConviteResponse> convitesPendentes,
                               @Schema(description = "Se já há saldo informado. Sem ele, lançamentos e recorrências respondem 422.")
-                              boolean temSaldoInicial) {
+                              boolean temSaldoInicial,
+                              @Schema(description = "Ano mais antigo com algum dado (lançamento, recorrência, saldo, "
+                                      + "investimento); nenhum = o atual. As telas não voltam antes dele.")
+                              int primeiroAno) {
 
     public static FamiliaResponse de(FamiliaDetalhe d) {
         return new FamiliaResponse(d.familia().id(), d.familia().nome(), Valores.valor(d.familia().metaAporte()),
                 d.familia().estimativa(),
                 AssinaturaDto.de(d.familia().assinatura()), PlanoResponse.de(d.planoEmVigor()),
                 d.membros().stream().map(MembroResponse::de).toList(),
-                d.convitesPendentes().stream().map(ConviteResponse::de).toList(), d.temSaldoInicial());
+                d.convitesPendentes().stream().map(ConviteResponse::de).toList(), d.temSaldoInicial(),
+                d.primeiroAno());
     }
 }

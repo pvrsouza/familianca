@@ -177,11 +177,14 @@ public final class CalculadoraVisaoAnual {
         Map<TipoMovimento, List<LinhaCategoria>> linhasPorTipo = linhasCategoria(categorias.values(), grupos,
                 realizado, previsto, estimado, bases, itens);
         Dinheiro totalTributavelAno = baseRealizada.somar(basePrevista).total();
-        List<LinhaGrupo> receitas = linhasGrupo(TipoMovimento.RECEITA, grupos, linhasPorTipo, totalTributavelAno);
-        List<LinhaGrupo> despesas = linhasGrupo(TipoMovimento.DESPESA, grupos, linhasPorTipo, totalTributavelAno);
+        int fechadoAte = ultimoMesFechado(e);
+        List<LinhaGrupo> receitas = linhasGrupo(TipoMovimento.RECEITA, grupos, linhasPorTipo, totalTributavelAno,
+                fechadoAte);
+        List<LinhaGrupo> despesas = linhasGrupo(TipoMovimento.DESPESA, grupos, linhasPorTipo, totalTributavelAno,
+                fechadoAte);
 
         Fluxo fluxo = fluxo(e, receitas, despesas);
-        return new VisaoAnual(e.ano(), receitas, despesas, fluxo, Variacao.de(fluxo.despesasTotal()),
+        return new VisaoAnual(e.ano(), receitas, despesas, fluxo, Variacao.de(fluxo.despesasTotal(), fechadoAte),
                 membros(porMembro));
     }
 
@@ -403,9 +406,17 @@ public final class CalculadoraVisaoAnual {
         }
     }
 
+    /** Inflação só de mês fechado: ano passado inteiro, no corrente até o mês anterior, ano futuro nenhum. */
+    private static int ultimoMesFechado(Entrada e) {
+        if (e.hoje() == null || e.ano() < e.hoje().getYear()) {
+            return SerieMensal.MESES;
+        }
+        return e.ano() > e.hoje().getYear() ? 0 : e.hoje().getMonthValue() - 1;
+    }
+
     private static List<LinhaGrupo> linhasGrupo(TipoMovimento tipo, Map<Long, Grupo> grupos,
                                                 Map<TipoMovimento, List<LinhaCategoria>> linhasPorTipo,
-                                                Dinheiro totalTributavelAno) {
+                                                Dinheiro totalTributavelAno, int fechadoAte) {
         List<LinhaCategoria> linhas = linhasPorTipo.get(tipo);
         Dinheiro totalTipo = linhas.stream().map(l -> l.total().total()).reduce(Dinheiro.ZERO, Dinheiro::somar);
         Comparator<LinhaCategoria> ordemCategoria = Comparator
@@ -428,7 +439,7 @@ public final class CalculadoraVisaoAnual {
                     }
                     SerieMensal total = real.somar(prev);
                     return new LinhaGrupo(g, doGrupo, real, prev, Percentual.razao(total.total(), totalTipo),
-                            Variacao.de(total),
+                            Variacao.de(total, fechadoAte),
                             g.empresa() ? Percentual.razao(total.total(), totalTributavelAno) : null);
                 })
                 .filter(Objects::nonNull)

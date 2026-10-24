@@ -6,7 +6,7 @@ import type { Carteira, Investimento, Movimento, TipoInvestimento } from '../api
 import { ErroApi, mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { avisar } from '../estado/avisos'
-import { MESES, MESES_CURTOS, TIPOS_INVESTIMENTO, anoAtual, competencia, mesAtual, pct, reais, reaisCurtos } from '../util/formato'
+import { MESES, MESES_CURTOS, TIPOS_INVESTIMENTO, anoAtual, competencia, competenciaCurta, mesAtual, pct, reais, reaisCurtos } from '../util/formato'
 import PainelLateral from '../componentes/PainelLateral.vue'
 import CampoValor from '../componentes/CampoValor.vue'
 import EstadoVazio from '../componentes/EstadoVazio.vue'
@@ -111,6 +111,24 @@ function preencher() {
 
 const movimentoExiste = computed(() => mov.existentes.some((x) => x.competencia === mov.mes))
 
+// Primeiro registro do investimento: o saldo do extrato vira abertura (o dinheiro já existia), não rendimento.
+const primeiroRegistro = computed(() => !mov.existentes.some((x) => x.competencia < mov.mes))
+
+/**
+ * Saldo do extrato que dá um rendimento implícito acima de 3% do saldo anterior (para mais ou para menos) costuma
+ * ser aporte ou resgate não registrado. Só avisa: quem quiser salva assim mesmo.
+ */
+const rendimentoEstranho = computed(() => {
+  if (mov.saldoInformado === null || primeiroRegistro.value || !carteira.value) return null
+  const [a, m] = mov.mes.split('-').map(Number)
+  if (a !== carteira.value.ano) return null
+  const p = carteira.value.investimentos.find((x) => x.investimento.id === mov.investimentoId)
+  const anterior = p ? (m === 1 ? p.saldoInicial : p.saldos[m - 2]) : 0
+  if (anterior <= 0) return null
+  const rendimento = mov.saldoInformado - anterior - (mov.aporte ?? 0)
+  return Math.abs(rendimento / anterior) > 0.03 ? { rendimento, pct: (rendimento / anterior) * 100 } : null
+})
+
 async function salvarMovimento() {
   mov.erro = ''
   if (mov.aporte === null && mov.rentabilidade === null && mov.saldoInformado === null) {
@@ -195,7 +213,7 @@ const nomeMes = computed(() => {
 
       <template v-else-if="carteira">
         <div class="ano" role="group" aria-label="Ano">
-          <button type="button" class="botao botao-icone botao-pequeno" :aria-label="`Ver ${ano - 1}`" @click="ano--"><ChevronLeft aria-hidden="true" /></button>
+          <button type="button" class="botao botao-icone botao-pequeno" :aria-label="`Ver ${ano - 1}`" :disabled="ano <= sessao.primeiroAno.value" @click="ano--"><ChevronLeft aria-hidden="true" /></button>
           <span class="num ano-numero">{{ ano }}</span>
           <button type="button" class="botao botao-icone botao-pequeno" :aria-label="`Ver ${ano + 1}`" @click="ano++"><ChevronRight aria-hidden="true" /></button>
         </div>
@@ -224,6 +242,9 @@ const nomeMes = computed(() => {
                   </button>
                   <span v-else>{{ p.investimento.nome }}</span>
                   <span class="tipo">{{ TIPOS_INVESTIMENTO[p.investimento.tipo] }}</span>
+                  <span v-if="p.abertura" class="tipo" :title="'Saldo que já existia quando o investimento começou a ser acompanhado: não conta como rendimento nem aporte'">
+                    abertura {{ reaisCurtos(p.abertura.valor) }} em {{ competenciaCurta(p.abertura.competencia) }}
+                  </span>
                 </th>
                 <td v-for="(v, i) in p.saldos" :key="i" class="num">{{ reaisCurtos(v) }}</td>
                 <td class="num">{{ pct(p.rentabilidadeAno, 2) }}</td>
@@ -318,6 +339,16 @@ const nomeMes = computed(() => {
           <CampoValor id="m-saldo" v-model="mov.saldoInformado" />
           <span class="ajuda">Se informado, vale no lugar do saldo calculado.</span>
         </div>
+        <Mensagem v-if="mov.saldoInformado !== null && primeiroRegistro" tipo="info">
+          Primeiro registro deste investimento: o saldo do extrato entra como saldo de abertura (o dinheiro já
+          existia), não como rendimento.
+        </Mensagem>
+        <Mensagem v-else-if="rendimentoEstranho" tipo="info">
+          Com este saldo, {{ nomeMes }} teria {{ reais(rendimentoEstranho.rendimento) }} de rendimento
+          ({{ pct(rendimentoEstranho.pct, 1) }}), o que parece {{ rendimentoEstranho.rendimento > 0 ? 'alto' : 'baixo' }}.
+          Teve {{ rendimentoEstranho.rendimento > 0 ? 'aporte' : 'resgate' }}? Informe-o acima para não contar como
+          rendimento.
+        </Mensagem>
         <Mensagem v-if="movimentoExiste" tipo="info">{{ nomeMes }} já tem registro; salvar substitui.</Mensagem>
         <Mensagem v-if="mov.erro" tipo="erro">{{ mov.erro }}</Mensagem>
         <div class="acoes fim">

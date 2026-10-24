@@ -5,7 +5,7 @@ import type { LugarSaldo, Saldo, Serie, SeriePercentual, VisaoAnual } from '../.
 import { lugaresSaldo, saldos } from '../../api/servicos'
 import { mensagemDeErro } from '../../api/http'
 import { sessao } from '../../estado/sessao'
-import { MESES, MESES_CURTOS, competencia, pct, reais, reaisCurtos, variacao } from '../../util/formato'
+import { MESES, MESES_CURTOS, alcanceInflacao, competencia, pct, reais, reaisCurtos, ultimoMesFechado, variacao } from '../../util/formato'
 import Mensagem from '../Mensagem.vue'
 import PainelSaldo from './PainelSaldo.vue'
 
@@ -202,10 +202,10 @@ function dicaSaldo(i: number): string | undefined {
       </button>
     </div>
 
-    <section class="secao">
+    <section v-if="ultimoMesFechado(visao.ano) >= 2" class="secao">
       <div class="secao-cabecalho">
         <h2>Inflação da família</h2>
-        <p>Quanto as despesas de vocês variaram de um mês para o outro, e no ano (composta).</p>
+        <p>Quanto as despesas de vocês variaram de um mês para o outro, e {{ alcanceInflacao(visao.ano) }} (composta).</p>
       </div>
       <div class="tabela-rolagem">
         <table class="tabela">
@@ -213,7 +213,7 @@ function dicaSaldo(i: number): string | undefined {
             <tr>
               <th scope="col">Variação</th>
               <th v-for="(m, i) in MESES_CURTOS" :key="m" scope="col" :class="{ atual: mesAtual === i + 1 }">{{ m }}</th>
-              <th scope="col">No ano</th>
+              <th scope="col">{{ alcanceInflacao(visao.ano) === 'no ano' ? 'No ano' : `Até ${alcanceInflacao(visao.ano).slice(4)}` }}</th>
             </tr>
           </thead>
           <tbody>
@@ -230,7 +230,11 @@ function dicaSaldo(i: number): string | undefined {
           </tbody>
         </table>
       </div>
-      <p class="legenda-saldo">Mês sem despesa fica sem variação (não conta como −100%).</p>
+      <p class="legenda-saldo">
+        Cada mês é comparado com o anterior: mês sem despesa, ou logo depois de um mês sem despesa, fica sem variação
+        (não conta como −100%).<template v-if="ultimoMesFechado(visao.ano) < 12"> O mês em andamento e os previstos
+        também ficam sem variação: só conta mês fechado.</template>
+      </p>
     </section>
 
     <section v-if="linhasInvest.length" class="secao">

@@ -179,6 +179,12 @@ Pontos de atenção constante na hora de desenvolver.
 - **Pular o mês pede confirmação (2026-10-17)** e explica o que acontece: o valor sai do ano, nada é lançado e os
   outros meses continuam. Para desfazer, "Voltar a prever" aparece no próprio mês (clicando na célula da visão
   anual) e no topo da recorrência, em Recorrências, que mostra na lista o mês pulado.
+- **Confirmação só muda valor e data (2026-10-24):** editar o lançamento que confirmou uma recorrência (pela tabela
+  do ano ou em Lançamentos) mostra só valor, data, observação e nota; a categoria, a descrição e de quem é vêm da
+  recorrência, com o link "editem a recorrência" (vale para todos os meses). O servidor recusa a mudança (422). Antes
+  dava para mover a confirmação de junho do Salário para outra categoria: o mês contava lá, mas seguia "confirmado"
+  na recorrência e entrava na previsão dela. Lançamento avulso continua com tudo editável (corrigir a categoria
+  errada é o caso comum). Confirmações antigas que já estavam noutra categoria seguem editáveis no valor e na data.
 - "Pendentes": ocorrências dos últimos 12 meses que já venceram e ainda não foram confirmadas nem puladas.
 - Editar a recorrência muda as ocorrências não confirmadas. Com ocorrências confirmadas não dá para excluir:
   define-se o fim.
@@ -247,6 +253,13 @@ Pontos de atenção constante na hora de desenvolver.
   nem ajustam (valor ou vencimento). Projetar tão longe não ajuda a família e custa processamento: cada ano é
   calculado encadeando os anteriores, e um ajuste num mês distante seria dado guardado que ninguém vê. O horizonte
   anda com o calendário (em 2027, vai até 2029). A recorrência continua podendo ter fim depois disso (ou nenhum).
+- **Até onde voltar no passado (2026-10-24):** as setas param no **primeiro ano com algum dado** da família (o mais
+  antigo entre lançamentos, início de recorrências, saldos informados e movimentos de investimento); família nova
+  começa no ano atual. Antes a visão anual voltava até 2000, ano a ano vazio. O limite anda sozinho: lançar algo de
+  2019 traz 2019. Vale nas setas do ano (visão anual, investimentos, lançamentos por ano) e do mês (lançamentos e
+  contas a pagar param em janeiro desse ano); o filtro "entre datas" dos lançamentos continua livre. Só a visão anual
+  é recusada pelo servidor antes desse ano (422 "Não há dados antes de 2022"); um endereço mais antigo abre o primeiro
+  ano. Não foi usado o ano de criação da família: a carga da planilha traz anos antes dele.
 - **Atalho do valor (2026-10-17):** clicar no valor de uma categoria num mês abre o que forma aquele valor:
   lançamentos (editar, excluir ou desfazer a confirmação) e previstos (confirmar ou pular). Com um lançamento só,
   abre direto a edição; com o mês vazio, abre o "Lançar" com a categoria e a data preenchidas.
@@ -355,6 +368,11 @@ Pontos de atenção constante na hora de desenvolver.
   (a coluna RANK da planilha).
 - **Inflação** de cada grupo e **inflação familiar** (despesas totais): variação mês a mês e acumulada no ano,
   composta como na planilha. Diferença: mês zerado não entra como −100%, fica sem variação.
+  - **Só mês fechado (2026-10-24):** no ano corrente, a variação vai só até o mês anterior ao atual. O mês em
+    andamento (gasto ainda incompleto: dia 24 dava −18,5%, no começo do mês −90%) e os previstos ficam "–", com a
+    explicação no mouse, e o acumulado vira **"até set"** (no lugar de "no ano"): antes ele equivalia a comparar o
+    previsto de dezembro com fevereiro (−4,4% em vez dos −2,8% reais). Anos passados como sempre; ano futuro não tem
+    linha de inflação. No celular, o mês em andamento mostra "mês em andamento". Vale para a família e cada grupo.
   - **Na primeira tela (2026-10-18), como na planilha:** a tabela do ano mostra a linha "Inflação da família" logo
     abaixo de Despesas e uma linha "Inflação" sob cada grupo de despesa aberto, com a acumulada do ano na coluna
     Total (alta em coral, queda em verde, itálico quando a variação usa valor previsto). "Mostrar inflação" liga e
@@ -450,6 +468,13 @@ Pontos de atenção constante na hora de desenvolver.
 - Carteira da família; por mês e investimento: aporte (negativo = resgate), rentabilidade do mês (%) e,
   opcionalmente, o saldo do extrato, que prevalece sobre o calculado.
 - Saldo do mês = saldo anterior + rendimento (rentabilidade × saldo anterior) + aporte.
+- **Saldo de abertura (2026-10-24):** o primeiro saldo do extrato de um investimento (sem registro antes) menos o
+  aporte do mês é **abertura**: o dinheiro já existia, então não é rendimento nem aporte (não entra no fluxo de
+  caixa). Antes, uma carteira de R$ 50 mil cadastrada no primeiro dia virava "R$ 50 mil de rendimento" e inflava a
+  renda dos investimentos e o grau de independência. Regra automática, sem campo novo; corrige os dados que já
+  existem (o cálculo é feito a cada consulta). A tabela mostra "abertura R$ X em mês/aa" sob o investimento.
+- **Salto de saldo (2026-10-24):** ao informar um saldo do extrato cujo rendimento implícito passa de 3% do saldo
+  anterior (para mais ou para menos), o formulário avisa e sugere informar o aporte ou o resgate, sem bloquear.
 - Os aportes entram no fluxo de caixa como "aplicação total no mês"; os rendimentos são a "renda dos
   investimentos". **Grau de independência financeira** = renda dos investimentos ÷ despesas fixas.
 - **Meta de aporte** da família (% do que sobra no mês, renda − despesas) gera o "aporte previsto" de cada mês.
@@ -490,13 +515,8 @@ Pontos de atenção constante na hora de desenvolver.
   transacional. Depende de infra: gerenciador de segredos e rotação.
 - **Frontend — próximos passos** (v1 pronta; contexto em [`PRODUCT.md`](../PRODUCT.md)):
   - Usar no dia a dia da família e ajustar as telas com o que aparecer.
-  - **Inflação da família no ano**: o acumulado inclui os meses futuros, que só têm o previsto (sem os gastos
-    variáveis), e por isso aparece muito negativo (ex.: −27,8%). Decidir se o acumulado vai só até o mês atual.
-    Agora que a inflação está na tabela principal, o **mês em andamento** também chama atenção: no começo do mês
-    quase nada foi lançado e a variação fica muito negativa (ex.: −93%), seguida de um salto no mês seguinte.
-    Avaliar não calcular a variação do mês atual (como a estimativa, que não estima o mês em andamento).
-  - Modo escuro (a marca prevê; tons a definir), tela de administração das famílias (hoje só pela API) e
-    landing page em familianca.com.br.
+  - Tela de administração das famílias (hoje só pela API) e landing page em familianca.com.br. (O modo escuro já
+    existe: Minha conta → Aparência.)
   - Logo final: o front usa um símbolo provisório de 12 barras (`frontend/src/componentes/Marca.vue`).
 - **Marca:** validar com 5 a 8 famílias, depositar o pedido de registro de "Familiança" no INPI (classes 9 e 36;
   busca de 2026-10-17 sem nenhum registro igual ou parecido) e finalizar o logo com um designer. Domínio
@@ -515,7 +535,6 @@ Pontos de atenção constante na hora de desenvolver.
   fatura (depende de cartões).
 - **Cartões de crédito:** cartão no lançamento e visão da fatura (a planilha controla faturas). A forma de pagamento
   "no cartão de crédito" das recorrências já existe; falta dizer qual cartão e montar a fatura com vencimento.
-- **Reajuste de recorrência a partir de um mês** (hoje editar o valor muda todas as ocorrências não confirmadas).
 - **Importar a planilha** (xlsx) de anos anteriores para o histórico. Já testado com um script fora do repositório
   que usa só a API (2026-10-17, ver "Aprendizados da carga da planilha"). Como produto, precisa de uma rota de
   importação em lote: pela API comum foram ~1.500 chamadas, 6 min com o teto de 300 req/min.
@@ -528,14 +547,13 @@ mapeado: anos fechados viram lançamentos; no ano atual, o que se repete virou r
 confirmados com o valor real, futuros previstos) e pagamentos anuais (IPTU, IPVA, seguros) viraram recorrência
 anual. Faturas de cartão ficaram num grupo "Cartões de crédito" (uma categoria por cartão), por falta do detalhe.
 
-- **Bug — saldo informado vira rendimento:** no 1º mês de um investimento (ou num salto de saldo), a diferença
-  entre o saldo do extrato e o calculado conta toda como rendimento. Abrir a carteira com o saldo atual gera uma
-  "renda dos investimentos" do tamanho do saldo e um grau de independência irreal. Proposta: saldo inicial
-  separado (sem rendimento) e, num salto, perguntar se foi aporte ou rendimento.
+- ~~**Bug — saldo informado vira rendimento**~~: resolvido em 2026-10-24 (saldo de abertura e aviso de salto, ver
+  Investimentos).
 - **Alíquota com vigência:** o DAS da planilha varia de ~7,7% a ~10% das notas ao longo dos anos; com uma alíquota
   única o histórico ficaria errado, então o DAS foi lançado valor a valor (a categoria perdeu a alíquota).
 - **Inflação mensal com gasto concentrado** (fatura grande, IR, reforma) oscila de −70% a +260% e não ajuda;
-  avaliar inflação só das despesas fixas/recorrentes ou média móvel de 12 meses (soma-se à pendência do acumulado).
+  avaliar inflação só das despesas fixas/recorrentes ou média móvel de 12 meses (o acumulado e o mês em andamento
+  já foram resolvidos em 2026-10-24: só mês fechado).
 - **Meta de aporte por mês:** a planilha muda o % ao longo do ano (30% → 50%); o sistema tem uma meta só.
 - **Cartões:** as faturas sem detalhe são o maior gasto do ano atual, o que reforça a pendência de cartões.
 - Orçamento planejado × realizado por categoria (meta de gasto).

@@ -108,6 +108,17 @@ export function mesAtual(): number {
   return new Date().getMonth() + 1
 }
 
+/** Último mês fechado do ano (mesma regra do servidor para a inflação): 12 no passado, 0 no futuro. */
+export function ultimoMesFechado(ano: number): number {
+  return ano < anoAtual() ? 12 : ano > anoAtual() ? 0 : mesAtual() - 1
+}
+
+/** Alcance da inflação acumulada: "no ano" ou, no ano corrente, "até set". */
+export function alcanceInflacao(ano: number): string {
+  const f = ultimoMesFechado(ano)
+  return f >= 12 ? 'no ano' : `até ${MESES_CURTOS[f - 1]}`
+}
+
 export const FREQUENCIAS: Record<string, { rotulo: string; por: string; vezes: number }> = {
   UNICA: { rotulo: 'Uma vez só (conta avulsa)', por: 'uma vez', vezes: 1 },
   MENSAL: { rotulo: 'Todo mês', por: 'por mês', vezes: 12 },

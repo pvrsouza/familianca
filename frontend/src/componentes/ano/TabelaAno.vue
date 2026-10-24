@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import { ChevronRight, Info, Search } from 'lucide-vue-next'
 import type { Bloco, CategoriaVisao, GrupoVisao, ItemVisao, SeriePercentual, Tipo, VisaoAnual } from '../../api/tipos'
 import {
-  MESES, MESES_CURTOS, anoAtual, competenciaCurta, explicarTrecho, ordinal, pct, previsaoCurta, previsaoDaCategoria, reais, reaisCurtos,
+  MESES, MESES_CURTOS, alcanceInflacao, anoAtual, ultimoMesFechado, competenciaCurta, explicarTrecho, ordinal, pct, previsaoCurta, previsaoDaCategoria, reais, reaisCurtos,
   variacao,
 } from '../../util/formato'
 import { centavos } from '../../estado/centavos'
@@ -339,6 +339,11 @@ function inflacaoPrevista(previsto: number[], i: number): boolean {
 
 function textoInflacao(nome: string, serie: SeriePercentual, previsto: number[], i: number): string {
   const v = serie.valores[i]
+  if (i + 1 > fechado.value) {
+    return i + 1 === fechado.value + 1 && props.visao.ano === anoAtual()
+      ? `${nome}, ${MESES[i]}: mês em andamento. A variação aparece quando ele fechar`
+      : `${nome}, ${MESES[i]}: só previsto, sem variação`
+  }
   if (v == null) return `${nome}, ${MESES[i]}: sem variação (mês sem despesa ou sem o mês anterior para comparar)`
   const sentido = v > 0 ? 'subiram' : v < 0 ? 'caíram' : 'ficaram iguais'
   const comparado = i > 0 ? `em relação a ${MESES[i - 1]}` : 'em relação a dezembro do ano anterior'
@@ -349,8 +354,12 @@ function textoInflacao(nome: string, serie: SeriePercentual, previsto: number[],
 function textoInflacaoAno(nome: string, serie: SeriePercentual): string {
   return serie.ano == null
     ? `${nome}: sem inflação no ano`
-    : `${nome}: inflação acumulada no ano, composta mês a mês, de ${variacao(serie.ano)}`
+    : `${nome}: inflação acumulada ${alcanceInflacao(props.visao.ano)}, composta mês a mês, de ${variacao(serie.ano)}`
 }
+
+// Só mês fechado tem variação: no ano corrente vai até o mês anterior, e ano futuro não tem linha de inflação.
+const fechado = computed(() => ultimoMesFechado(props.visao.ano))
+const temInflacao = computed(() => fechado.value >= 2)
 
 function classesInflacao(v: number | null, previsto: number[], i: number) {
   return {
@@ -478,7 +487,7 @@ function linkCategoria(c: CategoriaVisao): string {
           <td />
         </tr>
 
-        <tr v-if="!filtrando && b.chave === 'DESPESA' && inflacao.ligada.value && b.bloco.total.ano !== 0" class="linha-inflacao inflacao-familia">
+        <tr v-if="!filtrando && temInflacao && b.chave === 'DESPESA' && inflacao.ligada.value && b.bloco.total.ano !== 0" class="linha-inflacao inflacao-familia">
           <th scope="row">
             <button type="button" class="explicar explicar-inflacao" popovertarget="explica-inflacao"
                     aria-label="Inflação da família: o que é">
@@ -491,7 +500,7 @@ function linkCategoria(c: CategoriaVisao): string {
           <td class="num total" :title="textoInflacaoAno('Família', visao.resumo.inflacaoFamiliar)">
             {{ variacao(visao.resumo.inflacaoFamiliar.ano) }}
           </td>
-          <td colspan="3" class="nota-inflacao">no ano</td>
+          <td colspan="3" class="nota-inflacao">{{ alcanceInflacao(visao.ano) }}</td>
         </tr>
 
         <tr v-if="!filtrando && b.bloco.grupos.length === 0" class="linha-vazia">
@@ -518,7 +527,7 @@ function linkCategoria(c: CategoriaVisao): string {
             </template>
           </tr>
           <template v-if="grupoAberto(g)">
-            <tr v-if="!filtrando && b.chave === 'DESPESA' && inflacao.ligada.value && g.total.ano !== 0" class="linha-inflacao">
+            <tr v-if="!filtrando && temInflacao && b.chave === 'DESPESA' && inflacao.ligada.value && g.total.ano !== 0" class="linha-inflacao">
               <th scope="row"><span class="rotulo-inflacao">Inflação</span></th>
               <td v-for="(v, i) in g.inflacao.valores" :key="i" class="num" :class="classesInflacao(v, g.previsto, i)"
                   :title="textoInflacao(g.nome, g.inflacao, g.previsto, i)" @mouseenter="realce = i">{{ variacao(v) }}</td>
