@@ -25,6 +25,8 @@ const ano = computed(() => Math.min(Number(route.params.ano) || anoAtual(), ulti
 const aba = computed(() => (['fluxo', 'pessoas'].includes(String(route.query.aba)) ? String(route.query.aba) : 'orcamento'))
 const dados = ref<VisaoAnual | null>(null)
 const carregando = ref(true)
+/** Filtro rápido da tabela pelo nome: continua ao trocar de ano, sai ao deixar a tela. */
+const busca = ref('')
 const erro = ref('')
 const pendentes = ref<Pendente[]>([])
 
@@ -298,7 +300,7 @@ const proximo = computed(() => passos.value.findIndex(pendente))
       <div class="conteudo-aba">
         <template v-if="aba === 'orcamento'">
           <AnoCelular v-if="celular" :visao="dados" :mes-atual="mesDestaque" @abrir="abrirMes" />
-          <TabelaAno v-else :visao="dados" :mes-atual="mesDestaque" />
+          <TabelaAno v-else v-model:busca="busca" :visao="dados" :mes-atual="mesDestaque" />
         </template>
         <FluxoCaixa v-else-if="aba === 'fluxo'" :visao="dados" :mes-atual="mesDestaque" @mudou="carregar" />
         <PorPessoa v-else :visao="dados" />

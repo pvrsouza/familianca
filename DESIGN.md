@@ -311,6 +311,10 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 ### Olho (esconder valores)
 - Botão de ícone na barra, à esquerda do usuário: 2,75rem, olho Lucide em areia a 80%; ligado vira petróleo noite com o ícone de olho cortado e `aria-pressed`. Valores em reais viram "•••••" pelos formatadores (`reais`, `reaisCurtos`); campos de digitação não mudam.
 
+### Filtro rápido da tabela do ano
+- Campo de busca com lupa (o mesmo da busca dos Lançamentos, até 17rem) no começo da barra acima da tabela, antes da legenda; as opções ficam à direita. Filtrando, somem "Mostrar categorias sem valor", "Abrir as categorias em itens" e "Recolher os grupos" (o filtro já decide o que aparece).
+- No topo da tabela, uma linha por tipo encontrado, no estilo da linha de bloco: "Receitas encontradas · N" / "Despesas encontradas · N" (contagem em cinza 400), com os meses (previsto tracejado, como sempre) e o total. Blocos e grupos viram só cabeçalho, sem valores. Sem resultado: "Nada encontrado com "x" em 2026", na linha vazia.
+
 ### Faixa do mês (atalho do valor)
 - Célula de categoria (ou item) × mês é um botão que ocupa a célula inteira; no hover, texto em petróleo profundo com sublinhado pedra forte. Abre uma faixa logo abaixo da linha, na largura da tabela, com título = categoria (Fraunces) e subtítulo = mês; o painel lateral não é usado aqui. Cada previsto ocupa uma linha (descrição, valor e ações), nunca cartões. Blocos "Previsto"/"Previsto para receber" e "Lançado"/"Recebido" com rótulo em caixa alta 0,8125rem; itens de 3,5rem com seta. Um lançamento só abre direto a edição; mês vazio abre o "Lançar".
 - A regra da previsão aparece em texto 0,75rem cinza sob o nome da conta prevista (e no bloco Estimativa): regra, de quem é, os meses usados como "ago R$ 410 · set R$ 380" e o valor, seguida de "Para mudar, clique no nome da despesa na tabela." A faixa do mês só explica; a regra não muda aqui.

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ChevronRight, Info } from 'lucide-vue-next'
+import { ChevronRight, Info, Search } from 'lucide-vue-next'
 import type { Bloco, CategoriaVisao, GrupoVisao, ItemVisao, SeriePercentual, Tipo, VisaoAnual } from '../../api/tipos'
 import {
   MESES, MESES_CURTOS, anoAtual, competenciaCurta, explicarTrecho, ordinal, pct, previsaoCurta, previsaoDaCategoria, reais, reaisCurtos,
@@ -22,6 +22,8 @@ import PainelMes, { type AlvoMes } from './PainelMes.vue'
 // copa do ano: uma barra por mês com a despesa realizada (cheia), a prevista (tracejada) e o traço da renda.
 // Como na planilha, a inflação da família fica sob as despesas e a de cada grupo de despesa sob o grupo.
 const props = defineProps<{ visao: VisaoAnual; mesAtual: number | null }>()
+// Fica na tela do ano (não aqui): continua ao trocar de ano, que recria a tabela.
+const busca = defineModel<string>('busca', { default: '' })
 // ——— Editar dentro da tabela ———
 // Clicar num mês abre uma faixa logo abaixo da linha (da categoria ou do item), com o que forma aquele valor:
 // confirmar, outro valor, pular, editar, lançar. Clicar de novo na mesma célula, no X ou Esc fecha.
@@ -195,8 +197,42 @@ function previstoDoBloco(b: Bloco): number[] {
 }
 
 function categoriasVisiveis(g: GrupoVisao): CategoriaVisao[] {
+  if (filtrando.value) return g.categorias.filter(encontrada)
   return mostrarVazias.value ? g.categorias : g.categorias.filter((c) => c.total.ano !== 0)
 }
+
+// ——— Filtro rápido pelo nome ———
+// Procura no nome da categoria e no dos itens dela, sem ligar para acento e maiúscula. Mostra só o que bate, dentro
+// do grupo; os totais de bloco e grupo saem (seriam do ano inteiro) e entra a soma do que foi encontrado. Acha
+// também categoria sem valor no ano: quem busca pelo nome quer a linha.
+function normalizar(s: string): string {
+  return s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
+}
+const termo = computed(() => normalizar(busca.value))
+const filtrando = computed(() => termo.value.length > 0)
+const bate = (nome: string) => normalizar(nome).includes(termo.value)
+const categoriaBate = (c: CategoriaVisao) => bate(c.nome)
+const itensQueBatem = (c: CategoriaVisao) => c.itens.filter((i) => bate(i.descricao))
+const encontrada = (c: CategoriaVisao) => categoriaBate(c) || itensQueBatem(c).length > 0
+/** Achada só por um item: abre a categoria e mostra só os itens que batem. */
+const soPorItem = (c: CategoriaVisao) => filtrando.value && !categoriaBate(c)
+const itensVisiveis = (c: CategoriaVisao) => (soPorItem(c) ? itensQueBatem(c) : c.itens)
+const gruposVisiveis = (b: Bloco) => (filtrando.value ? b.grupos.filter((g) => g.categorias.some(encontrada)) : b.grupos)
+const grupoAberto = (g: GrupoVisao) => filtrando.value || !fechados.value.has(g.id)
+
+/** Soma do que foi encontrado, por tipo: a categoria inteira quando o nome dela bate, senão só os itens que batem. */
+const encontrado = computed(() => {
+  if (!filtrando.value) return []
+  return blocos.value.map((b) => {
+    const linhas = b.bloco.grupos.flatMap((g) => g.categorias)
+      .flatMap((c): { total: { valores: number[] }; previsto: number[] }[] => (categoriaBate(c) ? [c] : itensQueBatem(c)))
+    const valores = somar(linhas.map((l) => l.total.valores))
+    return {
+      chave: b.chave, titulo: b.chave === 'RECEITA' ? 'Receitas encontradas' : 'Despesas encontradas', linhas: linhas.length,
+      valores, previsto: somar(linhas.map((l) => l.previsto)), ano: valores.reduce((t, v) => t + v, 0),
+    }
+  }).filter((e) => e.linhas > 0)
+})
 
 const temOcultas = computed(() =>
   [...props.visao.receitas.grupos, ...props.visao.despesas.grupos].some((g) => g.categorias.some((c) => c.total.ano === 0)),
@@ -206,7 +242,7 @@ const temOcultas = computed(() =>
 // Categoria com mais de um item (três telefones, duas escolas) pode abrir uma linha por item. A escolha fica no
 // navegador, por categoria; o botão da barra abre ou agrupa todas de uma vez.
 const detalhavel = (c: CategoriaVisao) => c.itens.length > 1
-const aberta = (c: CategoriaVisao) => detalhavel(c) && detalhes.abertas.value.has(c.id)
+const aberta = (c: CategoriaVisao) => detalhavel(c) && (detalhes.abertas.value.has(c.id) || soPorItem(c))
 const detalhaveis = computed(() =>
   [...props.visao.receitas.grupos, ...props.visao.despesas.grupos].flatMap((g) => g.categorias).filter(detalhavel),
 )
@@ -334,13 +370,19 @@ function linkCategoria(c: CategoriaVisao): string {
 
 <template>
   <div class="ferramentas">
+    <label class="busca">
+      <span class="sr">Buscar despesa ou receita pelo nome</span>
+      <Search aria-hidden="true" />
+      <input v-model="busca" class="entrada" type="search" maxlength="100" placeholder="Buscar despesa ou receita"
+             @keydown.esc="busca = ''" />
+    </label>
     <div class="legenda" aria-hidden="true">
       <span><i class="amostra realizado" /> confirmado</span>
       <span><i class="amostra previsto" /> previsto</span>
       <span><i class="amostra renda" /> renda do mês</span>
     </div>
     <div class="acoes">
-      <label v-if="temOcultas" class="caixa-marcar">
+      <label v-if="temOcultas && !filtrando" class="caixa-marcar">
         <input v-model="mostrarVazias" type="checkbox" /> Mostrar categorias sem valor no ano
       </label>
       <label class="caixa-marcar" title="Linhas com quanto as despesas variaram de um mês para o outro: da família e de cada grupo">
@@ -349,11 +391,11 @@ function linkCategoria(c: CategoriaVisao): string {
       <label class="caixa-marcar" title="Sem centavos, os valores aparecem arredondados para o real mais próximo">
         <input type="checkbox" :checked="centavos.ligados.value" @change="centavos.alternar()" /> Mostrar centavos
       </label>
-      <button v-if="detalhaveis.length" type="button" class="botao botao-sutil botao-pequeno" @click="alternarDetalhes"
+      <button v-if="detalhaveis.length && !filtrando" type="button" class="botao botao-sutil botao-pequeno" @click="alternarDetalhes"
               title="Categorias com mais de um item (como três telefones) mostram uma linha para cada">
         {{ todasAbertas ? 'Agrupar as categorias' : 'Abrir as categorias em itens' }}
       </button>
-      <button type="button" class="botao botao-sutil botao-pequeno" @click="alternarTodos">
+      <button v-if="!filtrando" type="button" class="botao botao-sutil botao-pequeno" @click="alternarTodos">
         {{ todosFechados ? 'Abrir todos os grupos' : 'Recolher os grupos' }}
       </button>
     </div>
@@ -407,8 +449,26 @@ function linkCategoria(c: CategoriaVisao): string {
         </tr>
       </thead>
 
-      <tbody v-for="b in blocos" :key="b.chave" :class="b.chave === 'RECEITA' ? 'bloco-receita' : 'bloco-despesa'">
-        <tr class="linha-tipo">
+      <tbody v-if="filtrando" class="bloco-encontrado" aria-live="polite">
+        <tr v-for="e in encontrado" :key="e.chave" class="linha-tipo linha-encontrado">
+          <th scope="row">{{ e.titulo }} <span class="contagem">· {{ e.linhas }}</span></th>
+          <td v-for="(v, i) in e.valores" :key="i" class="num" :class="classesCelula(i, e.previsto[i])"
+              :title="dica(v, e.previsto[i])" @mouseenter="realce = i">{{ reaisCurtos(v) }}</td>
+          <td class="num total">{{ reaisCurtos(e.ano) }}</td>
+          <td colspan="3" />
+        </tr>
+        <tr v-if="!encontrado.length" class="linha-vazia">
+          <td :colspan="17">Nada encontrado com "{{ busca.trim() }}" em {{ visao.ano }}.</td>
+        </tr>
+      </tbody>
+
+      <tbody v-for="b in blocos" v-show="!filtrando || gruposVisiveis(b.bloco).length" :key="b.chave"
+             :class="b.chave === 'RECEITA' ? 'bloco-receita' : 'bloco-despesa'">
+        <tr v-if="filtrando" class="linha-tipo">
+          <th scope="row">{{ b.titulo }}</th>
+          <td colspan="16" />
+        </tr>
+        <tr v-else class="linha-tipo">
           <th scope="row">{{ b.titulo }}</th>
           <td v-for="(v, i) in b.bloco.total.valores" :key="i" class="num" :class="classesCelula(i, previstoDoBloco(b.bloco)[i])"
               :title="dica(v, previstoDoBloco(b.bloco)[i])" @mouseenter="realce = i">{{ reaisCurtos(v) }}</td>
@@ -418,7 +478,7 @@ function linkCategoria(c: CategoriaVisao): string {
           <td />
         </tr>
 
-        <tr v-if="b.chave === 'DESPESA' && inflacao.ligada.value && b.bloco.total.ano !== 0" class="linha-inflacao inflacao-familia">
+        <tr v-if="!filtrando && b.chave === 'DESPESA' && inflacao.ligada.value && b.bloco.total.ano !== 0" class="linha-inflacao inflacao-familia">
           <th scope="row">
             <button type="button" class="explicar explicar-inflacao" popovertarget="explica-inflacao"
                     aria-label="Inflação da família: o que é">
@@ -434,28 +494,31 @@ function linkCategoria(c: CategoriaVisao): string {
           <td colspan="3" class="nota-inflacao">no ano</td>
         </tr>
 
-        <tr v-if="b.bloco.grupos.length === 0" class="linha-vazia">
+        <tr v-if="!filtrando && b.bloco.grupos.length === 0" class="linha-vazia">
           <td :colspan="17">Nenhum grupo de {{ b.titulo.toLowerCase() }} ainda.</td>
         </tr>
 
-        <template v-for="g in b.bloco.grupos" :key="g.id">
+        <template v-for="g in gruposVisiveis(b.bloco)" :key="g.id">
           <tr class="linha-grupo" :class="{ inativo: !g.ativo }">
             <th scope="row">
-              <button type="button" class="abrir" :aria-expanded="!fechados.has(g.id)" @click="alternar(g.id)">
+              <button type="button" class="abrir" :aria-expanded="grupoAberto(g)" :disabled="filtrando" @click="alternar(g.id)">
                 <ChevronRight class="seta" aria-hidden="true" />
                 <span class="nome-grupo">{{ g.nome }}</span>
                 <span class="natureza">{{ g.natureza === 'FIXA' ? 'fixa' : 'variável' }}</span>
               </button>
             </th>
+            <td v-if="filtrando" colspan="16" />
+            <template v-else>
             <td v-for="(v, i) in g.total.valores" :key="i" class="num" :class="classesCelula(i, g.previsto[i])"
                 :title="dica(v, g.previsto[i])" @mouseenter="realce = i">{{ reaisCurtos(v) }}</td>
             <td class="num total">{{ reaisCurtos(g.total.ano) }}</td>
             <td class="num">{{ reaisCurtos(g.total.mediaMensal) }}</td>
             <td class="num">{{ pct(g.participacao) }}</td>
             <td />
+            </template>
           </tr>
-          <template v-if="!fechados.has(g.id)">
-            <tr v-if="b.chave === 'DESPESA' && inflacao.ligada.value && g.total.ano !== 0" class="linha-inflacao">
+          <template v-if="grupoAberto(g)">
+            <tr v-if="!filtrando && b.chave === 'DESPESA' && inflacao.ligada.value && g.total.ano !== 0" class="linha-inflacao">
               <th scope="row"><span class="rotulo-inflacao">Inflação</span></th>
               <td v-for="(v, i) in g.inflacao.valores" :key="i" class="num" :class="classesInflacao(v, g.previsto, i)"
                   :title="textoInflacao(g.nome, g.inflacao, g.previsto, i)" @mouseenter="realce = i">{{ variacao(v) }}</td>
@@ -509,7 +572,7 @@ function linkCategoria(c: CategoriaVisao): string {
               </td>
             </tr>
             <template v-if="aberta(c)">
-              <template v-for="item in c.itens" :key="item.descricao">
+              <template v-for="item in itensVisiveis(c)" :key="item.descricao">
               <tr class="linha-item">
                 <th scope="row">
                   <button v-if="temPrevisao(item, b.chave)" type="button" class="nome-item clicavel"
@@ -559,7 +622,7 @@ function linkCategoria(c: CategoriaVisao): string {
         </template>
       </tbody>
 
-      <tbody class="bloco-saldo">
+      <tbody v-if="!filtrando" class="bloco-saldo">
         <tr class="linha-saldo">
           <th scope="row">Receitas − despesas</th>
           <td v-for="(v, i) in saldoMes" :key="i" class="num" :class="[classesCelula(i), { negativo: v < -0.004 }]"
@@ -613,6 +676,31 @@ function linkCategoria(c: CategoriaVisao): string {
 </template>
 
 <style scoped>
+.busca {
+  position: relative;
+  flex: 0 1 17rem;
+}
+
+.busca svg {
+  position: absolute;
+  top: 50%;
+  left: var(--e-3);
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--texto-2);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.busca .entrada {
+  padding-left: 2.5rem;
+}
+
+.linha-encontrado .contagem {
+  color: var(--texto-2);
+  font-weight: 400;
+}
+
 .ferramentas {
   display: flex;
   flex-wrap: wrap;
@@ -625,6 +713,7 @@ function linkCategoria(c: CategoriaVisao): string {
 .legenda {
   display: flex;
   flex-wrap: wrap;
+  margin-right: auto;
   gap: var(--e-4);
   font-size: var(--t-xs);
   color: var(--texto-2);

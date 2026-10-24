@@ -252,6 +252,15 @@ Pontos de atenção constante na hora de desenvolver.
   abre direto a edição; com o mês vazio, abre o "Lançar" com a categoria e a data preenchidas.
   - **Edição na própria linha (2026-10-22):** o que forma o valor abre numa faixa logo abaixo da linha clicada, sem
     painel lateral; um item por linha (não cartões), com confirmar, outro valor e "Mais" (pular, vencimento do mês).
+- **Filtro rápido pelo nome (2026-10-24):** na aba Orçamento (tabela do computador), "Buscar despesa ou receita"
+  mostra só as categorias e os itens cujo nome tem o texto (sem ligar para acento e maiúscula), dentro dos grupos.
+  Achada só por um item, a categoria abre e mostra só ele. Enquanto filtra, os totais de bloco e de grupo saem (seriam
+  do ano inteiro e enganariam) e entra **"Receitas encontradas" / "Despesas encontradas"**, separadas, com os 12 meses
+  e o total: conta a categoria inteira quando o nome dela bate, senão só os itens que batem (nada é somado duas vezes).
+  As linhas de inflação e de receitas − despesas somem; o resumo do topo e as barras continuam sendo do ano. Acha
+  categoria sem valor no ano. O texto continua ao trocar de ano, não fica guardado (sair da tela ou recarregar volta
+  tudo) e Esc limpa. Tudo no navegador, sem consulta nova. Fora por enquanto: o celular (outro componente, um mês por
+  vez) e as abas Fluxo de caixa e Por pessoa.
 - **Categoria em itens (2026-10-22):** a seta ao lado da categoria abre as linhas dos itens que a compõem (ex.: três
   telefones em "Telefone"): uma linha por recorrência, uma por descrição dos lançamentos avulsos (sem ligar para
   acento e maiúscula) e uma para a estimativa. A célula do item abre só o que é dele. Quais categorias ficam abertas
