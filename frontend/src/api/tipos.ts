@@ -212,6 +212,24 @@ export interface Pendente {
   vencimento: string | null
 }
 
+/** Uma conta no checklist do mês: prevista ou já paga (pagamento = o lançamento que a confirmou). */
+export interface ContaDoMes {
+  competencia: string
+  valorPrevisto: number
+  /** Vencimento desta ocorrência; nulo = sem vencimento. */
+  vencimento: string | null
+  recorrencia: Recorrencia
+  pagamento: Lancamento | null
+}
+
+/** Contas a pagar do mês. anterioresEmAberto: só no mês atual, meses com conta vencida e não paga. */
+export interface ContasDoMes {
+  competencia: string
+  aPagar: ContaDoMes[]
+  paraConferir: ContaDoMes[]
+  anterioresEmAberto: { competencia: string; contas: number }[]
+}
+
 export interface Serie {
   valores: number[]
   ano: number

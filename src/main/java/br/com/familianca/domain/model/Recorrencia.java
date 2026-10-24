@@ -190,6 +190,19 @@ public record Recorrencia(Long id, Long categoriaId, Long membroId, String descr
         return !semVencimento && formaPagamento != FormaPagamento.CARTAO_CREDITO;
     }
 
+    /**
+     * Despesa que alguém precisa pagar (lista de contas a pagar): boleto ou Pix, ou forma não informada com
+     * vencimento (a maioria das contas antigas, até dizerem como é paga).
+     */
+    public boolean pedePagamento() {
+        return formaPagamento == FormaPagamento.BOLETO_PIX || (formaPagamento == null && !semVencimento);
+    }
+
+    /** Despesa que sai sozinha (débito automático ou cartão): na lista de contas a pagar, só para conferir. */
+    public boolean saiSozinha() {
+        return formaPagamento == FormaPagamento.DEBITO_AUTOMATICO || formaPagamento == FormaPagamento.CARTAO_CREDITO;
+    }
+
     /** Vencimento da ocorrência; nulo quando a conta não tem vencimento. */
     public LocalDate vencimentoEm(Competencia competencia) {
         return temVencimento() ? dataEm(competencia) : null;

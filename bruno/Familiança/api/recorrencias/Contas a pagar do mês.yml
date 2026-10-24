@@ -1,0 +1,22 @@
+info:
+  name: Contas a pagar do mês
+  type: http
+  seq: 10
+  tags:
+    - Recorrências
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/recorrencias/contas-a-pagar?mes=2026-10"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Checklist do mês: contas a pagar (boleto/Pix e sem forma informada com vencimento), as que saem sozinhas
+  (débito automático e cartão) e, no mês atual, os meses anteriores com conta vencida e não paga.

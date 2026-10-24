@@ -327,6 +327,13 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 ### Conferir ocorrência
 - O previsto num selo coral tracejado e três ações pequenas: primário (Confirmar / "Recebi R$ X"), secundário (Outro valor / "Veio outro valor") e sutil (Pular o mês / "Não recebi"). "Outro valor" troca as ações por um campo de valor com confirmar e voltar. Em "Outro valor", ao lado de Confirmar, "Só mudar o previsto" (botão secundário) abre logo abaixo uma caixa em areia com a pergunta "só em <mês> ou daqui em diante?" (primário: só no mês; secundário: daqui em diante; sutil: voltar) e um texto que explica o reajuste; sem meses depois, salva direto. Um texto curto diferencia confirmar de mudar o previsto; o previsto ajustado ganha "só neste mês" em cinza ao lado do selo. Ações menos usadas (pular, vencimento do mês) ficam em "Mais". Se a data escolhida cai em outro mês, um aviso em texto pequeno diz em que mês o valor vai contar. O mesmo componente serve a lista de pendentes e a faixa do mês.
 
+### Contas a pagar (checklist do mês)
+- Cabeçalho da página com as setas do mês (as mesmas dos Lançamentos) à direita. Logo abaixo, o resumo: "Faltam R$ X" (1,125rem, valor em 700 tabular) e "· N de M pagas" em cinza; concluído, um aviso de sucesso com ícone de check: "Tudo pago em <mês>". Contas de meses anteriores em aberto: aviso de erro com o link "Ver <mês>".
+- Grupos (Vencidas, Vencem em até 7 dias, Depois) com título 1rem e a contagem em cinza, cada um num painel de lista. Linha: descrição 600, meta 0,75rem cinza (categoria · "vence em…/venceu em… (há N dias)" · pessoa), valor previsto à direita em itálico cinza e "Paguei" primário pequeno. "Paguei" abre a conferência (compacta) logo abaixo da linha, com "Cancelar" sutil. Conta sem forma de pagamento: link petróleo sublinhado "É débito automático? Diga como é paga", que abre a edição no painel lateral.
+- "Pagas" é um `details` fechado com a contagem e o total; cada paga tem o selo petróleo "paga" com check (o azul da planilha), "em dia"/"N dias de atraso" e "Desfazer" sutil, que pede confirmação ali mesmo.
+- "Só para conferir" é uma seção à parte (título + explicação curta), mesma linha, com "Conferir" secundário e o selo "conferida" quando confirmada.
+- Navegação: item "Contas a pagar" (ícone de lista com checks) depois de "O ano". No celular a barra continua com cinco posições: Família vai para o "Mais".
+
 ### Explicação de coluna
 - Cabeçalho com ícone de info abre um `popover` nativo em papel (26rem, borda pedra, 12px, sombra de menu), título Fraunces 1,125rem, texto 0,875rem e um exemplo do próprio ano em areia. Usado no Rank.
 

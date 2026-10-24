@@ -36,6 +36,13 @@ public interface GerenciarRecorrencias {
     List<OcorrenciaPendente> pendentes();
 
     /**
+     * Checklist de contas a pagar do mês: despesas que ocorrem na competência (puladas ficam de fora), pagas ou não.
+     * aPagar: as que pedem pagamento ({@link Recorrencia#pedePagamento()}); paraConferir: as que saem sozinhas. No
+     * mês atual, também os meses dos últimos 12 com conta a pagar vencida e não paga.
+     */
+    ContasDoMes contasAPagar(Competencia competencia);
+
+    /**
      * Vira lançamento. valor e data nulos = os da recorrência. Receita tributável (nota fiscal) exige a data do
      * pagamento a cada mês e pode trazer a competência e a emissão da nota.
      */
@@ -100,6 +107,18 @@ public interface GerenciarRecorrencias {
     record RecorrenciaDetalhada(Recorrencia recorrencia, Categoria categoria, Grupo grupo, Membro membro, int ano,
                                 Dinheiro valorNoAno, Dinheiro valorAnualizado, Previsao previsao,
                                 List<BaseEstimativa> previsoes) {
+    }
+
+    /** @param pagamento lançamento que confirmou a conta; nulo = ainda não paga */
+    record ContaDoMes(RecorrenciaDetalhada recorrencia, Competencia competencia, Dinheiro valorPrevisto,
+                      LocalDate vencimento, LancamentoDetalhado pagamento) {
+    }
+
+    record MesEmAberto(Competencia competencia, int contas) {
+    }
+
+    record ContasDoMes(Competencia competencia, List<ContaDoMes> aPagar, List<ContaDoMes> paraConferir,
+                       List<MesEmAberto> anterioresEmAberto) {
     }
 
     /** @param vencimento nulo = conta sem vencimento (ou receita) */

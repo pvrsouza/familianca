@@ -158,6 +158,65 @@ public class RecorrenciaService implements GerenciarRecorrencias {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public ContasDoMes contasAPagar(Competencia competencia) {
+        obrigatorio(competencia, "competência");
+        exigirNoHorizonte(competencia);
+        confirmacaoAutomatica.processar();
+        LocalDate hoje = relogio.hoje();
+        Competencia mesAtual = Competencia.de(hoje);
+        Detalhador d = detalhador();
+        List<Recorrencia> todas = recorrencias.listar();
+        List<Recorrencia> despesas = todas.stream()
+                .filter(r -> d.grupo(d.categoria(r.categoriaId()).grupoId()).tipo() == TipoMovimento.DESPESA)
+                .filter(r -> r.pedePagamento() || r.saiSozinha())
+                .toList();
+        PrevisaoRecorrencias previsao = previsaoFamilia.calcular(todas);
+        Map<Ocorrencia, Lancamento> pagas = lancamentos.listarOcorrenciasConfirmadas(competencia, competencia).stream()
+                .collect(Collectors.toMap(l -> new Ocorrencia(l.recorrenciaId(), l.competenciaRecorrencia()), l -> l,
+                        (a, b) -> a));
+        List<ContaDoMes> aPagar = new ArrayList<>();
+        List<ContaDoMes> paraConferir = new ArrayList<>();
+        for (Recorrencia r : despesas) {
+            if (r.ocorreEm(competencia)) {
+                Lancamento pago = pagas.get(new Ocorrencia(r.id(), competencia));
+                ContaDoMes conta = new ContaDoMes(detalhar(r, d, previsao), competencia,
+                        previsao.valorEm(r, competencia), r.vencimentoEm(competencia),
+                        pago != null ? d.detalhar(pago) : null);
+                (r.pedePagamento() ? aPagar : paraConferir).add(conta);
+            }
+        }
+        Comparator<ContaDoMes> porData = Comparator.comparing((ContaDoMes c) -> c.recorrencia().recorrencia()
+                        .dataEm(competencia))
+                .thenComparing(c -> c.recorrencia().recorrencia().descricao(), String.CASE_INSENSITIVE_ORDER);
+        aPagar.sort(porData);
+        paraConferir.sort(porData);
+        return new ContasDoMes(competencia, aPagar, paraConferir,
+                competencia.equals(mesAtual) ? anterioresEmAberto(despesas, mesAtual, hoje) : List.of());
+    }
+
+    /** Meses dos últimos 12 (antes do atual) com conta a pagar vencida e não paga, mais antigos primeiro. */
+    private List<MesEmAberto> anterioresEmAberto(List<Recorrencia> despesas, Competencia mesAtual, LocalDate hoje) {
+        Competencia de = mesAtual.mais(-11);
+        Competencia ate = mesAtual.mais(-1);
+        Set<Ocorrencia> confirmadas = lancamentos.listarOcorrenciasConfirmadas(de, ate).stream()
+                .map(l -> new Ocorrencia(l.recorrenciaId(), l.competenciaRecorrencia()))
+                .collect(Collectors.toSet());
+        List<MesEmAberto> meses = new ArrayList<>();
+        for (Competencia c = de; !c.depoisDe(ate); c = c.seguinte()) {
+            Competencia mes = c;
+            int contas = (int) despesas.stream()
+                    .filter(r -> r.pedePagamento() && r.ocorreEm(mes) && !r.dataEm(mes).isAfter(hoje)
+                            && !confirmadas.contains(new Ocorrencia(r.id(), mes)))
+                    .count();
+            if (contas > 0) {
+                meses.add(new MesEmAberto(mes, contas));
+            }
+        }
+        return meses;
+    }
+
+    @Override
     public LancamentoDetalhado confirmar(Long id, Competencia competencia, Dinheiro valor, LocalDate data,
                                          NotaFiscal notaFiscal) {
         Recorrencia r = antesDoInicio(id, competencia) ? exigirHistorico(id, competencia)

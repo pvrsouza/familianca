@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import {
-  Calculator, ChevronDown, Ellipsis, Eye, EyeOff, LayoutGrid, LogOut, PiggyBank, Plus, Receipt, Repeat, Tags, UserRound, Users,
+  Calculator, ChevronDown, Ellipsis, Eye, EyeOff, LayoutGrid, ListChecks, LogOut, PiggyBank, Plus, Receipt, Repeat, Tags, UserRound, Users,
 } from 'lucide-vue-next'
 import { sessao } from '../estado/sessao'
 import { privacidade } from '../estado/privacidade'
@@ -25,6 +25,7 @@ const nomeFamilia = computed(() => sessao.estado.familia?.nome ?? '')
 
 const principais = [
   { para: '/ano', rotulo: 'O ano', icone: LayoutGrid },
+  { para: '/contas-a-pagar', rotulo: 'Contas a pagar', icone: ListChecks },
   { para: '/lancamentos', rotulo: 'Lançamentos', icone: Receipt },
   { para: '/recorrencias', rotulo: 'Recorrências', icone: Repeat },
   { para: '/categorias', rotulo: 'Categorias', icone: Tags },
@@ -35,8 +36,8 @@ const secundarios = [
   { para: '/investimentos', rotulo: 'Investimentos', icone: PiggyBank },
   { para: '/conta', rotulo: 'Minha conta', icone: UserRound },
 ]
-// No celular a barra de baixo não comporta todos: Categorias e Quanto pesa? ficam no "Mais".
-const soNoMais = ['/categorias', '/quanto-pesa']
+// No celular a barra de baixo não comporta todos: Categorias, Quanto pesa? e Família ficam no "Mais".
+const soNoMais = ['/categorias', '/quanto-pesa', '/familia']
 const noCelular = principais.filter((p) => !soNoMais.includes(p.para))
 const noMais = [...principais.filter((p) => soNoMais.includes(p.para)), ...secundarios]
 

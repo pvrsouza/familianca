@@ -35,6 +35,18 @@ class RecorrenciaTest {
     }
 
     @Test
+    void pedePagamentoOuSaiSozinhaPelaFormaDePagamento() {
+        Recorrencia mensal = recorrencia(Frequencia.MENSAL, "2026-01", null, Set.of());
+        assertThat(comPagamento(mensal, false, FormaPagamento.BOLETO_PIX).pedePagamento()).isTrue();
+        assertThat(comPagamento(mensal, false, null).pedePagamento()).as("não informada, com vencimento").isTrue();
+        assertThat(comPagamento(mensal, true, null).pedePagamento()).as("não informada, sem vencimento").isFalse();
+        assertThat(comPagamento(mensal, true, null).saiSozinha()).isFalse();
+        assertThat(comPagamento(mensal, false, FormaPagamento.DEBITO_AUTOMATICO).saiSozinha()).isTrue();
+        assertThat(comPagamento(mensal, false, FormaPagamento.CARTAO_CREDITO).saiSozinha()).isTrue();
+        assertThat(comPagamento(mensal, false, FormaPagamento.CARTAO_CREDITO).pedePagamento()).isFalse();
+    }
+
+    @Test
     void dia31NoMesCurto() {
         Recorrencia r = recorrencia(Frequencia.MENSAL, "2026-01", null, Set.of());
         assertThat(r.dataEm(Competencia.of(2026, 2))).isEqualTo(LocalDate.of(2026, 2, 28));

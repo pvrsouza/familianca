@@ -2,6 +2,9 @@ package br.com.familianca.adapter.in.web;
 
 import com.jayway.jsonpath.JsonPath;
 import br.com.familianca.IntegracaoBase;
+import br.com.familianca.domain.model.Membro;
+import br.com.familianca.domain.model.PapelFamilia;
+import br.com.familianca.domain.model.Plano;
 import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -41,6 +44,75 @@ class RecorrenciaApiTest extends IntegracaoBase {
                          "inicio": "agosto"}""".formatted(categoria("Habitação", "Água"))))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.detail").value("Competência inválida: agosto. Use AAAA-MM"));
+    }
+
+    @Test
+    void contasAPagarDoMes() throws Exception {
+        String conta = """
+                {"categoriaId": %d, "descricao": "%s", "valor": %s, "dia": %d, "frequencia": "MENSAL",
+                 "inicio": "%s", "semVencimento": %s, "formaPagamento": %s}""";
+        Long condominio = postarERetornarId("/api/recorrencias", conta.formatted(
+                categoria("Habitação", "Condomínio"), "Condomínio", "800", 5, "2026-09", false, "\"BOLETO_PIX\""));
+        Long agua = postarERetornarId("/api/recorrencias", conta.formatted(
+                categoria("Habitação", "Água"), "Água", "90", 20, "2026-10", false, null));
+        postarERetornarId("/api/recorrencias", conta.formatted(
+                categoria("Habitação", "Supermercado"), "Feira", "600", 1, "2026-10", true, null));
+        postarERetornarId("/api/recorrencias", conta.formatted(
+                categoria("Habitação", "Internet"), "Internet", "120", 15, "2026-10", false, "\"DEBITO_AUTOMATICO\""));
+        postarERetornarId("/api/recorrencias", conta.formatted(
+                categoria("Outras despesas fixas", "Assinaturas e streaming"), "Streaming", "55.90", 10, "2026-10",
+                false, "\"CARTAO_CREDITO\""));
+        postarERetornarId("/api/recorrencias", conta.formatted(
+                categoria("Receitas fixas", "Salário"), "Salário", "5000", 5, "2026-10", false, null));
+
+        // Hoje é 17/10. A feira (sem forma, sem vencimento) e o salário (receita) ficam de fora.
+        mvc.perform(get("/api/recorrencias/contas-a-pagar").param("mes", "2026-10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.aPagar", hasSize(2)))
+                .andExpect(jsonPath("$.aPagar[0].recorrencia.descricao").value("Condomínio"))
+                .andExpect(jsonPath("$.aPagar[0].vencimento").value("2026-10-05"))
+                .andExpect(jsonPath("$.aPagar[0].valorPrevisto").value(800))
+                .andExpect(jsonPath("$.aPagar[0].pagamento").doesNotExist())
+                .andExpect(jsonPath("$.aPagar[1].recorrencia.descricao").value("Água"))
+                .andExpect(jsonPath("$.paraConferir", hasSize(2)))
+                .andExpect(jsonPath("$.paraConferir[0].recorrencia.descricao").value("Streaming"))
+                .andExpect(jsonPath("$.paraConferir[0].vencimento").doesNotExist())
+                .andExpect(jsonPath("$.paraConferir[1].recorrencia.descricao").value("Internet"))
+                // Setembro do condomínio venceu e não foi pago.
+                .andExpect(jsonPath("$.anterioresEmAberto", hasSize(1)))
+                .andExpect(jsonPath("$.anterioresEmAberto[0].competencia").value("2026-09"))
+                .andExpect(jsonPath("$.anterioresEmAberto[0].contas").value(1));
+
+        // Pagar = confirmar; pago com atraso e pulado ("não houve") saem da conta do que falta.
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-10/confirmacao", condominio)
+                .contentType(APPLICATION_JSON).content("{\"data\": \"2026-10-08\"}")).andExpect(status().isCreated());
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-10/pulo", agua)).andExpect(status().isOk());
+        mvc.perform(get("/api/recorrencias/contas-a-pagar").param("mes", "2026-10"))
+                .andExpect(jsonPath("$.aPagar", hasSize(1)))
+                .andExpect(jsonPath("$.aPagar[0].pagamento.valor").value(800))
+                .andExpect(jsonPath("$.aPagar[0].pagamento.diasAtraso").value(3));
+
+        // Outro mês: sem o aviso dos anteriores.
+        mvc.perform(get("/api/recorrencias/contas-a-pagar").param("mes", "2026-09"))
+                .andExpect(jsonPath("$.aPagar", hasSize(1)))
+                .andExpect(jsonPath("$.paraConferir", hasSize(0)))
+                .andExpect(jsonPath("$.anterioresEmAberto", hasSize(0)));
+        mvc.perform(get("/api/recorrencias/contas-a-pagar").param("mes", "2029-01"))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(get("/api/recorrencias/contas-a-pagar").param("mes", "outubro"))
+                .andExpect(status().isUnprocessableEntity());
+
+        // Quem participa vê tudo, mas só paga as contas em que é o responsável; outra família não vê nada.
+        Membro participa = adicionarMembro(dono, "participa@teste.com", PapelFamilia.MEMBRO);
+        mvcComo(participa).perform(get("/api/recorrencias/contas-a-pagar").param("mes", "2026-10"))
+                .andExpect(jsonPath("$.paraConferir", hasSize(2)));
+        mvcComo(participa).perform(post("/api/recorrencias/{id}/ocorrencias/2026-09/confirmacao", condominio))
+                .andExpect(status().isForbidden());
+        Membro outra = criarFamilia("outra@teste.com", Plano.PREMIUM);
+        mvcComo(outra).perform(get("/api/recorrencias/contas-a-pagar").param("mes", "2026-10"))
+                .andExpect(jsonPath("$.aPagar", hasSize(0)))
+                .andExpect(jsonPath("$.paraConferir", hasSize(0)))
+                .andExpect(jsonPath("$.anterioresEmAberto", hasSize(0)));
     }
 
     @Test

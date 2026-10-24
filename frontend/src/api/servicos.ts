@@ -1,7 +1,7 @@
 import { api } from './http'
 import type {
   Carteira, Categoria, Convite, ConviteAberto, Estimativa, Familia, FormaPagamento, Frequencia, Grupo, Impacto, Investimento, Lancamento, Membro,
-  Movimento, Natureza, NotaFiscal, Papel, Pendente, Periodicidade, Recorrencia, Saldo, MovimentoDoMes, LugarSaldo, TipoLugarSaldo, SituacaoMfa, Tipo, TipoInvestimento,
+  ContasDoMes, Movimento, Natureza, NotaFiscal, Papel, Pendente, Periodicidade, Recorrencia, Saldo, MovimentoDoMes, LugarSaldo, TipoLugarSaldo, SituacaoMfa, Tipo, TipoInvestimento,
   UsuarioLogado, VisaoAnual,
 } from './tipos'
 
@@ -151,6 +151,8 @@ export const recorrencias = {
   listar: () => api.get<Recorrencia[]>('/api/recorrencias'),
   buscar: (id: number) => api.get<Recorrencia>(`/api/recorrencias/${id}`),
   pendentes: () => api.get<Pendente[]>('/api/recorrencias/pendentes'),
+  /** Checklist do mês (AAAA-MM): contas a pagar e as que saem sozinhas, pagas ou não. */
+  contasAPagar: (mes: string) => api.get<ContasDoMes>(`/api/recorrencias/contas-a-pagar?mes=${mes}`),
   criar: (d: DadosRecorrencia) => api.post<Recorrencia>('/api/recorrencias', d),
   atualizar: (id: number, d: DadosRecorrencia) => api.put<Recorrencia>(`/api/recorrencias/${id}`, d),
   remover: (id: number) => api.delete(`/api/recorrencias/${id}`),

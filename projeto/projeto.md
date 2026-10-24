@@ -183,7 +183,7 @@ Pontos de atenção constante na hora de desenvolver.
 - Editar a recorrência muda as ocorrências não confirmadas. Com ocorrências confirmadas não dá para excluir:
   define-se o fim.
 - Cada recorrência mostra quanto pesa no ano atual e num ano cheio (ex.: R$ 39,90/mês = R$ 478,80/ano).
-- **Vencimento das contas (2026-10-18)** — base da futura lista de contas a pagar (o "azul pago / vermelho
+- **Vencimento das contas (2026-10-18)** — base da lista de contas a pagar (o "azul pago / vermelho
   pendente" da planilha). Cada regra tem texto explicativo na própria tela.
   - Na despesa, o dia da recorrência é o **vencimento** ("Vence no dia"); na receita, o dia em que costuma cair
     ("Cai no dia"). As recorrências que já existiam passam a usar o dia que tinham como vencimento.
@@ -217,6 +217,28 @@ Pontos de atenção constante na hora de desenvolver.
   - **Conta avulsa (uma vez só):** nova frequência "Uma vez só" para conta que não se repete (IPTU em cota única,
     boleto de conserto): prevista só naquele mês até ser paga. Também dá para criar ao lançar uma despesa, marcando
     **"Ainda não paguei (conta a pagar)"**: a data vira o vencimento e a despesa fica prevista, sem contar como paga.
+
+- **Contas a pagar — checklist do mês (2026-10-24):** tela "Contas a pagar" (menu, entre O ano e Lançamentos),
+  como a planilha em que se pinta de azul o que foi pago. Abre no mês atual, com setas (meses futuros para pagar
+  adiantado, até o fim da previsão) e o mês no endereço.
+  - **O que entra:** despesas que se repetem ou avulsas que ocorrem no mês (puladas ficam de fora). **A pagar:**
+    boleto/Pix e as que **não dizem como são pagas** mas têm vencimento (a maioria das contas antigas; mostram "É débito
+    automático? Diga como é paga", que abre a edição ali mesmo). **Só para conferir:** débito automático e cartão,
+    numa seção à parte; o cartão aparece conta a conta, porque a fatura ainda não existe. Sem forma e sem vencimento
+    (feira, mesada) e receitas não entram.
+  - **Agrupadas** em vencidas, vencem em até 7 dias e depois; as pagas ficam num grupo fechado, com o total.
+  - **Pagar = confirmar:** "Paguei" **sempre abre a conferência** (valor e data à vista antes de gravar), o mesmo
+    componente da visão anual. A paga ganha o selo "paga" e "em dia" / "N dias de atraso", e dá para desfazer (exclui
+    o lançamento e a conta volta a ser prevista).
+  - **Mês concluído é calculado, nada gravado:** "Tudo pago em <mês>" quando não sobra conta a pagar em aberto;
+    entrando uma conta nova, o mês reabre sozinho. Enquanto isso, "Faltam R$ X · N de M pagas". A seção "só para
+    conferir" não impede a conclusão (sai sozinha) e mostra só "N a conferir".
+  - **Meses anteriores:** só no mês atual, um aviso "N contas de <mês> em aberto → ver <mês>" (vencidas e não pagas
+    dos últimos 12 meses). Não impede o mês atual de ficar concluído.
+  - **Quem vê e quem paga:** toda a família vê (quem participa já vê o orçamento inteiro). Marcar como paga segue a
+    regra de sempre: quem organiza marca qualquer conta; quem participa, só as que estão em seu nome (nas outras não
+    aparece "Paguei"). **Muda a decisão de 2026-10-18** ("só quem organiza vê, configurável"): esconder não protegia
+    nenhum dado, e a configuração seria tela e regra a mais sem restringir nada.
 
 ## Visão anual (o diferencial)
 - **Previsão até 2 anos à frente (2026-10-24):** os previstos (recorrências e estimativas) alcançam só os dois anos
@@ -479,11 +501,9 @@ Pontos de atenção constante na hora de desenvolver.
 - **Uma pessoa em mais de uma família** (hoje é uma só) e "sair da família".
 - **Excluir a conta e a família inteira** (LGPD): hoje dá para apagar o orçamento ("Recomeçar do zero"); falta
   excluir pessoas, convites, família e contas, com confirmação por e-mail, e exportar os dados antes.
-- **Contas a pagar (lista do mês)** — próximo passo dos vencimentos: tela de checklist do mês com as contas que
-  pedem ação (boleto/Pix e avulsas), agrupadas em vencidas, vencem em 7 dias, depois e pagas; "Paguei" confirma
-  com o valor previsto (corrigível) e a data do pagamento; progresso "faltam R$ X". **Quem vê:** por padrão só quem
-  organiza; configurável para escolher quem mais vê (decidido em 2026-10-18). Depois: lembretes de vencimento
-  (e-mail/WhatsApp), candidato a recurso de plano pago.
+- **Contas a pagar — depois do checklist (feito em 2026-10-24):** lembretes de vencimento (e-mail/WhatsApp),
+  candidato a recurso de plano pago; selo "faltam N" na faixa do mês da visão anual; agrupar as contas do cartão na
+  fatura (depende de cartões).
 - **Cartões de crédito:** cartão no lançamento e visão da fatura (a planilha controla faturas). A forma de pagamento
   "no cartão de crédito" das recorrências já existe; falta dizer qual cartão e montar a fatura com vencimento.
 - **Reajuste de recorrência a partir de um mês** (hoje editar o valor muda todas as ocorrências não confirmadas).

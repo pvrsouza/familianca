@@ -1,6 +1,7 @@
 package br.com.familianca.adapter.in.web;
 
 import br.com.familianca.adapter.in.web.dto.ConfirmacaoRequest;
+import br.com.familianca.adapter.in.web.dto.ContasDoMesResponse;
 import br.com.familianca.adapter.in.web.dto.EstimativaPropriaRequest;
 import br.com.familianca.adapter.in.web.dto.LancamentoResponse;
 import br.com.familianca.adapter.in.web.dto.OcorrenciaPendenteResponse;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -61,6 +63,15 @@ public class RecorrenciaController {
             precisa conferir. Mais antigas primeiro.""")
     public List<OcorrenciaPendenteResponse> pendentes() {
         return recorrencias.pendentes().stream().map(OcorrenciaPendenteResponse::de).toList();
+    }
+
+    @GetMapping("/contas-a-pagar")
+    @Operation(summary = "Contas a pagar do mês", description = """
+            Checklist do mês (`mes` AAAA-MM): as despesas que ocorrem nele, pagas (com o lançamento) ou não. `aPagar`:
+            boleto/Pix e as sem forma de pagamento que têm vencimento; `paraConferir`: débito automático e cartão.
+            Puladas ficam de fora. Pagar é confirmar a ocorrência. Depois do último ano com previsão: 422.""")
+    public ContasDoMesResponse contasAPagar(@RequestParam String mes) {
+        return ContasDoMesResponse.de(recorrencias.contasAPagar(Competencia.parse(mes)));
     }
 
     @GetMapping("/{id}")
