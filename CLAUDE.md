@@ -23,6 +23,13 @@ Toda mudança ou incremento atualiza a documentação no mesmo commit (ou antes 
 decisões em `projeto/projeto.md` (com a data), visual e componentes em `DESIGN.md`, lado técnico (endpoints, setup,
 deploy) no `README.md`. Ao entregar, diga o que foi documentado.
 
+## Revisar as pendências ao terminar
+
+Ao fim de toda implementação, revisar "Pendências e planos futuros" (e os aprendizados) em `projeto/projeto.md` e o
+plano de `docs/seguranca.md`: o que a mudança resolveu sai da lista no mesmo commit (ou é marcado como feito, com a
+data), e o que ela deixou para depois entra. Na entrega, dizer o que foi tirado ou incluído e listar as pendências
+que continuam disponíveis para a próxima funcionalidade, para quem pediu escolher.
+
 ## Commits
 
 Nunca colocar o Claude (nem qualquer IA) como coautor: nada de `Co-Authored-By`, `Generated with` ou outro trailer de
