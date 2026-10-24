@@ -23,6 +23,12 @@ Toda mudança ou incremento atualiza a documentação no mesmo commit (ou antes 
 decisões em `projeto/projeto.md` (com a data), visual e componentes em `DESIGN.md`, lado técnico (endpoints, setup,
 deploy) no `README.md`. Ao entregar, diga o que foi documentado.
 
+## Listar as pendências no início da sessão
+
+Na primeira resposta de cada sessão, antes de qualquer outra coisa, listar as pendências disponíveis (de
+"Pendências e planos futuros" e dos aprendizados em `projeto/projeto.md` e do plano de `docs/seguranca.md`),
+numeradas, com o tamanho (P, M, G) e uma sugestão de por onde começar, para quem pediu escolher.
+
 ## Revisar as pendências ao terminar
 
 Ao fim de toda implementação, revisar "Pendências e planos futuros" (e os aprendizados) em `projeto/projeto.md` e o

@@ -565,6 +565,8 @@ Pontos de atenção constante na hora de desenvolver.
 - **Uma pessoa em mais de uma família** (hoje é uma só) e "sair da família".
 - **Excluir a conta e a família inteira** (LGPD): hoje dá para apagar o orçamento ("Recomeçar do zero"); falta
   excluir pessoas, convites, família e contas, com confirmação por e-mail, e exportar os dados antes.
+- **Resumo da tela de Investimentos:** a frase "foram aplicados" mostra o líquido (fica negativo com resgate) e não
+  cita as aberturas; separar "aplicados" de "resgatados" e dizer com quanto a carteira abriu.
 - **Contas a pagar — depois do checklist (feito em 2026-10-24):** lembretes de vencimento (e-mail/WhatsApp),
   candidato a recurso de plano pago; selo "faltam N" na faixa do mês da visão anual; agrupar as contas do cartão na
   fatura (depende de cartões).
