@@ -13,3 +13,8 @@ se aplicaram e como foram atendidos. O que ficar para depois entra no plano do m
 Toda mudança ou incremento atualiza a documentação no mesmo commit (ou antes de entregar): regras de negócio e
 decisões em `projeto/projeto.md` (com a data), visual e componentes em `DESIGN.md`, lado técnico (endpoints, setup,
 deploy) no `README.md`. Ao entregar, diga o que foi documentado.
+
+## Commits
+
+Nunca colocar o Claude (nem qualquer IA) como coautor: nada de `Co-Authored-By`, `Generated with` ou outro trailer de
+atribuição na mensagem do commit ou na descrição do PR. O autor é só a identidade git de quem desenvolve.
