@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-vue-next'
 import { investimentos as api } from '../api/servicos'
-import type { Carteira, Investimento, Movimento, TipoInvestimento } from '../api/tipos'
+import type { Carteira, Investimento, SaldosDoMes, TipoInvestimento } from '../api/tipos'
 import { ErroApi, mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { avisar } from '../estado/avisos'
-import { MESES, MESES_CURTOS, TIPOS_INVESTIMENTO, anoAtual, competencia, competenciaCurta, mesAtual, pct, reais, reaisCurtos } from '../util/formato'
+import { MESES_CURTOS, TIPOS_INVESTIMENTO, anoAtual, competencia, competenciaCurta, competenciaPorExtenso, mesAtual, pct, reais, reaisCurtos } from '../util/formato'
 import PainelLateral from '../componentes/PainelLateral.vue'
 import CampoValor from '../componentes/CampoValor.vue'
 import EstadoVazio from '../componentes/EstadoVazio.vue'
+import FaixaEdicao from '../componentes/FaixaEdicao.vue'
 import Mensagem from '../componentes/Mensagem.vue'
 import RecursoBloqueado from '../componentes/RecursoBloqueado.vue'
 
@@ -29,7 +31,7 @@ async function carregar() {
   }
   erro.value = ''
   try {
-    const [c, l] = await Promise.all([api.carteira(ano.value), api.listar()])
+    const [c, l] = await Promise.all([api.carteira(ano.value), api.listar(), carregarSituacao()])
     carteira.value = c
     lista.value = l
   } catch (e) {
@@ -40,11 +42,22 @@ async function carregar() {
   }
 }
 
-watch([ano, liberado], carregar, { immediate: true })
 
 function semNegativo(v: number) {
   return v < -0.004 ? '−' + reaisCurtos(-v) : reaisCurtos(v)
 }
+
+/** Mês em que resgatou tudo: o saldo fica zero, então a célula mostra o resgate (negativo), que é o que aconteceu. */
+function resgateTotal(p: { saldos: number[]; aportes: number[] }, i: number) {
+  return Math.abs(p.saldos[i]) < 0.005 && p.aportes[i] < -0.004
+}
+
+function valorCelula(p: { saldos: number[]; aportes: number[] }, i: number) {
+  return resgateTotal(p, i) ? semNegativo(p.aportes[i]) : reaisCurtos(p.saldos[i])
+}
+
+const foraDaTabela = computed(() => lista.value.filter((i) => !i.ativo
+  && !carteira.value?.investimentos.some((p) => p.investimento.id === i.id)))
 
 const saldoFinal = computed(() => {
   const s = carteira.value?.saldos ?? []
@@ -70,120 +83,152 @@ async function criar() {
   }
 }
 
-// ——— Movimento do mês ———
-const mov = reactive({
-  aberto: false,
-  investimentoId: 0,
-  mes: competencia(anoAtual(), mesAtual()),
-  aporte: null as number | null,
-  rentabilidade: null as number | null,
-  saldoInformado: null as number | null,
-  existentes: [] as Movimento[],
-  erro: '',
-  salvando: false,
+// ——— Atualizar o saldo de um mês, na própria tabela ———
+// Clicar no mês de um investimento abre uma faixa logo abaixo da linha com o saldo do extrato daquele mês e, se
+// houve, quanto colocou ou tirou; o rendimento é sempre o calculado. O mês é a coluna clicada.
+const edicao = reactive({
+  id: null as number | null, nome: '', mes: '', saldoAnterior: 0, saldo: null as number | null,
+  aporte: null as number | null, erro: '', salvando: false,
 })
+/** O mês de referência (o anterior ao atual) e quem já foi atualizado nele: o aviso no topo e "Atualizar saldos". */
+const situacao = ref<SaldosDoMes | null>(null)
+const mesAtualComp = competencia(anoAtual(), mesAtual())
+const faltam = computed(() => (situacao.value ? situacao.value.total - situacao.value.atualizados : 0))
 
-async function abrirMovimento(inv?: Investimento) {
-  const alvo = inv ?? lista.value.find((i) => i.ativo)
-  if (!alvo) return
-  Object.assign(mov, {
-    aberto: true, investimentoId: alvo.id, mes: competencia(ano.value, ano.value === anoAtual() ? mesAtual() : 12),
-    aporte: null, rentabilidade: null, saldoInformado: null, erro: '', existentes: [],
-  })
-  await carregarMovimentos()
-}
-
-async function carregarMovimentos() {
+async function carregarSituacao() {
+  if (!dono.value) return
   try {
-    mov.existentes = await api.movimentos(mov.investimentoId)
-    preencher()
+    situacao.value = await api.saldos()
   } catch {
-    mov.existentes = []
+    situacao.value = null
   }
 }
 
-function preencher() {
-  const m = mov.existentes.find((x) => x.competencia === mov.mes)
-  mov.aporte = m?.aporte ?? null
-  mov.rentabilidade = m?.rentabilidade ?? null
-  mov.saldoInformado = m?.saldoInformado ?? null
+/** Mês que dá para atualizar: já chegou e não é antes do primeiro ano com dados. */
+function editavel(mes: string) {
+  return mes <= mesAtualComp && mes >= `${sessao.primeiroAno.value}-01`
 }
 
-const movimentoExiste = computed(() => mov.existentes.some((x) => x.competencia === mov.mes))
-
-// Primeiro registro do investimento: o saldo do extrato vira abertura (o dinheiro já existia), não rendimento.
-const primeiroRegistro = computed(() => !mov.existentes.some((x) => x.competencia < mov.mes))
-
-/**
- * Saldo do extrato que dá um rendimento implícito acima de 3% do saldo anterior (para mais ou para menos) costuma
- * ser aporte ou resgate não registrado. Só avisa: quem quiser salva assim mesmo.
- */
-const rendimentoEstranho = computed(() => {
-  if (mov.saldoInformado === null || primeiroRegistro.value || !carteira.value) return null
-  const [a, m] = mov.mes.split('-').map(Number)
-  if (a !== carteira.value.ano) return null
-  const p = carteira.value.investimentos.find((x) => x.investimento.id === mov.investimentoId)
-  const anterior = p ? (m === 1 ? p.saldoInicial : p.saldos[m - 2]) : 0
-  if (anterior <= 0) return null
-  const rendimento = mov.saldoInformado - anterior - (mov.aporte ?? 0)
-  return Math.abs(rendimento / anterior) > 0.03 ? { rendimento, pct: (rendimento / anterior) * 100 } : null
-})
-
-async function salvarMovimento() {
-  mov.erro = ''
-  if (mov.aporte === null && mov.rentabilidade === null && mov.saldoInformado === null) {
-    mov.erro = 'Preencha pelo menos um campo: aporte, rentabilidade ou saldo do extrato.'
+async function editar(inv: Investimento, mes: string) {
+  if (edicao.id === inv.id && edicao.mes === mes) {
+    edicao.id = null
     return
   }
-  mov.salvando = true
+  encerrando.id = null
+  Object.assign(edicao, { id: inv.id, nome: inv.nome, mes, saldoAnterior: 0, saldo: null, aporte: null, erro: '' })
+  if (Number(mes.slice(0, 4)) !== ano.value) ano.value = Number(mes.slice(0, 4))
   try {
-    await api.registrar(mov.investimentoId, mov.mes, {
-      aporte: mov.aporte, rentabilidade: mov.rentabilidade, saldoInformado: mov.saldoInformado,
-    })
-    avisar('Mês registrado na carteira.')
-    mov.aberto = false
-    sessao.avisarMudanca()
-    carregar()
+    const linha = (await api.saldos(mes)).linhas.find((l) => l.investimento.id === inv.id)
+    if (linha) Object.assign(edicao, { saldoAnterior: linha.saldoAnterior, saldo: linha.saldoInformado, aporte: linha.aporte })
   } catch (e) {
-    mov.erro = mensagemDeErro(e)
+    edicao.erro = mensagemDeErro(e)
+  }
+  await nextTick()
+  document.getElementById('e-saldo')?.focus()
+}
+
+/** "Atualizar saldos" e o aviso: abre o primeiro investimento ainda sem saldo no mês de referência. */
+function atualizarPendentes() {
+  const s = situacao.value
+  const l = s?.linhas.find((x) => !x.atualizado) ?? s?.linhas[0]
+  if (s && l) editar(l.investimento, s.referencia)
+}
+
+/** Rendimento implícito. Sem saldo anterior, o primeiro saldo entra como abertura (não é rendimento). */
+const resultado = computed(() => {
+  if (edicao.saldo === null) return null
+  if (edicao.saldoAnterior <= 0) return { abertura: true, rendimento: 0, pct: null as number | null, estranho: false }
+  const rendimento = edicao.saldo - edicao.saldoAnterior - (edicao.aporte ?? 0)
+  const pctMes = (rendimento / edicao.saldoAnterior) * 100
+  // Acima de 3% (para mais ou para menos) costuma ser aporte ou resgate não informado. Só avisa.
+  return { abertura: false, rendimento, pct: pctMes, estranho: Math.abs(pctMes) > 3 }
+})
+
+async function salvarSaldo() {
+  if (edicao.saldo === null) {
+    edicao.erro = 'Informe o saldo do extrato.'
+    return
+  }
+  edicao.salvando = true
+  edicao.erro = ''
+  try {
+    const mes = edicao.mes
+    await api.atualizarSaldos(mes, [{ investimentoId: edicao.id!, saldo: edicao.saldo, aporte: edicao.aporte }])
+    avisar(`${edicao.nome}: saldo de ${competenciaPorExtenso(mes)} atualizado.`)
+    edicao.id = null
+    sessao.avisarMudanca()
+    await carregar()
+    // No mês de referência, segue para o próximo que ainda falta, como numa planilha.
+    const proximo = situacao.value?.referencia === mes ? situacao.value.linhas.find((l) => !l.atualizado) : undefined
+    if (proximo) editar(proximo.investimento, mes)
+  } catch (e) {
+    edicao.erro = mensagemDeErro(e)
   } finally {
-    mov.salvando = false
+    edicao.salvando = false
   }
 }
 
-async function removerMovimento() {
-  mov.salvando = true
+// ——— Encerrar = resgatou tudo ———
+// Pergunta o mês do resgate: nele o saldo vira zero e o que havia volta para a conta (resgate no fluxo de caixa).
+const encerrando = reactive({ id: null as number | null, nome: '', mes: mesAtualComp, erro: '', salvando: false })
+
+function abrirEncerramento(inv: Investimento) {
+  edicao.id = null
+  Object.assign(encerrando, { id: encerrando.id === inv.id ? null : inv.id, nome: inv.nome, mes: mesAtualComp, erro: '' })
+}
+
+/** O que havia no fim do mês anterior ao resgate (se o mês é do ano mostrado), para a tela dizer quanto volta. */
+function saldoAntesDoResgate(p: { saldoInicial: number; saldos: number[] }): number | null {
+  const [a, m] = encerrando.mes.split('-').map(Number)
+  if (a !== ano.value) return null
+  return m === 1 ? p.saldoInicial : p.saldos[m - 2]
+}
+
+async function encerrar() {
+  if (!encerrando.mes) {
+    encerrando.erro = 'Informe o mês do resgate.'
+    return
+  }
+  encerrando.salvando = true
+  encerrando.erro = ''
   try {
-    await api.removerMovimento(mov.investimentoId, mov.mes)
-    avisar('Registro do mês removido.')
-    mov.aberto = false
+    await api.encerrar(encerrando.id!, encerrando.mes)
+    avisar(`${encerrando.nome} encerrado: zerado a partir de ${competenciaPorExtenso(encerrando.mes)}. O histórico continua.`)
+    encerrando.id = null
     sessao.avisarMudanca()
     carregar()
   } catch (e) {
-    mov.erro = mensagemDeErro(e)
+    encerrando.erro = mensagemDeErro(e)
   } finally {
-    mov.salvando = false
+    encerrando.salvando = false
   }
 }
 
 async function alternarAtivo(inv: Investimento) {
   try {
     await api.atualizar(inv.id, inv.nome, inv.tipo, !inv.ativo)
-    avisar(inv.ativo ? `${inv.nome} encerrado. O histórico continua.` : `${inv.nome} reativado.`)
+    avisar(`${inv.nome} reativado. Informe o saldo do extrato: num investimento zerado, ele entra como abertura.`)
     carregar()
   } catch (e) {
     erro.value = mensagemDeErro(e)
   }
 }
 
-const nomeMes = computed(() => {
-  const [, m] = mov.mes.split('-').map(Number)
-  return m ? MESES[m - 1] : ''
+// Por último: o carregamento imediato usa o estado declarado acima (situacao, edicao).
+watch([ano, liberado], carregar, { immediate: true })
+
+// Vindo do lembrete da tela principal: já abre o primeiro investimento que falta.
+const route = useRoute()
+const router = useRouter()
+watch(() => [route.query.atualizar, situacao.value] as const, ([atualizar]) => {
+  if (atualizar !== '1' || !dono.value || !situacao.value) return
+  router.replace({ query: {} }) // vale uma vez: recarregar os dados não reabre
+  if (faltam.value > 0) atualizarPendentes()
 })
 </script>
 
 <template>
-  <div class="pagina">
+  <div class="pagina pagina-larga">
     <header class="pagina-cabecalho">
       <div>
         <h1>Investimentos</h1>
@@ -191,7 +236,7 @@ const nomeMes = computed(() => {
       </div>
       <div v-if="liberado && !bloqueado && dono" class="acoes">
         <button type="button" class="botao" @click="novo.aberto = true"><Plus aria-hidden="true" /> Novo investimento</button>
-        <button v-if="lista.some((i) => i.ativo)" type="button" class="botao botao-primario" @click="abrirMovimento()">Registrar mês</button>
+        <button v-if="lista.some((i) => i.ativo)" type="button" class="botao botao-primario" @click="atualizarPendentes()">Atualizar saldos</button>
       </div>
     </header>
 
@@ -203,8 +248,8 @@ const nomeMes = computed(() => {
 
       <div v-else-if="!lista.length" class="painel">
         <EstadoVazio titulo="A carteira ainda está vazia">
-          Cadastre onde a família guarda dinheiro (poupança, Tesouro, previdência) e registre todo mês o aporte e o
-          rendimento.
+          Cadastre onde a família guarda dinheiro (poupança, Tesouro, previdência). Todo mês, é só atualizar o saldo do
+          extrato de cada um: o rendimento é calculado.
           <template v-if="dono" #acoes>
             <button type="button" class="botao botao-primario" @click="novo.aberto = true">Novo investimento</button>
           </template>
@@ -212,6 +257,11 @@ const nomeMes = computed(() => {
       </div>
 
       <template v-else-if="carteira">
+        <Mensagem v-if="situacao && faltam > 0 && lista.some((i) => i.ativo)" tipo="info" class="falta-saldo">
+          Faltam os saldos de {{ competenciaPorExtenso(situacao.referencia) }}: {{ situacao.atualizados }} de
+          {{ situacao.total }} investimentos atualizados.
+          <template #acoes><button type="button" class="botao botao-pequeno" @click="atualizarPendentes()">Atualizar</button></template>
+        </Mensagem>
         <div class="ano" role="group" aria-label="Ano">
           <button type="button" class="botao botao-icone botao-pequeno" :aria-label="`Ver ${ano - 1}`" :disabled="ano <= sessao.primeiroAno.value" @click="ano--"><ChevronLeft aria-hidden="true" /></button>
           <span class="num ano-numero">{{ ano }}</span>
@@ -235,20 +285,77 @@ const nomeMes = computed(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="p in carteira.investimentos" :key="p.investimento.id" :class="{ encerrado: !p.investimento.ativo }">
+              <template v-for="p in carteira.investimentos" :key="p.investimento.id">
+              <tr :class="{ encerrado: !p.investimento.ativo }">
                 <th scope="row">
-                  <button v-if="dono && p.investimento.ativo" type="button" class="nome-inv" @click="abrirMovimento(p.investimento)">
-                    {{ p.investimento.nome }}
-                  </button>
-                  <span v-else>{{ p.investimento.nome }}</span>
+                  <span class="nome-linha">{{ p.investimento.nome }}</span>
                   <span class="tipo">{{ TIPOS_INVESTIMENTO[p.investimento.tipo] }}</span>
                   <span v-if="p.abertura" class="tipo" :title="'Saldo que já existia quando o investimento começou a ser acompanhado: não conta como rendimento nem aporte'">
                     abertura {{ reaisCurtos(p.abertura.valor) }} em {{ competenciaCurta(p.abertura.competencia) }}
                   </span>
+                  <span v-if="dono" class="acoes-inv">
+                    <button v-if="p.investimento.ativo && situacao" type="button" class="link-inv" @click="editar(p.investimento, situacao.referencia)">Atualizar saldo</button>
+                    <button v-if="p.investimento.ativo" type="button" class="link-inv" @click="abrirEncerramento(p.investimento)">Encerrar</button>
+                    <button v-else type="button" class="link-inv" @click="alternarAtivo(p.investimento)">Reativar</button>
+                  </span>
                 </th>
-                <td v-for="(v, i) in p.saldos" :key="i" class="num">{{ reaisCurtos(v) }}</td>
+                <td v-for="(v, i) in p.saldos" :key="i" class="num"
+                    :class="{ editando: edicao.id === p.investimento.id && edicao.mes === competencia(ano, i + 1) }">
+                  <button v-if="dono && p.investimento.ativo && editavel(competencia(ano, i + 1))" type="button" class="celula"
+                          :aria-label="`${p.investimento.nome}, ${MESES_CURTOS[i]}: ${reaisCurtos(v)}. Atualizar o saldo`"
+                          @click="editar(p.investimento, competencia(ano, i + 1))"><span :class="{ resgate: resgateTotal(p, i) }">{{ valorCelula(p, i) }}</span></button>
+                  <span v-else :class="{ resgate: resgateTotal(p, i) }">{{ valorCelula(p, i) }}</span>
+                </td>
                 <td class="num">{{ pct(p.rentabilidadeAno, 2) }}</td>
               </tr>
+              <tr v-if="edicao.id === p.investimento.id" class="linha-edicao">
+                <td colspan="14">
+                  <FaixaEdicao aberto :titulo="`${edicao.nome} · ${competenciaPorExtenso(edicao.mes)}`"
+                               :descricao="`Saldo no fim do mês anterior: ${reais(edicao.saldoAnterior)}`" @fechar="edicao.id = null">
+                    <form class="form-saldo" novalidate @submit.prevent="salvarSaldo">
+                      <div class="campo">
+                        <label for="e-saldo">Saldo do extrato</label>
+                        <CampoValor id="e-saldo" v-model="edicao.saldo" />
+                      </div>
+                      <div class="campo">
+                        <label for="e-aporte" title="Tirou dinheiro: com sinal de menos (ex.: -500,00)">Colocou ou tirou <span class="texto-2">(opcional)</span></label>
+                        <CampoValor id="e-aporte" v-model="edicao.aporte" negativo />
+                      </div>
+                      <button type="submit" class="botao botao-primario" :disabled="edicao.salvando">Salvar</button>
+                    </form>
+                    <p v-if="resultado?.abertura" class="resultado">Primeiro saldo: entra como saldo de abertura (o dinheiro já existia), não como rendimento.</p>
+                    <p v-else-if="resultado" class="resultado">
+                      {{ resultado.rendimento >= 0 ? 'Rendeu' : 'Perdeu' }} {{ reais(Math.abs(resultado.rendimento)) }} ({{ pct(resultado.pct, 2) }}) no mês.
+                    </p>
+                    <Mensagem v-if="resultado?.estranho" tipo="info">
+                      Parece {{ resultado.rendimento > 0 ? 'alto' : 'baixo' }} para um mês. Teve
+                      {{ resultado.rendimento > 0 ? 'aporte' : 'resgate' }}? Informe em "Colocou ou tirou" para não contar como rendimento.
+                    </Mensagem>
+                    <Mensagem v-if="edicao.erro" tipo="erro">{{ edicao.erro }}</Mensagem>
+                  </FaixaEdicao>
+                </td>
+              </tr>
+              <tr v-if="encerrando.id === p.investimento.id" class="linha-edicao">
+                <td colspan="14">
+                  <FaixaEdicao aberto :titulo="`Encerrar ${encerrando.nome}`"
+                               descricao="Resgatou tudo: no mês do resgate o saldo vira zero e o que havia volta para a conta (entra como resgate no fluxo de caixa). Dali em diante o investimento fica zerado; o histórico continua."
+                               @fechar="encerrando.id = null">
+                    <form class="form-saldo" novalidate @submit.prevent="encerrar">
+                      <div class="campo">
+                        <label for="enc-mes">Mês do resgate</label>
+                        <input id="enc-mes" v-model="encerrando.mes" class="entrada" type="month" :max="mesAtualComp" />
+                      </div>
+                      <button type="submit" class="botao botao-perigo" :disabled="encerrando.salvando">Encerrar</button>
+                      <button type="button" class="botao" @click="encerrando.id = null">Cancelar</button>
+                    </form>
+                    <p v-if="saldoAntesDoResgate(p)" class="resultado">
+                      Volta para a conta: {{ reais(saldoAntesDoResgate(p)) }} (o saldo do mês anterior).
+                    </p>
+                    <Mensagem v-if="encerrando.erro" tipo="erro">{{ encerrando.erro }}</Mensagem>
+                  </FaixaEdicao>
+                </td>
+              </tr>
+              </template>
               <tr class="forte">
                 <th scope="row">Carteira</th>
                 <td v-for="(v, i) in carteira.saldos" :key="i" class="num">{{ reaisCurtos(v) }}</td>
@@ -273,19 +380,12 @@ const nomeMes = computed(() => {
           </table>
         </div>
 
-        <section v-if="dono" class="secao">
-          <h2>Na carteira</h2>
-          <ul class="lista painel">
-            <li v-for="inv in lista" :key="inv.id">
-              <span class="item-texto">
-                <span class="nome">{{ inv.nome }}</span>
-                <span class="meta">{{ TIPOS_INVESTIMENTO[inv.tipo] }}<template v-if="!inv.ativo"> · encerrado</template></span>
-              </span>
-              <button v-if="inv.ativo" type="button" class="botao botao-sutil botao-pequeno" @click="abrirMovimento(inv)">Registrar mês</button>
-              <button type="button" class="botao botao-sutil botao-pequeno" @click="alternarAtivo(inv)">{{ inv.ativo ? 'Encerrar' : 'Reativar' }}</button>
-            </li>
-          </ul>
-        </section>
+        <!-- Encerrado sem saldo neste ano não aparece na tabela: fica aqui para poder reativar. -->
+        <p v-if="dono && foraDaTabela.length" class="fora-tabela texto-2">
+          Encerrados sem saldo em {{ ano }}:
+          <template v-for="(inv, i) in foraDaTabela" :key="inv.id">{{ i ? ' · ' : ' ' }}{{ inv.nome }}
+            <button type="button" class="link-inv" @click="alternarAtivo(inv)">Reativar</button></template>
+        </p>
       </template>
     </template>
 
@@ -309,58 +409,79 @@ const nomeMes = computed(() => {
       </form>
     </PainelLateral>
 
-    <PainelLateral :aberto="mov.aberto" titulo="Registrar mês" descricao="O que aconteceu neste investimento no mês."
-                   @fechar="mov.aberto = false">
-      <form class="formulario" novalidate @submit.prevent="salvarMovimento">
-        <div class="grade-campos duas">
-          <div class="campo">
-            <label for="m-inv">Investimento</label>
-            <select id="m-inv" v-model="mov.investimentoId" class="selecao" @change="carregarMovimentos">
-              <option v-for="inv in lista.filter((i) => i.ativo)" :key="inv.id" :value="inv.id">{{ inv.nome }}</option>
-            </select>
-          </div>
-          <div class="campo">
-            <label for="m-mes">Mês</label>
-            <input id="m-mes" v-model="mov.mes" class="entrada" type="month" @change="preencher" />
-          </div>
-        </div>
-        <div class="campo">
-          <label for="m-aporte">Aporte do mês</label>
-          <CampoValor id="m-aporte" v-model="mov.aporte" negativo />
-          <span class="ajuda">Resgate entra com sinal de menos (ex.: -500,00).</span>
-        </div>
-        <div class="campo">
-          <label for="m-rent">Rentabilidade do mês (%)</label>
-          <input id="m-rent" v-model.number="mov.rentabilidade" class="entrada num" type="number" step="0.01" inputmode="decimal"
-                 placeholder="Ex.: 0,95" />
-        </div>
-        <div class="campo">
-          <label for="m-saldo">Saldo do extrato <span class="texto-2">(opcional)</span></label>
-          <CampoValor id="m-saldo" v-model="mov.saldoInformado" />
-          <span class="ajuda">Se informado, vale no lugar do saldo calculado.</span>
-        </div>
-        <Mensagem v-if="mov.saldoInformado !== null && primeiroRegistro" tipo="info">
-          Primeiro registro deste investimento: o saldo do extrato entra como saldo de abertura (o dinheiro já
-          existia), não como rendimento.
-        </Mensagem>
-        <Mensagem v-else-if="rendimentoEstranho" tipo="info">
-          Com este saldo, {{ nomeMes }} teria {{ reais(rendimentoEstranho.rendimento) }} de rendimento
-          ({{ pct(rendimentoEstranho.pct, 1) }}), o que parece {{ rendimentoEstranho.rendimento > 0 ? 'alto' : 'baixo' }}.
-          Teve {{ rendimentoEstranho.rendimento > 0 ? 'aporte' : 'resgate' }}? Informe-o acima para não contar como
-          rendimento.
-        </Mensagem>
-        <Mensagem v-if="movimentoExiste" tipo="info">{{ nomeMes }} já tem registro; salvar substitui.</Mensagem>
-        <Mensagem v-if="mov.erro" tipo="erro">{{ mov.erro }}</Mensagem>
-        <div class="acoes fim">
-          <button v-if="movimentoExiste" type="button" class="botao botao-perigo" :disabled="mov.salvando" @click="removerMovimento">Remover</button>
-          <button type="submit" class="botao botao-primario" :disabled="mov.salvando">Salvar</button>
-        </div>
-      </form>
-    </PainelLateral>
   </div>
 </template>
 
 <style scoped>
+.falta-saldo {
+  margin-bottom: var(--e-4);
+}
+
+.celula {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.celula:hover {
+  color: var(--acao);
+  text-decoration: underline;
+}
+
+.carteira td.editando {
+  outline: 2px solid var(--acao);
+  outline-offset: -2px;
+}
+
+.linha-edicao > td {
+  padding: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+.form-saldo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--e-3);
+}
+
+.form-saldo .campo {
+  flex: 0 1 14rem;
+}
+
+.linha-saldo {
+  display: grid;
+  gap: var(--e-2);
+  margin: 0;
+  padding: var(--e-3) 0 var(--e-4);
+  border: 0;
+  border-top: 1px solid var(--linha);
+}
+
+.linha-saldo legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-2);
+  padding: var(--e-3) 0 0;
+}
+
+.mes-saldos {
+  min-width: 9rem;
+  text-align: center;
+  font-weight: 700;
+}
+
+.resultado {
+  font-size: var(--t-xs);
+  color: var(--texto-2);
+}
+
 .ano {
   display: flex;
   align-items: center;
@@ -383,11 +504,21 @@ const nomeMes = computed(() => {
   line-height: 1.6;
 }
 
+/* Os 12 meses cabem sem rolagem lateral: página larga como a do ano e células mais justas. */
+.pagina-larga {
+  max-width: 100rem;
+}
+
+.carteira th,
+.carteira td {
+  padding-inline: var(--e-2);
+}
+
 .carteira th:first-child {
   position: sticky;
   left: 0;
   background: var(--papel);
-  min-width: 14rem;
+  min-width: 11rem;
   font-weight: 500;
 }
 
@@ -404,17 +535,38 @@ const nomeMes = computed(() => {
   height: 2.5rem;
 }
 
-.nome-inv {
+.nome-linha {
+  font-weight: 600;
+}
+
+.resgate {
+  color: var(--erro);
+}
+
+.acoes-inv {
+  display: flex;
+  gap: var(--e-3);
+  margin-top: var(--e-1);
+}
+
+.link-inv {
   border: 0;
   padding: 0;
   background: none;
   color: var(--acao);
   font: inherit;
+  font-size: var(--t-xs);
   font-weight: 600;
   cursor: pointer;
+}
+
+.link-inv:hover {
   text-decoration: underline;
-  text-decoration-color: var(--pedra-forte);
-  text-underline-offset: 0.2em;
+}
+
+.fora-tabela {
+  margin-top: var(--e-3);
+  font-size: var(--t-sm);
 }
 
 .tipo {

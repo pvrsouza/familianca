@@ -465,16 +465,51 @@ Pontos de atenção constante na hora de desenvolver.
   consome. Ex.: "R$ 15,00 por dia útil = R$ 3.780,00 no ano (4,2% da renda, 15,3 dias de renda)".
 
 ## Investimentos (recurso de plano)
+- **Foco (2026-10-24):** o Familiança não é gestor de carteira. Investimentos servem para saber quanto a família tem
+  e quanto aplicou no mês (fluxo de caixa e renda dos investimentos), sempre de forma simples e objetiva. Carteira de
+  verdade (ativos, preço médio, proventos) fica para o futuro, se fizer sentido.
+- **Lançamento pelo saldo do extrato (definido e implementado em 2026-10-24):**
+  - Todo mês a família informa o **saldo do extrato** de cada investimento e, se houve, quanto **colocou ou tirou**.
+    O rendimento é sempre calculado (saldo − saldo anterior − aporte); mesmo renda fixa descasa por custos, então o
+    extrato é a fonte. A **rentabilidade em %** deixa de ser campo (continua como resultado na tabela; o servidor
+    segue aceitando e o que já foi registrado com % continua valendo).
+  - **Na própria tabela:** clicar no mês de um investimento abre, logo abaixo da linha, o saldo do extrato e o
+    "colocou ou tirou" daquele mês, com o resultado na hora ("rendeu R$ 450 (0,9%)") e o aviso de 3%. O mês é a coluna
+    clicada (só meses que já chegaram, do primeiro ano com dados em diante). "Atualizar saldos" abre o primeiro que
+    falta no mês de referência e, ao salvar, segue para o próximo. (Um painel lateral com todos de uma vez e escolha
+    do mês foi testado e trocado por isto no mesmo dia.) A API também grava vários de uma vez. Para "apagar" o
+    registro de um mês, só pela API (não há botão de remover na tela).
+  - **Atualizado** = cada investimento ativo tem o **saldo do extrato informado** no mês de referência, mesmo que
+    igual ao anterior. Não vale comparar valores: saldo igual de verdade deixaria o lembrete preso, e saldo mudado por
+    aporte ou % o apagaria sem conferência.
+  - **Mês de referência** = o mês anterior (o extrato em mãos no começo de novembro é o de fim de outubro).
+  - **Lembretes:** na tela principal (O ano), nos **5 primeiros dias do mês**, "Atualizem os saldos de outubro (2 de
+    3)" com o atalho para o formulário, até todos estarem atualizados. Na tela de Investimentos, o aviso fica enquanto
+    faltar algum saldo do mês de referência, sem limite de dias. Sem e-mail ou notificação por enquanto.
+- **Encerrar = resgatou tudo (2026-10-24):** "Encerrar" pergunta o mês do resgate (vem o atual; não pode ser
+  futuro, antes do primeiro registro nem com saldo informado depois). Nesse mês o saldo vira zero e o saldo do mês
+  anterior volta para a conta como resgate (aplicação negativa no fluxo de caixa), sem rendimento; dali em diante o
+  investimento fica zerado e sai do total. Antes, encerrar só escondia: o saldo seguia somando na carteira e na renda
+  dos investimentos. Para voltar a acompanhar, "Reativar" e informar o saldo (entra como abertura). Quem já tinha
+  encerrado do jeito antigo continua com o saldo: reativar e encerrar de novo, com o mês do resgate.
+  - Gravar o saldo de um mês substitui o registro dele inteiro: pela API, mandar o saldo sem o `aporte` apaga o
+    aporte (ou resgate) já registrado naquele mês. A tela sempre manda os dois, já preenchidos.
+- **No menu principal (2026-10-24):** Investimentos foi para a barra principal e "Quanto pesa?" para o menu do nome.
 - Carteira da família; por mês e investimento: aporte (negativo = resgate), rentabilidade do mês (%) e,
   opcionalmente, o saldo do extrato, que prevalece sobre o calculado.
 - Saldo do mês = saldo anterior + rendimento (rentabilidade × saldo anterior) + aporte.
-- **Saldo de abertura (2026-10-24):** o primeiro saldo do extrato de um investimento (sem registro antes) menos o
-  aporte do mês é **abertura**: o dinheiro já existia, então não é rendimento nem aporte (não entra no fluxo de
+- **Saldo de abertura (2026-10-24):** o saldo do extrato informado num investimento **zerado** (o primeiro registro,
+  ou a volta depois de resgatar tudo) menos o aporte do mês é **abertura**: o dinheiro já existia, então não é rendimento nem aporte (não entra no fluxo de
   caixa). Antes, uma carteira de R$ 50 mil cadastrada no primeiro dia virava "R$ 50 mil de rendimento" e inflava a
   renda dos investimentos e o grau de independência. Regra automática, sem campo novo; corrige os dados que já
   existem (o cálculo é feito a cada consulta). A tabela mostra "abertura R$ X em mês/aa" sob o investimento.
 - **Salto de saldo (2026-10-24):** ao informar um saldo do extrato cujo rendimento implícito passa de 3% do saldo
   anterior (para mais ou para menos), o formulário avisa e sugere informar o aporte ou o resgate, sem bloquear.
+- **No fluxo de caixa só entra o realizado (2026-10-24):** a linha "Aplicações nos investimentos" mostra só dinheiro
+  que de fato saiu da conta para os investimentos (aplicação, positivo: sai do disponível) ou voltou deles (resgate,
+  negativo: soma no disponível do mês). Rendimento e prejuízo que ficam dentro do investimento (não realizados) não
+  entram no fluxo; aparecem só na tela de Investimentos. A tela diz isso sob o rótulo ("negativo = resgate, voltou
+  para a conta"), no mouse de cada valor negativo e numa nota abaixo da tabela.
 - Os aportes entram no fluxo de caixa como "aplicação total no mês"; os rendimentos são a "renda dos
   investimentos". **Grau de independência financeira** = renda dos investimentos ÷ despesas fixas.
 - **Meta de aporte** da família (% do que sobra no mês, renda − despesas) gera o "aporte previsto" de cada mês.

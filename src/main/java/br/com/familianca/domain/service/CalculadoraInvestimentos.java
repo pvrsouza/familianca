@@ -56,7 +56,6 @@ public final class CalculadoraInvestimentos {
         SerieMensal rendimentos = SerieMensal.ZERO;
         SerieMensal saldos = SerieMensal.ZERO;
         Abertura abertura = null;
-        boolean comecou = false;
         for (Competencia c = inicio; c.ano() <= ano; c = c.seguinte()) {
             if (c.equals(janeiro)) {
                 saldoInicial = saldo;
@@ -65,8 +64,9 @@ public final class CalculadoraInvestimentos {
             Dinheiro aporte = m != null ? m.aporte() : Dinheiro.ZERO;
             Dinheiro anterior = saldo;
             Dinheiro rendimento;
-            if (m != null && m.saldoInformado() != null && !comecou) {
-                // Primeiro saldo do extrato: o dinheiro já existia. Não rendeu nem saiu da conta neste mês.
+            if (m != null && m.saldoInformado() != null && anterior.ehZero() && !m.saldoInformado().ehZero()) {
+                // Saldo do extrato num investimento zerado (o primeiro registro, ou a volta depois de resgatar tudo):
+                // o dinheiro já existia. Não rendeu nem saiu da conta neste mês.
                 saldo = m.saldoInformado();
                 rendimento = Dinheiro.ZERO;
                 abertura = new Abertura(c, saldo.subtrair(aporte));
@@ -78,7 +78,6 @@ public final class CalculadoraInvestimentos {
                         : Dinheiro.ZERO;
                 saldo = anterior.somar(rendimento).somar(aporte);
             }
-            comecou = comecou || m != null;
             if (c.ano() == ano) {
                 aportes = aportes.comMes(c.numeroMes(), aporte);
                 rendimentos = rendimentos.comMes(c.numeroMes(), rendimento);

@@ -29,15 +29,15 @@ const principais = [
   { para: '/lancamentos', rotulo: 'Lançamentos', icone: Receipt },
   { para: '/recorrencias', rotulo: 'Recorrências', icone: Repeat },
   { para: '/categorias', rotulo: 'Categorias', icone: Tags },
-  { para: '/quanto-pesa', rotulo: 'Quanto pesa?', icone: Calculator },
+  { para: '/investimentos', rotulo: 'Investimentos', icone: PiggyBank },
   { para: '/familia', rotulo: 'Família', icone: Users },
 ]
 const secundarios = [
-  { para: '/investimentos', rotulo: 'Investimentos', icone: PiggyBank },
+  { para: '/quanto-pesa', rotulo: 'Quanto pesa?', icone: Calculator },
   { para: '/conta', rotulo: 'Minha conta', icone: UserRound },
 ]
-// No celular a barra de baixo não comporta todos: Categorias, Quanto pesa? e Família ficam no "Mais".
-const soNoMais = ['/categorias', '/quanto-pesa', '/familia']
+// No celular a barra de baixo não comporta todos: Categorias, Investimentos e Família ficam no "Mais".
+const soNoMais = ['/categorias', '/investimentos', '/familia']
 const noCelular = principais.filter((p) => !soNoMais.includes(p.para))
 const noMais = [...principais.filter((p) => soNoMais.includes(p.para)), ...secundarios]
 

@@ -23,6 +23,10 @@ interface Linha {
   nivel: 'forte' | 'normal' | 'sub' | 'resultado'
   receita?: boolean
   sinal?: boolean
+  /** Explicação curta sob o rótulo. */
+  ajuda?: string
+  /** Texto ao passar o mouse num valor negativo. */
+  dicaNegativo?: string
 }
 
 const linhas = computed<Linha[]>(() => {
@@ -32,7 +36,14 @@ const linhas = computed<Linha[]>(() => {
     { rotulo: 'Receitas fixas', serie: x.receitasFixas, nivel: 'sub' },
     { rotulo: 'Receitas variáveis', serie: x.receitasVariaveis, nivel: 'sub' },
   ]
-  if (temInvestimentos.value) l.push({ rotulo: 'Aplicações nos investimentos', serie: x.aplicacoes, nivel: 'normal', sinal: true })
+  // Só dinheiro que de fato saiu da conta para os investimentos ou voltou deles; rendimento e prejuízo ficam lá dentro.
+  if (temInvestimentos.value) {
+    l.push({
+      rotulo: 'Aplicações nos investimentos', serie: x.aplicacoes, nivel: 'normal', sinal: true,
+      ajuda: 'negativo = resgate, voltou para a conta',
+      dicaNegativo: 'Resgate: dinheiro que voltou dos investimentos para a conta. Soma no disponível do mês.',
+    })
+  }
   l.push(
     { rotulo: 'Disponível no mês', serie: x.saldoDisponivel, nivel: 'forte', sinal: true },
     { rotulo: 'Despesas do mês', serie: x.despesasTotal, nivel: 'forte' },
@@ -171,9 +182,10 @@ function dicaSaldo(i: number): string | undefined {
             <td class="num">{{ valor(r.sobraMesAnterior.ano, true) }}</td>
           </tr>
           <tr v-for="l in linhas" :key="l.rotulo" :class="l.nivel">
-            <th scope="row">{{ l.rotulo }}</th>
+            <th scope="row">{{ l.rotulo }}<span v-if="l.ajuda" class="ajuda">{{ l.ajuda }}</span></th>
             <td v-for="(v, i) in l.serie.valores" :key="i" class="num"
-                :class="{ atual: mesAtual === i + 1, negativo: l.nivel === 'resultado' && v < -0.004, receita: l.receita }">
+                :class="{ atual: mesAtual === i + 1, negativo: l.nivel === 'resultado' && v < -0.004, receita: l.receita }"
+                :title="l.dicaNegativo && v < -0.004 ? l.dicaNegativo : undefined">
               {{ valor(v, l.sinal) }}
             </td>
             <td class="num" :class="{ negativo: l.nivel === 'resultado' && l.serie.ano < -0.004, receita: l.receita }">
@@ -190,6 +202,11 @@ function dicaSaldo(i: number): string | undefined {
       </Mensagem>
       <button type="button" class="botao botao-pequeno" @click="carregarInformados">Tentar de novo</button>
     </div>
+    <p v-if="temInvestimentos" class="legenda-saldo nota-investimentos">
+      <strong>Investimentos no fluxo:</strong> só entra o dinheiro realizado, que de fato saiu da conta para os
+      investimentos (aplicação, positivo: sai do disponível) ou voltou deles (resgate, negativo: soma no disponível do
+      mês). Rendimento e prejuízo que ficam dentro do investimento não entram aqui; aparecem na tela de Investimentos.
+    </p>
     <div class="legenda-saldo">
       <p>
         <span class="ponto" aria-hidden="true" /> Mês com saldo em conta informado, sempre o do dia 1º. Informem o saldo

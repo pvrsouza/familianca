@@ -1,0 +1,21 @@
+info:
+  name: Saldos do mês
+  type: http
+  seq: 9
+  tags:
+    - Investimentos
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/investimentos/saldos"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Saldos do mês de referência (o anterior ao atual) e quantos estão atualizados. Use ?mes=AAAA-MM para outro mês.

@@ -1,0 +1,27 @@
+info:
+  name: Encerrar investimento
+  type: http
+  seq: 11
+  tags:
+    - Investimentos
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/investimentos/1/encerramento"
+  body:
+    type: json
+    data: |-
+      {
+        "mes": "2026-10"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Resgatou tudo no mês: saldo zero, resgate do saldo do mês anterior e investimento encerrado.

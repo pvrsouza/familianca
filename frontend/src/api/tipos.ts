@@ -395,6 +395,15 @@ export interface Movimento {
   saldoInformado: number | null
 }
 
+/** Saldos de um mês para atualizar todos de uma vez. referencia: o mês anterior ao atual, o que os lembretes cobram. */
+export interface SaldosDoMes {
+  competencia: string
+  referencia: string
+  total: number
+  atualizados: number
+  linhas: { investimento: Investimento; saldoAnterior: number; aporte: number | null; saldoInformado: number | null; atualizado: boolean }[]
+}
+
 export interface Posicao {
   investimento: Investimento
   saldoInicial: number

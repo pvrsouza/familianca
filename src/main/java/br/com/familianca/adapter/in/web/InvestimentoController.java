@@ -1,10 +1,13 @@
 package br.com.familianca.adapter.in.web;
 
 import br.com.familianca.adapter.in.web.dto.CarteiraResponse;
+import br.com.familianca.adapter.in.web.dto.EncerramentoRequest;
 import br.com.familianca.adapter.in.web.dto.InvestimentoRequest;
 import br.com.familianca.adapter.in.web.dto.InvestimentoResponse;
 import br.com.familianca.adapter.in.web.dto.MovimentoRequest;
 import br.com.familianca.adapter.in.web.dto.MovimentoResponse;
+import br.com.familianca.adapter.in.web.dto.SaldosDoMesResponse;
+import br.com.familianca.adapter.in.web.dto.SaldosRequest;
 import br.com.familianca.adapter.in.web.dto.Valores;
 import br.com.familianca.application.port.in.GerenciarInvestimentos;
 import br.com.familianca.application.port.in.GerenciarLancamentos;
@@ -78,6 +81,35 @@ public class InvestimentoController {
     @ApiResponse(responseCode = "409", description = "Tem movimentos: desative")
     public void remover(@PathVariable Long id) {
         investimentos.remover(id);
+    }
+
+    @PostMapping("/{id}/encerramento")
+    @Operation(summary = "Encerrar (resgatou tudo)", description = """
+            Registra no mês o saldo zero e o resgate do saldo do mês anterior (volta para a conta) e encerra o
+            investimento; dali em diante ele fica zerado. Mês que ainda não chegou, antes do primeiro registro ou com
+            saldo informado depois dele: 422. Já encerrado: 409. Para voltar a acompanhar, reative (PUT) e informe o
+            saldo, que entra como abertura.""")
+    public InvestimentoResponse encerrar(@PathVariable Long id, @Valid @RequestBody EncerramentoRequest r) {
+        return InvestimentoResponse.de(investimentos.encerrar(id, Competencia.parse(r.mes())));
+    }
+
+    @GetMapping("/saldos")
+    @Operation(summary = "Saldos do mês", description = """
+            Um por investimento ativo que já existia no mês (`mes` AAAA-MM; sem ele, o mês de referência, o anterior
+            ao atual): saldo do mês anterior, o informado e se está atualizado (saldo do extrato informado).""")
+    public SaldosDoMesResponse saldos(@RequestParam(required = false) String mes) {
+        return SaldosDoMesResponse.de(investimentos.saldosDoMes(mes != null ? Competencia.parse(mes) : null));
+    }
+
+    @PutMapping("/saldos/{mes}")
+    @Operation(summary = "Atualizar os saldos do mês", description = """
+            Grava de uma vez o saldo do extrato (e o que colocou ou tirou) de cada investimento enviado; o rendimento
+            é o calculado. Os que não vierem ficam como estão. Mês que ainda não chegou: 422.""")
+    public SaldosDoMesResponse atualizarSaldos(@PathVariable String mes, @Valid @RequestBody SaldosRequest r) {
+        return SaldosDoMesResponse.de(investimentos.atualizarSaldos(Competencia.parse(mes), r.saldos().stream()
+                .map(s -> new GerenciarInvestimentos.SaldoInformado(s.investimentoId(), Valores.dinheiro(s.saldo()),
+                        Valores.dinheiro(s.aporte())))
+                .toList()));
     }
 
     @GetMapping("/{id}/movimentos")

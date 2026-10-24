@@ -2,12 +2,12 @@
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { Check, ChevronLeft, ChevronRight } from 'lucide-vue-next'
-import { recorrencias, visao as apiVisao } from '../api/servicos'
-import type { CategoriaVisao, Pendente, Tipo, VisaoAnual } from '../api/tipos'
+import { investimentos, recorrencias, visao as apiVisao } from '../api/servicos'
+import type { CategoriaVisao, Pendente, SaldosDoMes, Tipo, VisaoAnual } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { guia } from '../estado/guia'
-import { MESES, alcanceInflacao, anoAtual, mesAtual, reais, ultimoAnoPrevisto, variacao } from '../util/formato'
+import { MESES, alcanceInflacao, anoAtual, competenciaPorExtenso, mesAtual, reais, ultimoAnoPrevisto, variacao } from '../util/formato'
 import { useMidia } from '../util/midia'
 import TabelaAno from '../componentes/ano/TabelaAno.vue'
 import AnoCelular from '../componentes/ano/AnoCelular.vue'
@@ -25,6 +25,22 @@ const ano = computed(() => Math.max(Math.min(Number(route.params.ano) || anoAtua
 const aba = computed(() => (['fluxo', 'pessoas'].includes(String(route.query.aba)) ? String(route.query.aba) : 'orcamento'))
 const dados = ref<VisaoAnual | null>(null)
 const carregando = ref(true)
+// Nos 5 primeiros dias do mês, lembrar quem organiza de atualizar os saldos dos investimentos do mês que fechou,
+// até todos terem o saldo do extrato informado.
+const lembreteSaldos = ref<SaldosDoMes | null>(null)
+watch(() => [sessao.dono.value, sessao.tem('INVESTIMENTOS'), sessao.estado.versaoDados] as const, async ([dono, tem]) => {
+  if (!dono || !tem || new Date().getDate() > 5) {
+    lembreteSaldos.value = null
+    return
+  }
+  try {
+    const s = await investimentos.saldos()
+    lembreteSaldos.value = s.atualizados < s.total ? s : null
+  } catch {
+    lembreteSaldos.value = null
+  }
+}, { immediate: true })
+
 /** Filtro rápido da tabela pelo nome: continua ao trocar de ano, sai ao deixar a tela. */
 const busca = ref('')
 const erro = ref('')
@@ -235,6 +251,11 @@ const proximo = computed(() => passos.value.findIndex(pendente))
     </Mensagem>
 
     <template v-else-if="dados">
+      <Mensagem v-if="lembreteSaldos" tipo="info" class="lembrete-saldos">
+        Começo de mês: atualizem os saldos dos investimentos de {{ competenciaPorExtenso(lembreteSaldos.referencia) }}
+        ({{ lembreteSaldos.atualizados }} de {{ lembreteSaldos.total }} atualizados).
+        <template #acoes><RouterLink to="/investimentos?atualizar=1" class="botao botao-pequeno">Atualizar</RouterLink></template>
+      </Mensagem>
       <p v-if="!vazio" class="resumo">
         Em {{ ano }}, a renda da família {{ tempo === 'passado' ? 'somou' : 'soma' }}
         <strong class="num receita">{{ reais(renda) }}</strong> e as despesas
@@ -317,6 +338,10 @@ const proximo = computed(() => passos.value.findIndex(pendente))
 </template>
 
 <style scoped>
+.lembrete-saldos {
+  margin-bottom: var(--e-4);
+}
+
 .pagina-larga {
   max-width: 100rem;
 }

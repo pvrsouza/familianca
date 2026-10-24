@@ -1,0 +1,29 @@
+info:
+  name: Atualizar saldos do mês
+  type: http
+  seq: 10
+  tags:
+    - Investimentos
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/investimentos/saldos/2026-09"
+  body:
+    type: json
+    data: |-
+      {
+        "saldos": [
+          { "investimentoId": 1, "saldo": 51450, "aporte": 1000 }
+        ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Saldo do extrato (e o que colocou ou tirou) de cada investimento no mês, de uma vez. O rendimento é calculado.

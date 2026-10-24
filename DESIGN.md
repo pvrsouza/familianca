@@ -319,7 +319,12 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 
 ### Investimentos: abertura e salto de saldo
 - Sob o nome do investimento, no mesmo estilo do tipo (cinza pequeno): "abertura 50.000,00 em set/26", com a explicação no mouse.
-- No "Registrar mês": primeiro registro com saldo do extrato mostra um aviso informativo de que ele entra como abertura; saldo com rendimento implícito acima de 3% mostra um aviso informativo com o valor e o %, sugerindo informar o aporte (ou resgate). Nunca bloqueia o salvar.
+- A tela de Investimentos é larga como a do ano (100rem) e a tabela da carteira usa células mais justas (0,5rem dos lados, primeira coluna com 11rem): os 12 meses e "No ano" cabem sem rolagem lateral a partir de ~1.300px de largura (a tabela pede 1.253px com centavos).
+- No mês em que resgatou tudo (saldo zero e aporte negativo), a célula do saldo mostra o resgate em vermelho ("−35.551,49") em vez de "–", para ficar claro o que aconteceu; os meses seguintes ficam "–".
+- "Encerrar" abre uma faixa abaixo da linha (como a do saldo): explica que o saldo vira zero e volta para a conta, pede o "Mês do resgate" (campo de mês, até o atual), mostra "Volta para a conta: R$ X" e tem "Encerrar" (botão de perigo) e "Cancelar". Encerrado aparece em cinza, com "Reativar".
+- As ações de cada investimento ficam na própria linha da tabela, sob o nome (que não é mais link): "Atualizar saldo" (mês de referência) e "Encerrar" (ou "Reativar") como links pequenos em 0,75rem 600 na cor de ação (só para quem organiza). Não há mais a lista "Na carteira" embaixo; encerrado sem saldo no ano aparece numa linha de texto abaixo da tabela, com "Reativar".
+- **Atualizar o saldo na própria tabela (2026-10-24):** cada mês de um investimento ativo (já chegado) é clicável; abre uma faixa logo abaixo da linha (a mesma `FaixaEdicao` da tabela do ano), com a célula contornada na cor de ação. Título "<investimento> · <mês>", "Saldo no fim do mês anterior" em cinza, e numa linha os campos "Saldo do extrato" e "Colocou ou tirou (opcional)" com "Salvar" ao lado. Abaixo, em 0,75rem cinza, "Rendeu R$ X (0,90%) no mês" ou, no primeiro saldo, que entra como abertura; acima de 3%, aviso informativo sugerindo informar o aporte ou resgate (nunca bloqueia). Sem painel lateral nem escolha de mês: o mês é a coluna clicada. "Atualizar saldos" (cabeçalho), o aviso e o lembrete abrem a faixa no primeiro investimento que falta no mês de referência; ao salvar, segue para o próximo que falta.
+- Aviso informativo no topo da tela de Investimentos enquanto faltar saldo do mês de referência ("Faltam os saldos de setembro: 2 de 3"), com "Atualizar". Na tela O ano, nos dias 1 a 5, o mesmo aviso ("Começo de mês: atualizem os saldos…") com o atalho que abre o formulário.
 
 ### Filtro rápido da tabela do ano
 - Campo de busca com lupa (o mesmo da busca dos Lançamentos, até 17rem) no começo da barra acima da tabela, antes da legenda; as opções ficam à direita. Filtrando, somem "Mostrar categorias sem valor", "Abrir as categorias em itens" e "Recolher os grupos" (o filtro já decide o que aparece).
@@ -347,9 +352,13 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 - "Pagas" é um `details` fechado com a contagem e o total; cada paga tem o selo petróleo "paga" com check (o azul da planilha), "em dia"/"N dias de atraso" e "Desfazer" sutil, que pede confirmação ali mesmo.
 - "Só para conferir" é uma seção à parte (título + explicação curta), mesma linha, com "Conferir" secundário e o selo "conferida" quando confirmada.
 - Navegação: item "Contas a pagar" (ícone de lista com checks) depois de "O ano". No celular a barra continua com cinco posições: Família vai para o "Mais".
+- Menu principal (2026-10-24): O ano, Contas a pagar, Lançamentos, Recorrências, Categorias, Investimentos, Família. "Quanto pesa?" e Minha conta ficam no menu do nome. No celular, Categorias, Investimentos e Família ficam no "Mais".
 
 ### Editar uma confirmação
 - No formulário do lançamento que confirmou uma recorrência, no lugar de Categoria e Descrição, uma caixa em areia (8px de raio): "**Descrição** · Categoria" em 0,875rem e, abaixo em 0,75rem cinza, que esses dados vêm da recorrência, com o link "editem a recorrência". "De quem é" fica travado.
+
+### Investimentos no fluxo de caixa
+- A linha "Aplicações nos investimentos" leva, sob o rótulo, "negativo = resgate, voltou para a conta" (0,75rem cinza, como o "ou o saldo do dia 1º informado"); cada valor negativo explica no mouse que é resgate e soma no disponível. Abaixo da tabela, uma nota em texto pequeno ("**Investimentos no fluxo:** só entra o dinheiro realizado…") diz que rendimento e prejuízo não realizados não entram.
 
 ### Explicação de coluna
 - Cabeçalho com ícone de info abre um `popover` nativo em papel (26rem, borda pedra, 12px, sombra de menu), título Fraunces 1,125rem, texto 0,875rem e um exemplo do próprio ano em areia. Usado no Rank.

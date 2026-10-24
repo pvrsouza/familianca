@@ -1,7 +1,7 @@
 import { api } from './http'
 import type {
   Carteira, Categoria, Convite, ConviteAberto, Estimativa, Familia, FormaPagamento, Frequencia, Grupo, Impacto, Investimento, Lancamento, Membro,
-  ContasDoMes, Movimento, Natureza, NotaFiscal, Papel, Pendente, Periodicidade, Recorrencia, Saldo, MovimentoDoMes, LugarSaldo, TipoLugarSaldo, SituacaoMfa, Tipo, TipoInvestimento,
+  ContasDoMes, SaldosDoMes, Natureza, NotaFiscal, Papel, Pendente, Periodicidade, Recorrencia, Saldo, MovimentoDoMes, LugarSaldo, TipoLugarSaldo, SituacaoMfa, Tipo, TipoInvestimento,
   UsuarioLogado, VisaoAnual,
 } from './tipos'
 
@@ -211,10 +211,13 @@ export const investimentos = {
   atualizar: (id: number, nome: string, tipo: TipoInvestimento, ativo: boolean) =>
     api.put<Investimento>(`/api/investimentos/${id}`, { nome, tipo, ativo }),
   remover: (id: number) => api.delete(`/api/investimentos/${id}`),
-  movimentos: (id: number) => api.get<Movimento[]>(`/api/investimentos/${id}/movimentos`),
-  registrar: (id: number, competencia: string, d: { aporte: number | null; rentabilidade: number | null; saldoInformado: number | null }) =>
-    api.put<Movimento>(`/api/investimentos/${id}/movimentos/${competencia}`, d),
-  removerMovimento: (id: number, competencia: string) => api.delete(`/api/investimentos/${id}/movimentos/${competencia}`),
+  /** Resgatou tudo no mês (AAAA-MM): saldo zero, resgate do que havia e investimento encerrado. */
+  encerrar: (id: number, mes: string) => api.post<Investimento>(`/api/investimentos/${id}/encerramento`, { mes }),
+  /** Saldos do mês (AAAA-MM); sem mês, o de referência (o anterior ao atual). */
+  saldos: (mes?: string) => api.get<SaldosDoMes>(`/api/investimentos/saldos${mes ? `?mes=${mes}` : ''}`),
+  /** Grava de uma vez o saldo do extrato (e o que colocou ou tirou) de cada investimento no mês. */
+  atualizarSaldos: (mes: string, saldos: { investimentoId: number; saldo: number; aporte: number | null }[]) =>
+    api.put<SaldosDoMes>(`/api/investimentos/saldos/${mes}`, { saldos }),
 }
 
 export const visao = {
