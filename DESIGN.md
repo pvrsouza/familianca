@@ -297,6 +297,9 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 - **Desktop:** links em areia a 80% sobre petróleo, 0,875rem 600; hover e ativo em branco; o ativo ganha um traço de 3px em areia na base, que cresce do centro (200ms).
 - **Celular:** barra inferior em papel com borda de pedra, cinco itens de ícone 1,375rem + rótulo 0,75rem; ativo em petróleo.
 
+### Rodapé da empresa (telas de acesso)
+- No fim do lado do formulário do `LayoutAcesso` (Entrar, Criar conta, Convite): razão social, CNPJ, endereço e o e-mail de privacidade, em 0,75rem `texto-2`, centralizado, até 34rem. É exigência legal (Decreto 7.962/2013), não chamada: fica discreto e abaixo de tudo. Dentro do app, depois do login, não aparece. O link da política de privacidade entra aqui quando ela for publicada.
+
 ### Avisos
 - Faixa de 8px com ícone de 1,25rem e texto 0,875rem: informativo em tinta de petróleo / petróleo noite, erro em erro claro, sucesso em verde claro. O aviso rápido é uma pílula petróleo noite com texto areia, centralizada na base.
 

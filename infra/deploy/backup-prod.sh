@@ -3,13 +3,15 @@
 #   1. pg_dump (formato custom, comprimido) para BACKUP_DIR;
 #   2. confere que o dump é legível antes de aceitá-lo;
 #   3. envia a cópia para fora do VPS (remoto do rclone, criptografado);
-#   4. mantém só os BACKUP_MANTER mais recentes no VPS.
+#   4. apaga do remoto as cópias com mais de BACKUP_REMOTO_DIAS (30) dias;
+#   5. mantém só os BACKUP_MANTER mais recentes no VPS.
 # Falha em qualquer etapa = sai com erro e não apaga backups antigos.
 set -euo pipefail
 
 DIR_DEPLOY="$(cd "$(dirname "$0")" && pwd)"
 BACKUP_DIR="${BACKUP_DIR:-$HOME/backups}"
 BACKUP_MANTER="${BACKUP_MANTER:-3}"
+BACKUP_REMOTO_DIAS="${BACKUP_REMOTO_DIAS:-30}"
 BACKUP_REMOTO="${BACKUP_REMOTO:-backup-cripto:familianca}"
 # Opcional: URL de um monitor (ex.: healthchecks.io) avisado só quando o backup termina bem.
 BACKUP_PING_URL="${BACKUP_PING_URL:-}"
@@ -28,6 +30,8 @@ echo "dump ok: $arquivo ($(du -h "$arquivo" | cut -f1))"
 
 rclone copy "$arquivo" "$BACKUP_REMOTO"
 echo "cópia externa ok: $BACKUP_REMOTO"
+# Retenção (LGPD): o que foi apagado no sistema some do remoto em 30 dias. Só roda depois da cópia de hoje dar certo.
+rclone delete --min-age "${BACKUP_REMOTO_DIAS}d" "$BACKUP_REMOTO"
 
 ls -1t "$BACKUP_DIR"/familianca-*.dump | tail -n +"$((BACKUP_MANTER + 1))" | xargs -r rm -f --
 echo "no VPS: $(ls -1 "$BACKUP_DIR"/familianca-*.dump | wc -l) backup(s)"

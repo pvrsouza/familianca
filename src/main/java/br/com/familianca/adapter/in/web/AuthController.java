@@ -7,6 +7,7 @@ import br.com.familianca.adapter.in.seguranca.TipoCliente;
 import br.com.familianca.adapter.in.seguranca.UsuarioAutenticado;
 import br.com.familianca.adapter.in.web.dto.LoginRequest;
 import br.com.familianca.adapter.in.web.dto.UsuarioLogadoResponse;
+import br.com.familianca.application.port.in.RegistrarAcesso;
 import br.com.familianca.application.port.in.VerificarSegundoFator;
 import br.com.familianca.domain.model.Usuario;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,10 +51,12 @@ public class AuthController {
     private final AuditoriaSeguranca auditoria;
     private final SessaoConfig sessao;
     private final VerificarSegundoFator segundoFator;
+    private final RegistrarAcesso registroAcesso;
 
     public AuthController(AuthenticationManager autenticacao, SessionAuthenticationStrategy estrategiaSessao,
                           SecurityContextRepository contextos, LimiteTentativasLogin limite,
-                          AuditoriaSeguranca auditoria, SessaoConfig sessao, VerificarSegundoFator segundoFator) {
+                          AuditoriaSeguranca auditoria, SessaoConfig sessao, VerificarSegundoFator segundoFator,
+                          RegistrarAcesso registroAcesso) {
         this.autenticacao = autenticacao;
         this.estrategiaSessao = estrategiaSessao;
         this.contextos = contextos;
@@ -61,6 +64,7 @@ public class AuthController {
         this.auditoria = auditoria;
         this.sessao = sessao;
         this.segundoFator = segundoFator;
+        this.registroAcesso = registroAcesso;
     }
 
     @GetMapping("/csrf")
@@ -98,6 +102,7 @@ public class AuthController {
         }
         exigirSegundoFator((UsuarioAutenticado) autenticado.getPrincipal(), corpo.codigoMfa());
         limite.liberar(ip, email);
+        registroAcesso.registrar(((UsuarioAutenticado) autenticado.getPrincipal()).id(), ip, portaOrigem(request));
 
         estrategiaSessao.onAuthentication(autenticado, request, response);
         SecurityContext contexto = SecurityContextHolder.createEmptyContext();
@@ -110,6 +115,19 @@ public class AuthController {
             novo.getToken();
         }
         return UsuarioLogadoResponse.de((UsuarioAutenticado) autenticado.getPrincipal());
+    }
+
+    /**
+     * Porta de origem do cliente, posta pelo Caddy em {@code X-Porta-Origem} (sobrescreve a que vier do cliente; o app
+     * não publica porta). Sem o header ou com valor inválido, nula.
+     */
+    private static Integer portaOrigem(HttpServletRequest request) {
+        try {
+            int porta = Integer.parseInt(request.getHeader("X-Porta-Origem"));
+            return porta >= 1 && porta <= 65535 ? porta : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /** Antes de abrir a sessão: sem o código certo, a senha correta não basta. */

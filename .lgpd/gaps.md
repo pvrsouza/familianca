@@ -1,0 +1,21 @@
+# Não-conformidades e pendências LGPD
+
+**Última atualização**: 2026-10-25 · Controlador: CSS Consultoria em TI Ltda. (CNPJ 42.694.582/0001-01). Responsável pelas ações: sócio-administrador, pelo canal privacidade@familianca.com.br.
+Prioridade: **P1** antes de abrir para outras famílias · **P2** antes de cobrar · **P3** melhoria.
+
+| # | Lacuna | Norma | Prioridade | Tamanho | Situação |
+|---|---|---|---|---|---|
+| G01 | Sem política de privacidade publicada nem aviso no cadastro; registrar a ciência (versão + data) no `usuario` | Art. 9º; Art. 6º, VI | P1 | P | Draft em `policies/privacy-policy-v1-draft.md` (aguarda revisão) |
+| G02 | Sem exportação dos dados (portabilidade/acesso). Exclusão **em parte**: o DONO já apaga todo o orçamento ("Apagar todos os dados", com senha), mas continuam a família, as contas (nome, e-mail, senha), o MFA e os convites; MEMBRO não consegue excluir a própria conta | Art. 18, II, V, VI; Art. 19 (15 dias; 30 para ATPP, Res. 2/2022 Art. 14) | P1 | M | Já nas pendências do `projeto.md` |
+| G03 | Backup remoto sem prazo: dado excluído continua no `rclone` para sempre. Retenção decidida: **30 dias** (`rclone delete --min-age 30d` no `backup-prod.sh`) | Art. 15; Art. 16; Art. 6º, III | P1 | P | ✅ Feito 2026-10-25 (`backup-prod.sh`, `BACKUP_REMOTO_DIAS`) |
+| G04 | Sem canal do encarregado. ATPP pode dispensar a designação, mas precisa de canal de contato divulgado | Art. 41; Res. 2/2022 Art. 11; Res. 18/2024 | P1 | P | Decidido: **privacidade@familianca.com.br**; falta criar a caixa |
+| G05 | Operadores: **KingHost** (VPS, Brasil) na validação; **Cloudflare R2** (backup cifrado pelo `rclone crypt`, sem região no Brasil → transferência internacional); AWS no futuro (usar `sa-east-1`). Falta: aceitar o DPA de cada um e conferir se o da Cloudflare traz as cláusulas-padrão da ANPD; se não, registrar a hipótese do Art. 33 usada | Arts. 33–36, 39; Res. 19/2024 | P1 | P | Provedores definidos 2026-10-25 |
+| G06 | Convite cancelado/expirado guarda o e-mail de um terceiro para sempre. Retenção: apagar **30 dias** depois de expirar | Art. 15; Art. 16 | P2 | P | ✅ Feito 2026-10-25 (`LimpezaRetencao`, diária) |
+| G07 | Registro de acesso por 6 meses (Marco Civil, Lei 12.965/2014, Art. 15), obrigatório porque o controlador é pessoa jurídica. ✅ Feito 2026-10-25: tabela `registro_acesso` (usuário, IP, porta de origem, momento) por login completo, limpeza diária. **Resta:** os logs do stdout (linha `auditoria` com id e IP) são rotacionados só por tamanho (5 × 10 MB, `json-file`) e, com pouco tráfego, podem passar dos "até 6 meses" que a política promete; o log de acesso do Caddy compartilhado não foi conferido | Art. 6º, III; Art. 16; Marco Civil Art. 15 | P2 | P | Em parte |
+| G08 | `LogRequisicoes` grava a query string: `GET /api/lancamentos/descricoes?q=` leva ao log o que a pessoa digitou (descrições financeiras) | Art. 6º, III; Art. 46 | P2 | P | ✅ Feito 2026-10-25 (`LogRequisicoes`) |
+| G09 | Sem runbook de incidente nem registro de incidentes (manter por 5 anos, notificados ou não) | Res. 15/2024 Arts. 6º, 9º, 10; Art. 48 | P1 | P | Aberto — fase F9 |
+| G10 | Sem ROPA consolidado | Art. 37 (ATPP pode usar modelo simplificado, Res. 2/2022) | P2 | P | Fase F10 (sai deste mapa) |
+| G11 | Auditoria de alterações (pendência G do `projeto.md`) precisa de retenção e decidir o que o "Apagar todos os dados" faz com ela | Art. 16; Art. 37 | P2 | — | Junto com a pendência de auditoria |
+| G12 | Decidir e registrar: dependentes menores aparecem só como texto em lançamentos; o produto não é voltado nem acessível a menores (cadastro de adulto). Avaliar se convite pode ir para menor de 18 | Art. 14; Lei 15.211/2025 | P2 | P | A decidir |
+| G14 | Controlador definido (2026-10-25): CSS Consultoria em TI Ltda., CNPJ 42.694.582/0001-01, ME no Simples, CNAE 6203-1/00 cobre licenciar software. Identificação (razão social, CNPJ, endereço, e-mail de privacidade) no rodapé das telas de acesso (`LayoutAcesso`). **Resta:** o link da política, quando publicada (G01) | Decreto 7.962/2013 Art. 2º; Art. 9º LGPD | P1 | P | Em parte (2026-10-25) |
+| G13 | Futuro Open Finance e cobrança: novas atividades (consentimento por conta, gateway como operador, dado fiscal 5 anos) | Art. 7º, I e II; Art. 9º, § 2º | P3 | — | Reavaliar quando entrar |

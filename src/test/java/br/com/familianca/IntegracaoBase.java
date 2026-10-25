@@ -96,7 +96,7 @@ public abstract class IntegracaoBase {
         jdbc.execute("""
                 truncate table movimento_investimento, investimento, saldo_mes, lancamento, recorrencia_excecao,
                 recorrencia, categoria, grupo_categoria, convite, membro, familia, mfa_codigo_recuperacao, mfa, usuario,
-                spring_session
+                spring_session, registro_acesso
                 restart identity cascade""");
         limite.liberarTodos();
         limiteApi.liberarTodos();

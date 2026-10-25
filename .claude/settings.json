@@ -1,5 +1,22 @@
 {
   "enabledPlugins": {
-    "impeccable@impeccable": true
+    "impeccable@impeccable": true,
+    "mattpocock-skills@claude-plugins-official": true,
+    "brand-building-skills@brand-building-skills": true,
+    "lgpd-skills@lgpd-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "lgpd-skills": {
+      "source": {
+        "source": "github",
+        "repo": "goul4rt/lgpd-skills"
+      }
+    },
+    "brand-building-skills": {
+      "source": {
+        "source": "github",
+        "repo": "arnabbagxd/Brand-building-skills"
+      }
+    }
   }
 }

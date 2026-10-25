@@ -19,4 +19,7 @@ public interface ConviteRepository {
 
     /** Pendente (válido ou expirado) para o e-mail, que impede outro convite igual. */
     Optional<Convite> buscarPendente(Long familiaId, String email);
+
+    /** Apaga os convites (em qualquer situação) que expiraram antes do limite. Devolve quantos. */
+    int apagarExpiradosAntesDe(OffsetDateTime limite);
 }

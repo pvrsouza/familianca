@@ -11,7 +11,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/** Uma linha por chamada à API: método, rota, status e duração. */
+/** Uma linha por chamada à API: método, rota, status e duração. Sem a query string, que leva texto digitado (LGPD). */
 @Component
 public class LogRequisicoes extends OncePerRequestFilter {
 
@@ -29,8 +29,7 @@ public class LogRequisicoes extends OncePerRequestFilter {
         try {
             chain.doFilter(request, response);
         } finally {
-            String query = request.getQueryString() == null ? "" : "?" + request.getQueryString();
-            log.info("{} {}{} -> {} ({} ms)", request.getMethod(), request.getRequestURI(), query,
+            log.info("{} {} -> {} ({} ms)", request.getMethod(), request.getRequestURI(),
                     response.getStatus(), System.currentTimeMillis() - inicio);
         }
     }

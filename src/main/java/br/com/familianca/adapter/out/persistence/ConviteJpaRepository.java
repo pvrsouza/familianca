@@ -1,6 +1,9 @@
 package br.com.familianca.adapter.out.persistence;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -16,4 +19,8 @@ public interface ConviteJpaRepository extends JpaRepository<ConviteEntity, Long>
                                                                                OffsetDateTime agora);
 
     Optional<ConviteEntity> findByFamiliaIdAndEmailAndStatus(Long familiaId, String email, String status);
+
+    @Modifying
+    @Query("delete from ConviteEntity c where c.expiraEm < :limite")
+    int apagarExpiradosAntesDe(@Param("limite") OffsetDateTime limite);
 }

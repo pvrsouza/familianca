@@ -160,7 +160,14 @@ Mesma lógica do controle-alugueis, mais o que está abaixo. Avaliação item a 
 - **Convites:** token aleatório de 256 bits, só o SHA-256 no banco, uso único, expira em 7 dias.
 - **Auditoria:** logger `auditoria` (login ok/falha/bloqueado, MFA ativado/desativado/falha, código de recuperação
   usado, sessão expirada, logout, acesso negado, família criada, convite aceito, assinatura alterada), sem senha,
-  token ou e-mail digitado.
+  token ou e-mail digitado. O log de requisições (`LogRequisicoes`) grava método, rota, status e duração, sem a query
+  string (ela leva texto digitado, como a busca de descrições).
+- **Registro de acesso (Marco Civil, Art. 15):** cada login completo grava `usuario_id`, IP, porta de origem e momento
+  na tabela `registro_acesso`, guardada por 6 meses. A porta vem do Caddy no header `X-Porta-Origem` (o proxy
+  sobrescreve o que vier do cliente). Sem FK para `usuario`: continua depois da exclusão da conta. Não há rota na API;
+  a consulta é por SQL, só com ordem judicial.
+- **Limpeza diária (`LimpezaRetencao`, 3h30):** apaga o registro de acesso com mais de 6 meses e os convites expirados
+  há mais de 30 dias (evento `RETENCAO_APLICADA` na auditoria, só com as contagens).
 - **App mobile:** sessão pelo header `X-Auth-Token` já prevista e desligada (`SESSAO_TOKEN_HEADER`), como no
   controle-alugueis; ver `SessaoConfig`.
 
@@ -190,7 +197,8 @@ Detalhes, regras e códigos de erro de cada rota no Swagger.
 
 Mesmo VPS do controle-alugueis, mesma receita: `infra/deploy/compose.prod.yaml` (app + Postgres próprio, sem portas
 publicadas, usuários `familianca_ddl`/`familianca_app` criados por `postgres-init/`) atrás do Caddy compartilhado
-(rede `web`). O site do Caddy está em `infra/proxy/familianca.caddy`, para copiar para o proxy do VPS. O guia passo a
+(rede `web`). O site do Caddy está em `infra/proxy/familianca.caddy`, para copiar para o proxy do VPS (ele envia a
+porta de origem do cliente em `X-Porta-Origem`, usada no registro de acesso; recopie quando mudar). O guia passo a
 passo do deploy ainda será escrito (ver pendências no `projeto.md`).
 
 ## Migrations e rollback
@@ -214,9 +222,14 @@ bash scripts/backup.sh                                   # dentro do devcontaine
 bash scripts/restore.sh backups/familianca-AAAAMMDD-HHMMSS.dump
 ```
 
-Em produção: `infra/deploy/backup-prod.sh` (mesmo esquema do controle-alugueis, com cópia criptografada fora do VPS).
+Em produção: `infra/deploy/backup-prod.sh` (mesmo esquema do controle-alugueis, com cópia criptografada fora do VPS,
+no Cloudflare R2 enquanto estivermos no VPS). Retenção: 3 cópias no VPS (`BACKUP_MANTER`) e 30 dias no remoto
+(`BACKUP_REMOTO_DIAS`, LGPD); o remoto só é podado depois que a cópia do dia deu certo.
 
 ## Dados pessoais
+
+Controladora (LGPD): CSS Consultoria em Tecnologia da Informação Ltda., CNPJ 42.694.582/0001-01. Mapa de dados,
+bases legais, lacunas e o rascunho da política de privacidade ficam em `.lgpd/` (comece pelo `STATUS.md`).
 
 A planilha de referência (`projeto/*.xlsx`) tem dados pessoais e **nunca** entra no git (`.gitignore` bloqueia
 `*.xlsx`) nem na imagem Docker (`.dockerignore`).

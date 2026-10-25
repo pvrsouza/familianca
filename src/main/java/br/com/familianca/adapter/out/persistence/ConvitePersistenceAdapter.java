@@ -61,6 +61,11 @@ public class ConvitePersistenceAdapter implements ConviteRepository {
                 .map(ConvitePersistenceAdapter::paraDominio);
     }
 
+    @Override
+    public int apagarExpiradosAntesDe(OffsetDateTime limite) {
+        return jpa.apagarExpiradosAntesDe(limite);
+    }
+
     private static Convite paraDominio(ConviteEntity e) {
         return Convite.reconstituir(e.id, e.familiaId, e.email, PapelFamilia.valueOf(e.papel), e.tokenHash,
                 StatusConvite.valueOf(e.status), e.expiraEm, e.convidadoPor);

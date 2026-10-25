@@ -27,6 +27,7 @@ import org.springframework.web.context.WebApplicationContext;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -196,6 +197,28 @@ class SegurancaApiTest extends IntegracaoBase {
                 {"categoriaId": %d, "descricao": "Pão", "valor": 12, "data": "2026-10-17"}"""
                 .formatted(categoria(dono, "Habitação", "Supermercado"))).getStatus())
                 .as("categoria de outra família").isEqualTo(404);
+    }
+
+    @Test
+    void loginCompletoGravaORegistroDeAcessoComIpEPortaDeOrigem() throws Exception {
+        assertThat(new Navegador().login("dono@teste.com", "senha-errada-123").getStatus()).isEqualTo(401);
+        assertThat(jdbc.queryForObject("select count(*) from registro_acesso", Integer.class))
+                .as("tentativa errada não é acesso").isZero();
+
+        Navegador nav = new Navegador();
+        nav.csrf();
+        assertThat(nav.enviar(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .header("X-Porta-Origem", "54321").content("""
+                        {"email": "dono@teste.com", "senha": "%s"}""".formatted(SENHA_PADRAO))).getStatus())
+                .isEqualTo(200);
+        assertThat(new Navegador().login("dono@teste.com", SENHA_PADRAO).getStatus()).isEqualTo(200);
+
+        List<Map<String, Object>> registros = jdbc.queryForList(
+                "select usuario_id, ip, porta, momento from registro_acesso order by id");
+        assertThat(registros).hasSize(2);
+        assertThat(registros.getFirst()).containsEntry("usuario_id", dono.usuarioId()).containsEntry("ip", "127.0.0.1")
+                .containsEntry("porta", 54321);
+        assertThat(registros.get(1).get("porta")).as("sem o header do proxy").isNull();
     }
 
     @Test

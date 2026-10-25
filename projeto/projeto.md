@@ -38,6 +38,9 @@ Domínios: familianca.com.br ✅, familianca.com ✅, familianca.app ✅, livres
 - Nunca commit a planilha que estou fornecendo como inpiracao. Ela tem dados pessoais. Só use para que possamos contruir a solução.
 - usar o skill do REA se for necessário
 - usar skill do impecable quando entramos na fase de frontend
+- Manter o harness de IA (`CLAUDE.md`, `.claude/settings.json`, `.claude/skills/`, `.agents/brand-context.md`,
+  `PRODUCT.md`, `projeto/negocio.md`) atualizado com cada mudança e implementação, no mesmo commit (2026-10-25).
+  Detalhes em `CLAUDE.md`, seção "Manter o harness de IA atualizado".
 - Esse arquivo será nosso principal documento de projeto, então tudo que for criado serja registrado aqui automaticamente. Isso nao inclui os documentos tecnicos ( deploy, detalhes de arquitetura, readme, ambiente de desenvolvimento, deploy em producao ,etc) que estarão em documentos separados. Aqui será o projeto em alto nível (regras de negocio, pendencias, planos futuros etc.). 
 
 
@@ -85,6 +88,11 @@ Pontos de atenção constante na hora de desenvolver.
   celular, as 12 barras viram o seletor de mês.
 - **Nomes dos papéis na tela:** DONO aparece como "organiza" e MEMBRO como "participa" (a marca evita "dono" e
   "chefe da casa").
+- **Quem oferece o Familiança (2026-10-25):** a CSS Consultoria em Tecnologia da Informação Ltda. (CNPJ
+  42.694.582/0001-01, ME no Simples; o CNAE 6203-1/00 cobre licenciar software), e não a pessoa física. Ela é a
+  controladora na LGPD e aparece no site e na política. Motivos: não expor CPF e endereço de casa, emitir nota da
+  assinatura e separar o patrimônio. Consequência: guardar o registro de acesso (IP, data e hora) por 6 meses
+  (Marco Civil, Art. 15). Canal de privacidade: privacidade@familianca.com.br. Detalhes em `.lgpd/`.
 - **Planos desde o início** (ver "Planos e assinatura"): toda funcionalidade nova que puder ser vendida separada
   entra como um recurso de plano.
 
@@ -101,6 +109,12 @@ Pontos de atenção constante na hora de desenvolver.
 - Ninguém remove nem muda o próprio papel, e a família sempre tem pelo menos um DONO ativo.
 - Mudar o papel ou remover alguém encerra as sessões abertas dessa pessoa.
 - Todos da família veem tudo da família; nenhuma família vê nada de outra.
+- **Prazos de guarda (LGPD, 2026-10-25):** convite expirado (aceito, cancelado ou nunca usado) é apagado 30 dias
+  depois de expirar; cada login guarda usuário, IP, porta de origem e horário por 6 meses (Marco Civil, Art. 15),
+  mesmo que a conta seja excluída, e só sai do banco com ordem judicial. Backup remoto: 30 dias. Uma limpeza diária
+  apaga o que venceu.
+- As telas de acesso (entrar, criar conta, convite) mostram quem oferece o serviço: razão social, CNPJ, endereço e o
+  e-mail de privacidade.
 
 ## Categorias (plano de contas)
 - Estrutura da planilha: **tipo** (receita/despesa) → **grupo** com natureza **fixa** ou **variável** (ex.:
@@ -591,7 +605,8 @@ Pontos de atenção constante na hora de desenvolver.
 - Família nova: Premium em teste por 30 dias. Assinatura vencida ou cancelada volta ao Gratuito (os dados ficam;
   o recurso só fica indisponível).
 - Enquanto não há cobrança integrada, o ADMIN da plataforma ajusta a assinatura das famílias pela API.
-- Preços e nomes dos planos são provisórios.
+- Preços e nomes dos planos são provisórios. O modelo de negócio (canvas, hipóteses e o que cada entrega mudou) está
+  em [`negocio.md`](negocio.md).
 - **Segurança (2026-10-17):** avaliado contra os 13 requisitos mínimos ([`docs/seguranca.md`](../docs/seguranca.md)).
   Entraram na v1: verificação em duas etapas **opcional** por aplicativo autenticador (com códigos de recuperação),
   sessão de no máximo 12 h, limite geral de requisições, limpeza de texto livre e aviso de segredos fracos em
@@ -617,6 +632,13 @@ Pontos de atenção constante na hora de desenvolver.
   e "esqueci minha senha".
 - **App mobile:** ligar a sessão por header (`X-Auth-Token`) já preparada e o login do app.
 - **Uma pessoa em mais de uma família** (hoje é uma só) e "sair da família".
+- **LGPD (avaliação de 2026-10-25):** mapa de dados, bases legais, lacunas e o rascunho da política de privacidade
+  em [`.lgpd/`](../.lgpd/STATUS.md). Nenhuma atividade depende de consentimento (contrato e legítimo interesse);
+  sem dado sensível nem alto risco, então sem RIPD. Feito em 2026-10-25: retenção do backup remoto, limpeza dos
+  convites, registro de acesso de 6 meses, log sem query string e identificação da empresa nas telas de acesso.
+  Antes de abrir para outras famílias: publicar a política (revisão jurídica) e pôr o link nas telas de acesso, criar
+  a caixa privacidade@familianca.com.br, aceitar os DPAs da KingHost e da Cloudflare (conferir as cláusulas da ANPD),
+  runbook de incidente e o item abaixo. Lista completa em `.lgpd/gaps.md`.
 - **Excluir a conta e a família inteira** (LGPD): hoje dá para apagar o orçamento ("Recomeçar do zero"); falta
   excluir pessoas, convites, família e contas, com confirmação por e-mail, e exportar os dados antes.
 - **Resumo da tela de Investimentos:** a frase "foram aplicados" mostra o líquido (fica negativo com resgate) e não

@@ -33,6 +33,15 @@ const meses = ['j', 'f', 'm', 'a', 'm', 'j', 'j', 'a', 's', 'o', 'n', 'd']
         <slot />
       </div>
       <ComoFunciona v-if="comoFunciona" class="passos-celular" />
+      <!-- Quem oferece o serviço, exigido de quem vende pela internet (Decreto 7.962/2013, Art. 2º). -->
+      <footer class="empresa">
+        <p>
+          O Familiança é oferecido pela CSS Consultoria em Tecnologia da Informação Ltda., CNPJ 42.694.582/0001-01,
+          Alameda Salvador, 1057, Salvador Shopping Business, Torre América, salas 911 e 912, Caminho das Árvores,
+          Salvador/BA, CEP 41820-790.
+        </p>
+        <p>Privacidade: <a href="mailto:privacidade@familianca.com.br">privacidade@familianca.com.br</a></p>
+      </footer>
     </section>
   </div>
 </template>
@@ -115,8 +124,18 @@ const meses = ['j', 'f', 'm', 'a', 'm', 'j', 'j', 'a', 's', 'o', 'n', 'd']
 
 .lado-form {
   display: grid;
+  grid-template-rows: 1fr auto;
   place-items: center;
   padding: var(--e-10) var(--e-6);
+}
+
+.empresa {
+  max-width: 34rem;
+  margin-top: var(--e-10);
+  font-size: var(--t-xs);
+  color: var(--texto-2);
+  text-align: center;
+  text-wrap: pretty;
 }
 
 /* Com os passos, a copa encolhe para o lado da marca caber numa tela de notebook. */

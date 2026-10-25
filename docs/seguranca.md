@@ -26,6 +26,7 @@ entra no plano no fim deste arquivo.
 | 11 | Sessão | Mudou papel, senha, família ou fator de acesso: encerrar sessões (`SessoesUsuario`). Dado guardado na sessão que pode mudar precisa de regra para derrubá-la. |
 | 12 | Secrets | Nenhum segredo no código ou no git. Variável nova no `.env.example` e no `infra/deploy/.env.example`; valor de desenvolvimento só no `application.yaml`, nunca valendo no `prod`. Se for segredo, entra no `SegredosProducao`. |
 | 13 | CORS | Não abrir origem, método ou header além do necessário; header novo do front entra explicitamente na lista. |
+| — | LGPD | Dado pessoal novo, finalidade nova, fornecedor novo ou prazo de guarda: atualizar `.lgpd/` (mapa, base legal, lacunas). Dado pessoal guardado tem prazo e alguém que apague (ex.: `LimpezaRetencao`). |
 | — | Auditoria e testes | Evento de segurança (login, mudança de acesso, uso de código) vai para o logger `auditoria`, sem dado pessoal. Cada regra de segurança nova tem teste. Item do plano concluído: atualizar este arquivo. |
 
 ## Situação por requisito
@@ -96,6 +97,16 @@ entra no plano no fim deste arquivo.
 | Testes: MEMBRO (403) ao alterar, isolamento entre famílias, apagar dados com lugares | `SaldoApiTest`, `ApagarDadosApiTest` |
 | Saldo inicial obrigatório: a regra fica no servidor (`AcessoFamilia.exigirSaldoInicial` em lançar, parcelar, criar recorrência e confirmar), não só no front; checada depois da validação de categoria e membro, para recurso de outra família seguir respondendo 404 | `LancamentoService`, `RecorrenciaService`, `SaldoService` |
 | Saldo de conferência e mês do saldo: regras no servidor, não só no front. Conferência só junto do saldo do dia 1º, dentro do mês e não no futuro; mês que já passou só aceita o dia 1º (dia já guardado se mantém); saldo inicial de mês futuro recusado (422). Migration V14 só aditiva (colunas nulas com check), rollback anotado | `SaldoMes`, `SaldoService`, `SaldoRequest`, `V14__saldo_conferencia.sql`, `SaldoApiTest` |
+
+**LGPD — correções pequenas (2026-10-25):**
+
+| Mudança | Onde |
+|---|---|
+| Registro de acesso do Marco Civil (Art. 15): um por login completo (depois do MFA), com usuário, IP, porta de origem e momento; 6 meses; sem FK para `usuario` (obrigação legal sobrevive à exclusão da conta); sem rota na API. A porta vem do Caddy (`header_up X-Porta-Origem`), que sobrescreve o header do cliente; valor fora de 1–65535 vira nulo | `V20__registro_acesso.sql`, `RegistroAcessoService`, `AuthController`, `infra/proxy/familianca.caddy` |
+| Limpeza diária: registro de acesso com mais de 6 meses e convites expirados há mais de 30 dias; só JPQL parametrizado; contagens na auditoria (`RETENCAO_APLICADA`) | `LimpezaRetencao`, `ConvitePersistenceAdapter`, `RegistroAcessoPersistenceAdapter` |
+| Log de requisições sem query string (levava texto digitado, ex.: `?q=` da busca de descrições) | `LogRequisicoes` |
+| Backup remoto com retenção de 30 dias, podado só depois da cópia do dia | `infra/deploy/backup-prod.sh` |
+| Testes: login certo grava o registro (com e sem porta), login errado não grava; limpeza respeita os dois prazos | `SegurancaApiTest`, `LimpezaRetencaoTest` |
 
 **MFA e segredos não bloqueiam a primeira versão.** Sem `MFA_CHAVE`, a aplicação sobe com o MFA desligado
 (`GET /api/conta/mfa` → `disponivel: false`, e configurar responde 422). Os segredos fracos só geram aviso no log.
