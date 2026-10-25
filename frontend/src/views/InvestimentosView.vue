@@ -2,8 +2,8 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-vue-next'
-import { investimentos as api } from '../api/servicos'
-import type { Carteira, Investimento, SaldosDoMes, TipoInvestimento } from '../api/tipos'
+import { investimentos as api, visao as apiVisao } from '../api/servicos'
+import type { Carteira, Investimento, Resumo, SaldosDoMes, TipoInvestimento } from '../api/tipos'
 import { ErroApi, mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { avisar } from '../estado/avisos'
@@ -34,6 +34,7 @@ async function carregar() {
     const [c, l] = await Promise.all([api.carteira(ano.value), api.listar(), carregarSituacao()])
     carteira.value = c
     lista.value = l
+    carregarMetas()
   } catch (e) {
     if (e instanceof ErroApi && e.status === 402) bloqueado.value = true
     else erro.value = mensagemDeErro(e)
@@ -42,6 +43,55 @@ async function carregar() {
   }
 }
 
+
+// ——— Meta de aporte nos aportes ———
+// A meta de cada mês (e o aporte previsto = meta × sobra) vem da visão anual. Sem ela (falhou), os aportes aparecem
+// sem a indicação; nada mais depende disso.
+const resumo = ref<Resumo | null>(null)
+async function carregarMetas() {
+  const pedido = ano.value
+  try {
+    const v = await apiVisao.ano(pedido)
+    if (pedido === ano.value) resumo.value = v.resumo
+  } catch {
+    resumo.value = null
+  }
+}
+
+interface MetaNoMes {
+  classe: 'ok' | 'faltou' | 'faltam'
+  linhas: string[]
+  dica: string
+}
+
+/** Mês fechado: atingiu se aportou pelo menos o previsto. Mês atual: quanto falta. Futuro ou sem previsto: nada. */
+function metaNoMes(i: number): MetaNoMes | null {
+  const r = resumo.value
+  const c = carteira.value
+  if (!r || !c) return null
+  const previsto = r.aportePrevisto.valores[i]
+  if (!(previsto > 0.004)) return null
+  const mes = i + 1
+  const fechado = ano.value < anoAtual() || (ano.value === anoAtual() && mes < mesAtual())
+  const atual = ano.value === anoAtual() && mes === mesAtual()
+  if (!fechado && !atual) return null
+  const aporte = c.aportes[i]
+  const dica = `Meta de ${pct(r.metasAporte[i].meta, 2)} da sobra = ${reais(previsto)}. Aportaram ${reais(aporte)}`
+    + ` (${pct(Math.max(aporte, 0) / previsto * 100)} da meta).`
+  if (aporte >= previsto - 0.004) return { classe: 'ok', linhas: [`✓ meta ${reaisCurtos(previsto)}`], dica }
+  // Resgate não aumenta o que falta: falta a meta inteira, como num mês sem aporte.
+  const falta = previsto - Math.max(aporte, 0)
+  if (atual) return { classe: 'faltam', linhas: [`faltam ${reaisCurtos(falta)}`], dica }
+  return { classe: 'faltou', linhas: [`meta ${reaisCurtos(previsto)}`, `faltou ${reaisCurtos(falta)}`], dica }
+}
+
+const metasDoAno = computed(() => {
+  if (!carteira.value) return null
+  const julgados = carteira.value.aportes.map((_, i) => metaNoMes(i)).filter((m) => m && m.classe !== 'faltam')
+  if (!julgados.length) return null
+  const ok = julgados.filter((m) => m!.classe === 'ok').length
+  return `${ok} de ${julgados.length} ${julgados.length === 1 ? 'mês' : 'meses'}`
+})
 
 function semNegativo(v: number) {
   return v < -0.004 ? '−' + reaisCurtos(-v) : reaisCurtos(v)
@@ -363,8 +413,14 @@ watch(() => [route.query.atualizar, situacao.value] as const, ([atualizar]) => {
               </tr>
               <tr class="sub">
                 <th scope="row">Aportes</th>
-                <td v-for="(v, i) in carteira.aportes" :key="i" class="num">{{ semNegativo(v) }}</td>
-                <td class="num">{{ semNegativo(carteira.totalAportes) }}</td>
+                <td v-for="(v, i) in carteira.aportes" :key="i" class="num" :title="metaNoMes(i)?.dica">
+                  {{ semNegativo(v) }}
+                  <span v-for="l in metaNoMes(i)?.linhas ?? []" :key="l" class="meta-mes" :class="metaNoMes(i)!.classe">{{ l }}</span>
+                </td>
+                <td class="num" :title="metasDoAno ? 'Meses fechados com aporte previsto em que a meta foi atingida' : undefined">
+                  {{ semNegativo(carteira.totalAportes) }}
+                  <span v-if="metasDoAno" class="meta-mes">meta em {{ metasDoAno }}</span>
+                </td>
               </tr>
               <tr class="sub">
                 <th scope="row">Rendimentos</th>
@@ -430,6 +486,23 @@ watch(() => [route.query.atualizar, situacao.value] as const, ([atualizar]) => {
 .celula:hover {
   color: var(--acao);
   text-decoration: underline;
+}
+
+/* Meta de aporte sob o aporte do mês: discreta; só o ✓ e o "faltou" ganham cor. */
+.meta-mes {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--texto-2);
+  white-space: nowrap;
+}
+
+.meta-mes.ok {
+  color: var(--verde);
+}
+
+.meta-mes.faltou {
+  color: var(--coral-borda);
 }
 
 .carteira td.editando {

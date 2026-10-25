@@ -1,0 +1,29 @@
+info:
+  name: Regra da meta de aporte
+  type: http
+  seq: 9
+  tags:
+    - Família
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/familia/estimativa-aporte"
+  body:
+    type: json
+    data: |-
+      {
+        "estimativa": "MEDIA_3M"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Só DONO. Como estimar a meta de aporte dos meses sem meta definida: MEDIA_3M (padrão, cruza o ano), MEDIA, MAXIMO,
+  MINIMO (meses anteriores do ano) ou NENHUMA (meta de partida em todo mês). Mês fechado entra na base com o %
+  realizado (aplicado ÷ sobra, de 0 a 100; sobra ≤ 0 fica de fora); mês atual ou futuro, com a sua meta.

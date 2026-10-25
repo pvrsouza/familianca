@@ -1,7 +1,10 @@
 package br.com.familianca.domain.model;
 
 import br.com.familianca.domain.vo.Dinheiro;
+import br.com.familianca.domain.vo.Percentual;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
 
@@ -43,6 +46,21 @@ public enum Estimativa {
             case MAXIMO -> valores.stream().max(Comparator.naturalOrder()).orElseThrow();
             case MINIMO -> valores.stream().min(Comparator.naturalOrder()).orElseThrow();
             case NENHUMA -> Dinheiro.ZERO;
+        };
+    }
+
+    /** O percentual estimado a partir dos percentuais da base (meta de aporte); vazia ou NENHUMA = nulo. */
+    public Percentual aplicarPercentuais(List<Percentual> valores) {
+        if (valores.isEmpty()) {
+            return null;
+        }
+        return switch (this) {
+            case MEDIA, MEDIA_3M -> Percentual.of(valores.stream().map(Percentual::valor)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                    .divide(BigDecimal.valueOf(valores.size()), 2, RoundingMode.HALF_UP));
+            case MAXIMO -> valores.stream().max(Comparator.comparing(Percentual::valor)).orElseThrow();
+            case MINIMO -> valores.stream().min(Comparator.comparing(Percentual::valor)).orElseThrow();
+            case NENHUMA -> null;
         };
     }
 }

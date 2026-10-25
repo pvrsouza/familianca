@@ -6,6 +6,7 @@ import br.com.familianca.domain.model.Familia;
 import br.com.familianca.domain.model.Membro;
 import br.com.familianca.domain.model.PapelFamilia;
 import br.com.familianca.domain.model.Plano;
+import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Percentual;
 
 import java.util.List;
@@ -19,6 +20,15 @@ public interface GerenciarFamilia {
 
     /** Regra padrão para estimar os próximos meses das despesas que não se repetem. */
     Familia definirEstimativa(Estimativa estimativa);
+
+    /** Regra para estimar a meta de aporte dos meses sem meta definida. */
+    Familia definirEstimativaAporte(Estimativa estimativa);
+
+    /**
+     * Meta de aporte de um mês (0 a 100%), do primeiro ano com dados até o último com previsão; nula volta à
+     * estimativa.
+     */
+    void definirMetaAporte(Competencia competencia, Percentual meta);
 
     /** Ninguém muda o próprio papel; sempre sobra pelo menos um DONO ativo. Encerra as sessões do membro. */
     Membro alterarPapel(Long membroId, PapelFamilia papel);

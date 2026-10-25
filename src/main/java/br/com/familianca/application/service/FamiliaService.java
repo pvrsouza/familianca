@@ -22,7 +22,9 @@ import br.com.familianca.domain.model.Membro;
 import br.com.familianca.domain.model.PapelFamilia;
 import br.com.familianca.domain.model.Plano;
 import br.com.familianca.domain.model.Usuario;
+import br.com.familianca.domain.model.VisaoAnual;
 import br.com.familianca.domain.service.CatalogoCategorias;
+import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Percentual;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +103,35 @@ public class FamiliaService implements GerenciarFamilia {
     }
 
     @Override
+    public Familia definirEstimativaAporte(Estimativa estimativa) {
+        Familia familia = acesso.familia();
+        Estimativa anterior = familia.estimativaAporte();
+        familia.definirEstimativaAporte(estimativa);
+        Familia salva = familias.salvar(familia);
+        log.info("auditoria evento=REGRA_META_APORTE_ALTERADA usuarioId={} familiaId={} de={} para={}",
+                usuarioAtual.id(), familia.id(), anterior, estimativa);
+        return salva;
+    }
+
+    @Override
+    public void definirMetaAporte(Competencia competencia, Percentual meta) {
+        obrigatorio(competencia, "mês");
+        int primeiro = acesso.primeiroAno();
+        int ultimo = VisaoAnual.ultimoAnoPrevisto(relogio.hoje());
+        if (competencia.ano() < primeiro || competencia.ano() > ultimo) {
+            throw new RegraNegocioException("A meta de aporte vale de " + primeiro + " a " + ultimo);
+        }
+        Familia familia = acesso.familia();
+        Percentual anterior = familia.metasAporte().get(competencia);
+        familia.definirMetaAporte(competencia, meta);
+        familias.salvar(familia);
+        // "estimativa" = sem meta definida no mês (vale a estimada pela regra).
+        log.info("auditoria evento={} usuarioId={} familiaId={} mes={} de={} para={}",
+                meta != null ? "META_APORTE_DEFINIDA" : "META_APORTE_REMOVIDA", usuarioAtual.id(), familia.id(),
+                competencia, anterior != null ? anterior : "estimativa", meta != null ? meta : "estimativa");
+    }
+
+    @Override
     public Membro alterarPapel(Long membroId, PapelFamilia papel) {
         obrigatorio(papel, "papel");
         Membro membro = exigirMembro(membroId);
@@ -171,6 +202,9 @@ public class FamiliaService implements GerenciarFamilia {
         }
         Long familiaId = usuarioAtual.familiaId();
         Apagados apagados = dados.apagarTudo();
+        Familia familia = acesso.familia();
+        familia.limparMetasAporte();
+        familias.salvar(familia);
         planoContas.criarModelo(familiaId, CatalogoCategorias.padrao());
         log.info("auditoria evento=DADOS_FAMILIA_APAGADOS usuarioId={} familiaId={} lancamentos={} recorrencias={} "
                         + "saldos={} locaisSaldo={} investimentos={} grupos={} categorias={}", usuario.id(), familiaId,

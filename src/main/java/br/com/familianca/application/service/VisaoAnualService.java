@@ -9,8 +9,10 @@ import br.com.familianca.application.port.out.Relogio;
 import br.com.familianca.application.port.out.SaldoRepository;
 import br.com.familianca.domain.exception.RegraNegocioException;
 import br.com.familianca.domain.model.CarteiraAnual;
+import br.com.familianca.domain.model.Estimativa;
 import br.com.familianca.domain.model.Familia;
 import br.com.familianca.domain.model.Lancamento;
+import br.com.familianca.domain.model.MetasAporte;
 import br.com.familianca.domain.model.Periodicidade;
 import br.com.familianca.domain.model.Recorrencia;
 import br.com.familianca.domain.model.Recurso;
@@ -99,20 +101,26 @@ public class VisaoAnualService implements ConsultarVisaoAnual {
         confirmacaoAutomatica.processar();
         Familia familia = acesso.familia();
         Integer anoDoPrimeiroSaldo = saldos.primeira().map(Competencia::ano).orElse(null);
-        return calcular(ano, familia, anoDoPrimeiroSaldo);
+        return calcular(ano, familia, anoDoPrimeiroSaldo, primeiro);
     }
 
-    /** Cada ano começa com a sobra de dezembro do anterior, desde o ano do primeiro saldo informado. */
-    private VisaoAnual calcular(int ano, Familia familia, Integer anoDoPrimeiroSaldo) {
-        Dinheiro sobraAnoAnterior = anoDoPrimeiroSaldo != null && anoDoPrimeiroSaldo < ano
-                ? calcular(ano - 1, familia, anoDoPrimeiroSaldo).fluxo().fluxoLiquido().mes(SerieMensal.MESES)
-                : null;
+    /**
+     * Cada ano começa com a sobra de dezembro do anterior, desde o ano do primeiro saldo informado. A meta de aporte
+     * pela média dos últimos 3 meses também continua do ano anterior, desde o primeiro ano com dados.
+     */
+    private VisaoAnual calcular(int ano, Familia familia, Integer anoDoPrimeiroSaldo, int primeiroAno) {
+        boolean sobraDoAnterior = anoDoPrimeiroSaldo != null && anoDoPrimeiroSaldo < ano;
+        boolean metaDoAnterior = familia.estimativaAporte() == Estimativa.MEDIA_3M && primeiroAno < ano;
+        VisaoAnual anterior = sobraDoAnterior || metaDoAnterior
+                ? calcular(ano - 1, familia, anoDoPrimeiroSaldo, primeiroAno) : null;
+        Dinheiro sobraAnoAnterior = sobraDoAnterior ? anterior.fluxo().fluxoLiquido().mes(SerieMensal.MESES) : null;
         Set<Ocorrencia> confirmadas = lancamentos.listarOcorrenciasConfirmadas(ano).stream()
                 .map(l -> new Ocorrencia(l.recorrenciaId(), l.competenciaRecorrencia()))
                 .collect(Collectors.toSet());
         SerieMensal aplicacoes = SerieMensal.ZERO;
         SerieMensal rendaInvestimentos = SerieMensal.ZERO;
-        if (familia.assinatura().planoEmVigor(relogio.hoje()).permite(Recurso.INVESTIMENTOS)) {
+        boolean investimentosNoPlano = familia.assinatura().planoEmVigor(relogio.hoje()).permite(Recurso.INVESTIMENTOS);
+        if (investimentosNoPlano) {
             CarteiraAnual carteira = INVESTIMENTOS.calcular(ano, investimentos.listar(),
                     investimentos.listarMovimentosAte(ano));
             aplicacoes = carteira.aportes();
@@ -125,6 +133,8 @@ public class VisaoAnualService implements ConsultarVisaoAnual {
         return CALCULADORA.calcular(new Entrada(ano, planoContas.listarGrupos(), planoContas.listarCategorias(),
                 lancamentos.listar(LocalDate.of(ano, 1, 1), LocalDate.of(ano, 12, 31)), lista,
                 confirmadas, saldos.listar(ano), aplicacoes, rendaInvestimentos, familia.metaAporte(),
-                familia.estimativa(), relogio.hoje(), previsaoFamilia.calcular(lista), sobraAnoAnterior, anteriores));
+                familia.estimativa(), relogio.hoje(), previsaoFamilia.calcular(lista), sobraAnoAnterior, anteriores,
+                new MetasAporte(familia.estimativaAporte(), familia.metasAporte(),
+                        metaDoAnterior ? anterior.fluxo().baseDasMetas() : List.of(), investimentosNoPlano)));
     }
 }

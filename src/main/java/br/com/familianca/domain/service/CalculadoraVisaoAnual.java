@@ -5,6 +5,7 @@ import br.com.familianca.domain.model.Categoria;
 import br.com.familianca.domain.model.Estimativa;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Lancamento;
+import br.com.familianca.domain.model.MetasAporte;
 import br.com.familianca.domain.model.MovimentoDoMes;
 import br.com.familianca.domain.model.Natureza;
 import br.com.familianca.domain.model.Recorrencia;
@@ -17,6 +18,7 @@ import br.com.familianca.domain.model.VisaoAnual.LinhaCategoria;
 import br.com.familianca.domain.model.VisaoAnual.LinhaGrupo;
 import br.com.familianca.domain.model.VisaoAnual.LinhaItem;
 import br.com.familianca.domain.model.VisaoAnual.LinhaMembro;
+import br.com.familianca.domain.model.VisaoAnual.MetaAporteMes;
 import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Dinheiro;
 import br.com.familianca.domain.vo.Percentual;
@@ -44,6 +46,8 @@ import java.util.stream.Stream;
  */
 public final class CalculadoraVisaoAnual {
 
+    private static final CalculadoraMetaAporte META_APORTE = new CalculadoraMetaAporte();
+
     /** Ocorrência de recorrência já confirmada (virou lançamento), em qualquer data. */
     public record Ocorrencia(Long recorrenciaId, Competencia competencia) {
     }
@@ -61,15 +65,29 @@ public final class CalculadoraVisaoAnual {
      *                           nulo = nenhum saldo informado antes deste ano (janeiro começa do zero)
      * @param anteriores         lançamentos do ano anterior: a média dos últimos meses cruza o ano (em janeiro, usa
      *                           outubro a dezembro)
+     * @param metasAporte        metas definidas por mês e regra para estimar as outras; a meta de partida é
+     *                           {@code metaAporte}. Nulo = só a meta de partida, em todo mês
      */
     public record Entrada(int ano, List<Grupo> grupos, List<Categoria> categorias, List<Lancamento> lancamentos,
                           List<Recorrencia> recorrencias, Set<Ocorrencia> confirmadas, List<SaldoMes> saldos,
                           SerieMensal aplicacoes, SerieMensal rendaInvestimentos, Percentual metaAporte,
                           Estimativa estimativaFamilia, LocalDate hoje, PrevisaoRecorrencias previsao,
-                          Dinheiro sobraAnoAnterior, List<Lancamento> anteriores) {
+                          Dinheiro sobraAnoAnterior, List<Lancamento> anteriores, MetasAporte metasAporte) {
 
         public Entrada {
             anteriores = anteriores == null ? List.of() : List.copyOf(anteriores);
+            metasAporte = metasAporte == null ? MetasAporte.NENHUMA : metasAporte;
+        }
+
+        /** Só a meta de partida, em todo mês. */
+        public Entrada(int ano, List<Grupo> grupos, List<Categoria> categorias, List<Lancamento> lancamentos,
+                       List<Recorrencia> recorrencias, Set<Ocorrencia> confirmadas, List<SaldoMes> saldos,
+                       SerieMensal aplicacoes, SerieMensal rendaInvestimentos, Percentual metaAporte,
+                       Estimativa estimativaFamilia, LocalDate hoje, PrevisaoRecorrencias previsao,
+                       Dinheiro sobraAnoAnterior, List<Lancamento> anteriores) {
+            this(ano, grupos, categorias, lancamentos, recorrencias, confirmadas, saldos, aplicacoes,
+                    rendaInvestimentos, metaAporte, estimativaFamilia, hoje, previsao, sobraAnoAnterior, anteriores,
+                    null);
         }
 
         /** Sem os lançamentos do ano anterior. */
@@ -476,17 +494,20 @@ public final class CalculadoraVisaoAnual {
         }
 
         List<Percentual> grau = new ArrayList<>();
+        SerieMensal sobraDoMes = receitasFixas.somar(receitasVariaveis).subtrair(despesasFixas)
+                .subtrair(despesasVariaveis);
+        List<MetaAporteMes> metas = META_APORTE.calcular(e.ano(), sobraDoMes, e.aplicacoes(), ultimoMesFechado(e),
+                e.metaAporte(), e.metasAporte());
         SerieMensal aportePrevisto = SerieMensal.ZERO;
         for (int mes = 1; mes <= SerieMensal.MESES; mes++) {
             grau.add(Percentual.razao(e.rendaInvestimentos().mes(mes), despesasFixas.mes(mes)));
-            if (e.metaAporte() != null) {
-                Dinheiro sobraDoMes = receitasFixas.mes(mes).somar(receitasVariaveis.mes(mes))
-                        .subtrair(despesasFixas.mes(mes)).subtrair(despesasVariaveis.mes(mes));
-                aportePrevisto = aportePrevisto.comMes(mes, e.metaAporte().aplicarSobre(sobraDoMes.maximo(Dinheiro.ZERO)));
+            Percentual meta = metas.get(mes - 1).meta();
+            if (meta != null) {
+                aportePrevisto = aportePrevisto.comMes(mes, meta.aplicarSobre(sobraDoMes.mes(mes).maximo(Dinheiro.ZERO)));
             }
         }
         return new Fluxo(sobra, informada, receitasFixas, receitasVariaveis, e.aplicacoes(), despesasFixas,
-                despesasVariaveis, e.rendaInvestimentos(), grau, aportePrevisto, e.sobraAnoAnterior() != null);
+                despesasVariaveis, e.rendaInvestimentos(), grau, aportePrevisto, e.sobraAnoAnterior() != null, metas);
     }
 
     private static SerieMensal somaPorNatureza(List<LinhaGrupo> grupos, Natureza natureza) {

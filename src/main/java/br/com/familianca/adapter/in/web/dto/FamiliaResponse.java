@@ -8,10 +8,13 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record FamiliaResponse(Long id, String nome,
-                              @Schema(description = "% da sobra do mês (renda − despesas) que a família quer investir.")
+                              @Schema(description = "Meta de partida: % da sobra do mês (renda − despesas) a "
+                                      + "investir nos meses em que a regra do aporte não estima.")
                               BigDecimal metaAportePercentual,
                               @Schema(description = "Regra padrão para estimar os próximos meses das despesas que não se repetem.")
                               Estimativa estimativa,
+                              @Schema(description = "Regra para estimar a meta de aporte dos meses sem meta definida.")
+                              Estimativa estimativaAporte,
                               AssinaturaDto assinatura,
                               @Schema(description = "O que vale hoje: o plano da assinatura, ou o gratuito se venceu/cancelou.")
                               PlanoResponse planoEmVigor,
@@ -24,7 +27,7 @@ public record FamiliaResponse(Long id, String nome,
 
     public static FamiliaResponse de(FamiliaDetalhe d) {
         return new FamiliaResponse(d.familia().id(), d.familia().nome(), Valores.valor(d.familia().metaAporte()),
-                d.familia().estimativa(),
+                d.familia().estimativa(), d.familia().estimativaAporte(),
                 AssinaturaDto.de(d.familia().assinatura()), PlanoResponse.de(d.planoEmVigor()),
                 d.membros().stream().map(MembroResponse::de).toList(),
                 d.convitesPendentes().stream().map(ConviteResponse::de).toList(), d.temSaldoInicial(),

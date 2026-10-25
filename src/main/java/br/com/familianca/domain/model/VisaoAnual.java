@@ -1,5 +1,6 @@
 package br.com.familianca.domain.model;
 
+import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Dinheiro;
 import br.com.familianca.domain.vo.Percentual;
 import br.com.familianca.domain.vo.SerieMensal;
@@ -8,6 +9,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * O ano da família mês a mês: receitas e despesas por grupo e categoria (realizado + previsto), o fluxo de caixa,
@@ -105,16 +107,19 @@ public record VisaoAnual(int ano, List<LinhaGrupo> receitas, List<LinhaGrupo> de
      *
      * @param sobraInformada    por mês: true se a sobra veio de um saldo informado
      * @param grauIndependencia renda dos investimentos ÷ despesas fixas, por mês (nulo sem despesas fixas)
-     * @param aportePrevisto    meta de aporte da família × (renda − despesas), nunca negativo
+     * @param aportePrevisto    meta de aporte do mês × (renda − despesas), nunca negativo
      * @param saldoAntesDoAno   true se há saldo informado num ano anterior (janeiro vem da sobra de dezembro)
+     * @param metasAporte       a meta de aporte de cada mês (12), com de onde veio
      */
     public record Fluxo(SerieMensal sobraMesAnterior, List<Boolean> sobraInformada, SerieMensal receitasFixas,
                         SerieMensal receitasVariaveis, SerieMensal aplicacoes, SerieMensal despesasFixas,
                         SerieMensal despesasVariaveis, SerieMensal rendaInvestimentos,
-                        List<Percentual> grauIndependencia, SerieMensal aportePrevisto, boolean saldoAntesDoAno) {
+                        List<Percentual> grauIndependencia, SerieMensal aportePrevisto, boolean saldoAntesDoAno,
+                        List<MetaAporteMes> metasAporte) {
 
         public Fluxo {
             sobraInformada = List.copyOf(sobraInformada);
+            metasAporte = List.copyOf(metasAporte);
             grauIndependencia = Collections.unmodifiableList(new ArrayList<>(grauIndependencia));
         }
 
@@ -149,6 +154,46 @@ public record VisaoAnual(int ano, List<LinhaGrupo> receitas, List<LinhaGrupo> de
 
         public Percentual grauIndependenciaAno() {
             return Percentual.razao(rendaInvestimentos.total(), despesasFixas.total());
+        }
+
+        /** Como os meses do ano entram na base da meta dos meses seguintes (o ano seguinte começa daqui). */
+        public List<BaseMeta> baseDasMetas() {
+            return metasAporte.stream().map(MetaAporteMes::naBase).filter(Objects::nonNull).toList();
+        }
+    }
+
+    /** De onde veio a meta de aporte do mês. */
+    public enum OrigemMeta {
+        /** Definida à mão para o mês. */
+        DEFINIDA,
+        /** Estimada pela regra da família a partir dos meses anteriores. */
+        ESTIMADA,
+        /** A meta de partida da família: a regra não estima ou ainda não tem base. */
+        PARTIDA
+    }
+
+    /**
+     * Um mês na base da meta: o percentual realizado (mês fechado) ou a meta (mês atual ou futuro).
+     *
+     * @param realizado true = percentual realizado de um mês fechado; false = a meta de um mês que não fechou
+     */
+    public record BaseMeta(Competencia competencia, Percentual valor, boolean realizado) {
+    }
+
+    /**
+     * A meta de aporte de um mês: % da sobra (renda − despesas) que a família quer investir.
+     *
+     * @param meta      nula = sem meta (sem aporte previsto)
+     * @param origem    nula quando não há meta
+     * @param realizado % da sobra que foi de fato aplicado (só mês fechado com sobra; de 0 a 100); nulo = não se aplica
+     * @param base      os meses usados na estimativa (vazia se não foi estimada)
+     * @param naBase    como este mês entra na base dos seguintes; nulo = fica de fora
+     */
+    public record MetaAporteMes(Percentual meta, OrigemMeta origem, Percentual realizado, List<BaseMeta> base,
+                                BaseMeta naBase) {
+
+        public MetaAporteMes {
+            base = List.copyOf(base);
         }
     }
 

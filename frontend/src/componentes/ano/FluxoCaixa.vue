@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { Pencil } from 'lucide-vue-next'
-import type { LugarSaldo, Saldo, Serie, SeriePercentual, VisaoAnual } from '../../api/tipos'
-import { lugaresSaldo, saldos } from '../../api/servicos'
+import type { LugarSaldo, MetaAporte, Saldo, Serie, SeriePercentual, VisaoAnual } from '../../api/tipos'
+import { familia, lugaresSaldo, saldos } from '../../api/servicos'
 import { mensagemDeErro } from '../../api/http'
 import { sessao } from '../../estado/sessao'
-import { MESES, MESES_CURTOS, alcanceInflacao, competencia, pct, reais, reaisCurtos, ultimoMesFechado, variacao } from '../../util/formato'
+import { ESTIMATIVAS, MESES, MESES_CURTOS, alcanceInflacao, competencia, competenciaCurta, competenciaPorExtenso, pct, reais, reaisCurtos, ultimoMesFechado, variacao } from '../../util/formato'
 import Mensagem from '../Mensagem.vue'
+import FaixaEdicao from '../FaixaEdicao.vue'
 import PainelSaldo from './PainelSaldo.vue'
 
 // O resumo da planilha: (1) sobra do mês anterior, (2) renda, (3) aplicações, (4) disponível = 1 + 2 − 3,
@@ -54,14 +55,60 @@ const linhas = computed<Linha[]>(() => {
   return l
 })
 
-const linhasInvest = computed(() =>
-  temInvestimentos.value
-    ? [
-        { rotulo: 'Renda dos investimentos', serie: r.value.rendaInvestimentos },
-        { rotulo: 'Aporte previsto (meta)', serie: r.value.aportePrevisto },
-      ]
-    : [],
-)
+// ——— Meta de aporte de cada mês ———
+// Mês sem meta definida recebe a estimada pela regra da família (a partir do % realizado dos meses fechados e da
+// meta dos que não fecharam) ou a meta de partida. Quem organiza muda qualquer mês na própria célula.
+const metas = computed(() => r.value.metasAporte)
+/** O que sobra no mês (renda − despesas), a base da meta; o aporte previsto só conta a sobra positiva. */
+const sobraDoMes = computed(() => r.value.rendaTotal.valores.map((v, i) => v - r.value.despesasTotal.valores[i]))
+const sobraDoAno = computed(() => r.value.rendaTotal.ano - r.value.despesasTotal.ano)
+const sobraPositivaAno = computed(() => sobraDoMes.value.reduce((t, v) => t + Math.max(v, 0), 0))
+const editandoMeta = ref<number | null>(null)
+const metaDigitada = ref<number | null>(null)
+const erroMeta = ref('')
+const salvandoMeta = ref(false)
+
+function abrirMeta(i: number) {
+  editandoMeta.value = i
+  metaDigitada.value = metas.value[i].meta
+  erroMeta.value = ''
+}
+
+function explicacaoMeta(m: MetaAporte): string {
+  if (m.origem === 'DEFINIDA') return 'Definida para este mês.'
+  if (m.origem === 'ESTIMADA') {
+    const regra = sessao.estado.familia?.estimativaAporte ?? 'MEDIA_3M'
+    const base = m.base.map((b) => `${competenciaCurta(b.competencia)} ${pct(b.percentual, 2)}${b.realizado ? ' investido' : ' meta'}`)
+    return `Estimada ${ESTIMATIVAS[regra].como}: ${base.join(' · ')}.`
+  }
+  if (m.origem === 'PARTIDA') return 'Meta de partida da família: ainda não há meses para estimar, ou a regra é não estimar.'
+  return 'Sem meta: defina aqui, ou informe a meta de partida em Família.'
+}
+
+function dicaMeta(m: MetaAporte): string {
+  const realizado = m.realizado != null ? ` Investiram ${pct(m.realizado, 2)} do que sobrou.` : ''
+  return explicacaoMeta(m) + realizado
+}
+
+async function salvarMeta(valor: number | null) {
+  const i = editandoMeta.value
+  if (i === null) return
+  if (valor !== null && (!Number.isFinite(valor) || valor < 0 || valor > 100)) {
+    erroMeta.value = 'A meta vai de 0% a 100%.'
+    return
+  }
+  salvandoMeta.value = true
+  erroMeta.value = ''
+  try {
+    await familia.definirMetaAporte(competencia(props.visao.ano, i + 1), valor)
+    editandoMeta.value = null
+    emit('mudou')
+  } catch (e) {
+    erroMeta.value = mensagemDeErro(e)
+  } finally {
+    salvandoMeta.value = false
+  }
+}
 
 const mesesNegativos = computed(() =>
   r.value.fluxoCaixaLiquido.valores
@@ -254,10 +301,11 @@ function dicaSaldo(i: number): string | undefined {
       </p>
     </section>
 
-    <section v-if="linhasInvest.length" class="secao">
+    <section v-if="temInvestimentos" class="secao">
       <div class="secao-cabecalho">
         <h2>Investimentos no fluxo</h2>
-        <p>Grau de independência = renda dos investimentos ÷ despesas fixas.</p>
+        <p>Aporte previsto = meta do mês × o que sobra (renda − despesas). Grau de independência = renda dos
+          investimentos ÷ despesas fixas.</p>
       </div>
       <div class="tabela-rolagem">
         <table class="tabela">
@@ -269,10 +317,57 @@ function dicaSaldo(i: number): string | undefined {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="l in linhasInvest" :key="l.rotulo">
-              <th scope="row">{{ l.rotulo }}</th>
-              <td v-for="(v, i) in l.serie.valores" :key="i" class="num">{{ reaisCurtos(v) }}</td>
-              <td class="num">{{ reaisCurtos(l.serie.ano) }}</td>
+            <tr>
+              <th scope="row">Renda dos investimentos</th>
+              <td v-for="(v, i) in r.rendaInvestimentos.valores" :key="i" class="num">{{ reaisCurtos(v) }}</td>
+              <td class="num">{{ reaisCurtos(r.rendaInvestimentos.ano) }}</td>
+            </tr>
+            <tr>
+              <th scope="row">Meta de aporte<span class="ajuda">% do que sobra no mês</span></th>
+              <td v-for="(m, i) in metas" :key="i" class="num" :class="{ editando: editandoMeta === i }">
+                <button v-if="podeEditar" type="button" class="celula-editavel"
+                        :aria-label="`Meta de aporte de ${MESES[i]}: ${pct(m.meta, 2)}. Mudar`" :title="dicaMeta(m)"
+                        @click="abrirMeta(i)">
+                  <span class="num" :class="{ 'meta-estimada': m.origem === 'ESTIMADA' || m.origem === 'PARTIDA' }">{{ pct(m.meta, 2) }}</span>
+                  <Pencil class="lapis" aria-hidden="true" />
+                </button>
+                <span v-else class="num" :class="{ 'meta-estimada': m.origem === 'ESTIMADA' || m.origem === 'PARTIDA' }" :title="dicaMeta(m)">{{ pct(m.meta, 2) }}</span>
+                <span v-if="Math.abs(sobraDoMes[i]) > 0.004" class="nota-celula">sobra {{ valor(sobraDoMes[i], true) }}</span>
+              </td>
+              <td class="num"><span class="nota-celula">sobra {{ valor(sobraDoAno, true) }}</span></td>
+            </tr>
+            <tr v-if="editandoMeta !== null" class="linha-edicao">
+              <td colspan="14">
+                <FaixaEdicao aberto :titulo="`Meta de aporte · ${competenciaPorExtenso(competencia(visao.ano, editandoMeta + 1))}`"
+                             :descricao="dicaMeta(metas[editandoMeta])" @fechar="editandoMeta = null">
+                  <form class="form-meta" novalidate @submit.prevent="salvarMeta(metaDigitada)">
+                    <div class="campo">
+                      <label for="m-meta">% do que sobrar no mês</label>
+                      <div class="entrada-pct">
+                        <input id="m-meta" v-model.number="metaDigitada" class="entrada num" type="number" min="0"
+                               max="100" step="1" inputmode="decimal" />
+                      </div>
+                    </div>
+                    <button type="submit" class="botao botao-primario" :disabled="salvandoMeta">Salvar</button>
+                    <button v-if="metas[editandoMeta].origem === 'DEFINIDA'" type="button" class="botao"
+                            :disabled="salvandoMeta" @click="salvarMeta(null)">Voltar à estimativa</button>
+                  </form>
+                  <p class="ajuda-meta">A meta definida vale só neste mês e entra na estimativa dos meses seguintes que
+                    ainda não fecharam. Nos meses fechados, a estimativa usa o que vocês de fato investiram.</p>
+                  <Mensagem v-if="erroMeta" tipo="erro">{{ erroMeta }}</Mensagem>
+                </FaixaEdicao>
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Aporte previsto (meta)</th>
+              <td v-for="(v, i) in r.aportePrevisto.valores" :key="i" class="num">
+                {{ reaisCurtos(v) }}
+                <span v-if="v > 0.004" class="nota-celula">de {{ reaisCurtos(sobraDoMes[i]) }}</span>
+              </td>
+              <td class="num">
+                {{ reaisCurtos(r.aportePrevisto.ano) }}
+                <span v-if="r.aportePrevisto.ano > 0.004" class="nota-celula">de {{ reaisCurtos(sobraPositivaAno) }}</span>
+              </td>
             </tr>
             <tr>
               <th scope="row">Grau de independência</th>
@@ -433,6 +528,53 @@ function dicaSaldo(i: number): string | undefined {
   border-radius: 50%;
   background: var(--petroleo);
   vertical-align: middle;
+}
+
+/* Meta estimada (pela regra ou de partida): estilo de previsto; a definida no mês fica normal. */
+.meta-estimada {
+  padding: 0 3px;
+  border-radius: 3px;
+  outline: 1px dashed var(--coral-borda);
+  outline-offset: -1px;
+}
+
+/* A sobra do mês, discreta sob a meta e o aporte previsto. */
+.nota-celula {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--texto-2);
+  white-space: nowrap;
+}
+
+td.editando {
+  outline: 2px solid var(--acao);
+  outline-offset: -2px;
+}
+
+.linha-edicao > td {
+  padding: var(--e-3) var(--e-4);
+  text-align: left;
+  white-space: normal;
+  height: auto;
+}
+
+.form-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--e-3);
+}
+
+.form-meta .campo {
+  flex: 0 1 12rem;
+}
+
+.ajuda-meta {
+  margin-top: var(--e-2);
+  font-size: var(--t-xs);
+  color: var(--texto-2);
+  max-width: 70ch;
 }
 
 .legenda-saldo {

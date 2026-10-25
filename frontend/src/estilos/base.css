@@ -801,3 +801,19 @@ textarea.entrada {
   scrollbar-color: var(--pedra-forte) transparent;
   scrollbar-width: thin;
 }
+
+/* Campo de percentual: o % fixo no fim. */
+.entrada-pct {
+  position: relative;
+}
+
+.entrada-pct::after {
+  content: '%';
+  position: absolute;
+  right: var(--e-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--texto-2);
+  font-weight: 600;
+  pointer-events: none;
+}

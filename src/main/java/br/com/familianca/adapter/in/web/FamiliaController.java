@@ -9,11 +9,13 @@ import br.com.familianca.adapter.in.web.dto.EstimativaRequest;
 import br.com.familianca.adapter.in.web.dto.FamiliaRequest;
 import br.com.familianca.adapter.in.web.dto.FamiliaResponse;
 import br.com.familianca.adapter.in.web.dto.MembroResponse;
+import br.com.familianca.adapter.in.web.dto.MetaAporteRequest;
 import br.com.familianca.adapter.in.web.dto.PapelRequest;
 import br.com.familianca.adapter.in.web.dto.Valores;
 import br.com.familianca.application.port.in.GerenciarFamilia;
 import br.com.familianca.application.port.in.GerenciarFamilia.ConviteCriado;
 import br.com.familianca.domain.model.PapelFamilia;
+import br.com.familianca.domain.vo.Competencia;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -59,7 +61,9 @@ public class FamiliaController {
     }
 
     @PutMapping
-    @Operation(summary = "Atualizar nome e meta de aporte")
+    @Operation(summary = "Atualizar nome e meta de partida",
+            description = "`metaAportePercentual` é a meta de partida: vale nos meses em que a regra do aporte não "
+                    + "estima ou ainda não tem base (PUT /api/familia/estimativa-aporte).")
     public FamiliaResponse atualizar(@Valid @RequestBody FamiliaRequest r) {
         familia.atualizar(r.nome(), Valores.percentual(r.metaAportePercentual()));
         return consultar();
@@ -76,6 +80,36 @@ public class FamiliaController {
     public FamiliaResponse definirEstimativa(@Valid @RequestBody EstimativaRequest r) {
         familia.definirEstimativa(r.estimativa());
         return consultar();
+    }
+
+    @PutMapping("/estimativa-aporte")
+    @Operation(summary = "Regra para estimar a meta de aporte de cada mês", description = """
+            Mês sem meta definida recebe a meta estimada a partir dos meses anteriores: MEDIA_3M (média dos últimos \
+            3, mesmo do ano anterior; padrão), MEDIA, MAXIMO, MINIMO (dos meses anteriores do ano) ou NENHUMA. Na \
+            base, mês fechado entra com o % realizado (aplicado ÷ sobra, de 0 a 100; sobra zero ou negativa fica de \
+            fora) e mês atual ou futuro com a sua meta. Sem base (ou NENHUMA), vale a meta de partida \
+            (`metaAportePercentual`).""")
+    public FamiliaResponse definirEstimativaAporte(@Valid @RequestBody EstimativaRequest r) {
+        familia.definirEstimativaAporte(r.estimativa());
+        return consultar();
+    }
+
+    @PutMapping("/metas-aporte/{mes}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Definir a meta de aporte do mês", description = """
+            `mes` em AAAA-MM, do primeiro ano com dados até o último com previsão (ano atual + 2). A meta definida \
+            vale no lugar da estimativa e entra na base dos meses seguintes que ainda não fecharam. A meta de cada \
+            mês sai na visão anual (`resumo.metasAporte`).""")
+    @ApiResponse(responseCode = "422", description = "Mês fora do alcance ou percentual fora de 0 a 100")
+    public void definirMetaAporte(@PathVariable String mes, @Valid @RequestBody MetaAporteRequest r) {
+        familia.definirMetaAporte(Competencia.parse(mes), Valores.percentual(r.percentual()));
+    }
+
+    @DeleteMapping("/metas-aporte/{mes}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Voltar a meta do mês à estimativa")
+    public void removerMetaAporte(@PathVariable String mes) {
+        familia.definirMetaAporte(Competencia.parse(mes), null);
     }
 
     @PutMapping("/membros/{id}/papel")

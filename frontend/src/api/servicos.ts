@@ -35,6 +35,13 @@ export const familia = {
   atualizar: (nome: string, metaAportePercentual: number | null) =>
     api.put<Familia>('/api/familia', { nome, metaAportePercentual }),
   definirEstimativa: (estimativa: Estimativa) => api.put<Familia>('/api/familia/estimativa', { estimativa }),
+  definirEstimativaAporte: (estimativa: Estimativa) =>
+    api.put<Familia>('/api/familia/estimativa-aporte', { estimativa }),
+  /** Meta do mês (AAAA-MM) definida à mão; nula volta à estimativa. */
+  definirMetaAporte: (mes: string, percentual: number | null) =>
+    percentual === null
+      ? api.delete(`/api/familia/metas-aporte/${mes}`)
+      : api.put<void>(`/api/familia/metas-aporte/${mes}`, { percentual }),
   alterarPapel: (membroId: number, papel: Papel) => api.put<Membro>(`/api/familia/membros/${membroId}/papel`, { papel }),
   remover: (membroId: number) => api.delete(`/api/familia/membros/${membroId}`),
   convidar: (email: string, papel: Papel) => api.post<Convite>('/api/familia/convites', { email, papel }),

@@ -79,8 +79,11 @@ export interface BaseEstimativa {
 export interface Familia {
   id: number
   nome: string
+  /** Meta de partida: vale nos meses em que a regra do aporte não estima (ou ainda não tem base). */
   metaAportePercentual: number | null
   estimativa: Estimativa
+  /** Regra para estimar a meta de aporte dos meses sem meta definida. */
+  estimativaAporte: Estimativa
   assinatura: Assinatura
   planoEmVigor: Plano
   membros: Membro[]
@@ -318,6 +321,21 @@ export interface Resumo {
   grauIndependencia: SeriePercentual
   aportePrevisto: Serie
   inflacaoFamiliar: SeriePercentual
+  /** A meta de aporte de cada mês (12). */
+  metasAporte: MetaAporte[]
+}
+
+/** DEFINIDA = à mão; ESTIMADA = pela regra; PARTIDA = a meta de partida da família. */
+export type OrigemMeta = 'DEFINIDA' | 'ESTIMADA' | 'PARTIDA'
+
+export interface MetaAporte {
+  /** % da sobra a investir; nulo = sem meta. */
+  meta: number | null
+  origem: OrigemMeta | null
+  /** % da sobra de fato aplicado (só mês fechado com sobra). */
+  realizado: number | null
+  /** Meses usados na estimativa; realizado = % realizado de mês fechado, senão a meta do mês. */
+  base: { competencia: string; percentual: number; realizado: boolean }[]
 }
 
 export interface MembroVisao {

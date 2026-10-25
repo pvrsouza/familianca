@@ -512,7 +512,61 @@ Pontos de atenção constante na hora de desenvolver.
   para a conta"), no mouse de cada valor negativo e numa nota abaixo da tabela.
 - Os aportes entram no fluxo de caixa como "aplicação total no mês"; os rendimentos são a "renda dos
   investimentos". **Grau de independência financeira** = renda dos investimentos ÷ despesas fixas.
-- **Meta de aporte** da família (% do que sobra no mês, renda − despesas) gera o "aporte previsto" de cada mês.
+- **Meta de aporte mês a mês (2026-10-25):** a meta continua sendo um **percentual** do que sobra no mês
+  (renda − despesas), mas agora **cada mês tem a sua**. O **aporte previsto** em reais = meta do mês × sobra do mês
+  (sobra negativa = zero). Antes havia uma meta única para todos os meses de todos os anos: mudar a meta reescrevia o
+  previsto do passado e não dava para representar a planilha, que muda o % ao longo do ano (30% → 50%).
+  - **De onde vem a meta de cada mês**, nesta ordem:
+    1. **Definida à mão** para o mês (quem organiza, no fluxo de caixa);
+    2. senão, **estimada pela regra** da família a partir dos meses anteriores;
+    3. senão (a regra é "Não estimar" ou ainda não há base), a **meta de partida** (a antiga meta única, em Família);
+    4. senão, o mês fica **sem meta** e o aporte previsto é zero.
+  - **A regra** é escolhida em Família ("Meta de aporte de cada mês"), separada da regra das despesas: **média dos
+    últimos 3 meses** (padrão, cruza o ano: janeiro usa outubro a dezembro do ano anterior), **média do ano**,
+    **maior mês** ou **menor mês** (estas três olham só os meses anteriores do mesmo ano) ou **não estimar**.
+  - **A base de cada mês M** são os meses antes de M:
+    - **mês fechado** (antes do mês atual) entra com o **percentual realizado**, mesmo que tenha meta definida: o
+      que aconteceu vale mais que o plano;
+    - **mês atual ou futuro** entra com a **sua meta** (a definida ou a estimada, em cadeia). Por isso mudar
+      novembro muda dezembro e os meses seguintes.
+    - A estimativa de um mês passado usa só o que existia antes dele, então não muda depois.
+  - **Percentual realizado** = aplicações líquidas do mês (aportes − resgates, a linha "Aplicações nos
+    investimentos") ÷ sobra do mês:
+    - **sobra zero ou negativa: o mês fica fora da base** (não entra na média nem conta como 0%). Assim um mês
+      ruim não derruba a meta dos seguintes; os meses antes de a família começar a lançar caem aqui (sobra zero);
+    - **resgate maior que o aplicado conta 0%** (investir uma fração negativa não existe como meta);
+    - **aplicar mais que a sobra** (do saldo em conta) **conta 100%**: um mês de 250% inflaria a média e prometeria
+      aportes irreais.
+  - **Sem o recurso de investimentos** no plano não há aporte registrado (o realizado seria sempre 0% e
+    derrubaria a meta): o mês fechado entra na base com a sua meta, como os outros.
+  - **Exemplo** (média dos últimos 3 meses, hoje em outubro, sobra de R$ 10.000 por mês): janeiro realizou 20% e
+    fevereiro a setembro 0%. Janeiro, sem base, fica com a meta de partida (10% → R$ 1.000 previstos); fevereiro
+    estima 20% (só janeiro na base); março, (20 + 0) ÷ 2 = 10%; de abril em diante, 0%. Definindo novembro em 50%,
+    dezembro passa a (set 0 + out 0 + nov 50) ÷ 3 = 16,67% (R$ 1.667) e janeiro do ano seguinte, (out 0 + nov 50 +
+    dez 16,67) ÷ 3 = 22,22%.
+  - **Na tela:** linha "Meta de aporte" (% do que sobra no mês) no quadro "Investimentos no fluxo" da aba Fluxo de
+    caixa, acima do aporte previsto. A meta estimada ou de partida tem contorno tracejado (previsto); a definida
+    fica normal. Clicar no mês (quem organiza) abre uma faixa logo abaixo, com o % e a explicação (a regra e os
+    meses da base, cada um com o % investido ou a meta) e **"Voltar à estimativa"** quando o mês tinha meta
+    definida. O mouse no mês mostra a explicação e quanto foi de fato investido. Sob a meta aparece, discreta, a sobra do mês
+    (também nos previstos), e sob o aporte previsto, "de R$ Y": a sobra de onde saiu. Quem participa só vê.
+  - Vale do primeiro ano com dados até o último com previsão (ano atual + 2), como a visão anual.
+  - **Quem mudou (2026-10-25):** cada meta definida, trocada ou devolvida à estimativa e cada troca da regra vão
+    para o log `auditoria` (`META_APORTE_DEFINIDA`, `META_APORTE_REMOVIDA`, `REGRA_META_APORTE_ALTERADA`) com o id
+    de quem fez, a família, o mês e o valor antes e depois ("de=estimativa para=50%").
+  - **Meta atingida ou não, na tela de Investimentos (2026-10-25):** sob o valor da linha "Aportes" de cada mês:
+    - **mês fechado:** atingiu se aportou **pelo menos o aporte previsto** (meta do mês × sobra, em reais, sem
+      tolerância): "✓ meta R$ X" em verde; senão "meta R$ X" e "faltou R$ Y" em coral;
+    - **mês atual:** ainda não é julgado (a sobra e o aporte podem mudar até o fim do mês): "faltam R$ Y" em cinza,
+      ou "✓ meta" se já chegou lá;
+    - **mês futuro, sem meta ou com aporte previsto zero** (sobra negativa ou meta 0%): nada;
+    - **resgate** (aporte negativo) num mês com previsto não atinge, e não aumenta o que falta: falta a meta
+      inteira, como num mês sem aporte;
+    - o mouse mostra a conta ("Meta de 24% da sobra = R$ 554,66. Aportaram R$ 2.000,00 (360,6% da meta)") e a
+      coluna "No ano" diz em quantos meses fechados a meta foi atingida ("meta em 1 de 4 meses").
+  - Na migração ninguém perde o que tinha: a meta única vira a de partida e a regra começa pela média dos últimos 3
+    meses, que passa a seguir o realizado assim que houver meses fechados com sobra. "Apagar todos os dados" também
+    apaga as metas definidas por mês.
 - Rentabilidade da carteira por mês e acumulada no ano.
 
 ## Despesas PJ (recurso de plano)
@@ -572,6 +626,13 @@ Pontos de atenção constante na hora de desenvolver.
   fatura (depende de cartões).
 - **Cartões de crédito:** cartão no lançamento e visão da fatura (a planilha controla faturas). A forma de pagamento
   "no cartão de crédito" das recorrências já existe; falta dizer qual cartão e montar a fatura com vencimento.
+- **Auditoria de tudo o que é feito (pedido de 2026-10-25):** registrar toda alteração dos dados da família — quem
+  fez, quando e o que foi feito (criação, alteração, exclusão, confirmação, pulo, encerramento...), com o antes e o
+  depois — em lançamentos, recorrências e ocorrências, saldos, investimentos, categorias e grupos, metas, regras de
+  estimativa, pessoas e convites. Hoje só há linhas no log `auditoria` para eventos de segurança e algumas ações
+  (apagar dados, criar família, aceitar convite e, desde 2026-10-25, meta de aporte e regra da meta). Pontos a
+  decidir: guardar no banco (consultável numa tela "Histórico" por quem organiza) ou só no log; quanto tempo guardar;
+  sem dado pessoal além do id de quem fez (LGPD); o "Apagar todos os dados" apaga ou mantém o histórico. Tamanho G.
 - **Open Finance (ideia de 2026-10-24, vista na AUVP):** importar sozinho os gastos e entradas das contas e cartões
   da família, no lugar de lançar à mão. Pontos já levantados:
   - Depende dos **cartões de crédito** (fatura) para não contar duas vezes o gasto no cartão e o pagamento da fatura.
@@ -602,7 +663,8 @@ anual. Faturas de cartão ficaram num grupo "Cartões de crédito" (uma categori
 - **Inflação mensal com gasto concentrado** (fatura grande, IR, reforma) oscila de −70% a +260% e não ajuda;
   avaliar inflação só das despesas fixas/recorrentes ou média móvel de 12 meses (o acumulado e o mês em andamento
   já foram resolvidos em 2026-10-24: só mês fechado).
-- **Meta de aporte por mês:** a planilha muda o % ao longo do ano (30% → 50%); o sistema tem uma meta só.
+- ~~**Meta de aporte por mês**~~: resolvido em 2026-10-25 (meta mês a mês, estimada pelo realizado; ver
+  Investimentos).
 - **Cartões:** as faturas sem detalhe são o maior gasto do ano atual, o que reforça a pendência de cartões.
 - Orçamento planejado × realizado por categoria (meta de gasto).
 - Notas fiscais PJ por cliente (aba "NF Pjs" da planilha). O saldo por conta (aba "Saldo CC") entrou como saldo

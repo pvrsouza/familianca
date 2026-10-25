@@ -3,12 +3,12 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Copy, MessageCircle, Pencil, Plus, Trash2 } from 'lucide-vue-next'
 import { familia as api, lugaresSaldo } from '../api/servicos'
-import type { Convite, LugarSaldo, Membro, Papel } from '../api/tipos'
+import type { Convite, Estimativa, LugarSaldo, Membro, Papel } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { catalogo } from '../estado/catalogo'
 import { avisar } from '../estado/avisos'
-import { TIPOS_LUGAR_SALDO, dataCurta, dataPorExtenso, primeiroNome } from '../util/formato'
+import { ESTIMATIVAS, ORDEM_ESTIMATIVAS, TIPOS_LUGAR_SALDO, dataCurta, dataPorExtenso, primeiroNome } from '../util/formato'
 import Mensagem from '../componentes/Mensagem.vue'
 import PainelLateral from '../componentes/PainelLateral.vue'
 import CampoSenha from '../componentes/CampoSenha.vue'
@@ -83,12 +83,14 @@ async function excluirLugar(l: LugarSaldo) {
 const editandoNome = ref(false)
 const nome = ref('')
 const meta = ref<number | null>(null)
+const regraAporte = ref<Estimativa>('MEDIA_3M')
 const erroNome = ref('')
 const salvandoNome = ref(false)
 
 function editarNome() {
   nome.value = f.value?.nome ?? ''
   meta.value = f.value?.metaAportePercentual ?? null
+  regraAporte.value = f.value?.estimativaAporte ?? 'MEDIA_3M'
   erroNome.value = ''
   editandoNome.value = true
 }
@@ -105,6 +107,10 @@ async function salvarNome() {
   salvandoNome.value = true
   try {
     sessao.estado.familia = await api.atualizar(nome.value.trim(), meta.value)
+    if (regraAporte.value !== sessao.estado.familia.estimativaAporte) {
+      sessao.estado.familia = await api.definirEstimativaAporte(regraAporte.value)
+    }
+    sessao.avisarMudanca()
     editandoNome.value = false
     avisar('Dados da família atualizados.')
   } catch (e) {
@@ -261,12 +267,20 @@ async function apagarDados() {
           <input id="f-nome" v-model="nome" class="entrada" maxlength="100" required />
         </div>
         <div class="campo">
-          <label for="f-meta">Meta de aporte <span class="texto-2">(opcional)</span></label>
+          <label for="f-regra-aporte">Meta de aporte de cada mês</label>
+          <select id="f-regra-aporte" v-model="regraAporte" class="entrada">
+            <option v-for="e in ORDEM_ESTIMATIVAS" :key="e" :value="e">{{ ESTIMATIVAS[e].rotulo }}</option>
+          </select>
+          <span class="ajuda">Como estimar o % do que sobra que vocês querem investir, a partir do que de fato investiram
+            nos meses anteriores. Cada mês dá para mudar no fluxo de caixa.</span>
+        </div>
+        <div class="campo">
+          <label for="f-meta">Meta de partida <span class="texto-2">(opcional)</span></label>
           <div class="entrada-pct">
             <input id="f-meta" v-model.number="meta" class="entrada num" type="number" min="0" max="100" step="1"
                    inputmode="decimal" placeholder="Ex.: 20" />
           </div>
-          <span class="ajuda">% do que sobra no mês que vocês querem investir. Vira o "aporte previsto" no fluxo.</span>
+          <span class="ajuda">% usado enquanto ainda não há meses para estimar (ou com "Não estimar").</span>
         </div>
       </div>
       <Mensagem v-if="erroNome" tipo="erro">{{ erroNome }}</Mensagem>
@@ -484,21 +498,6 @@ async function apagarDados() {
 .editar-familia {
   margin-bottom: var(--e-6);
   max-width: 48rem;
-}
-
-.entrada-pct {
-  position: relative;
-}
-
-.entrada-pct::after {
-  content: '%';
-  position: absolute;
-  right: var(--e-3);
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--texto-2);
-  font-weight: 600;
-  pointer-events: none;
 }
 
 .colunas {

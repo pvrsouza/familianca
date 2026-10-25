@@ -1,0 +1,21 @@
+info:
+  name: Voltar meta do mês à estimativa
+  type: http
+  seq: 11
+  tags:
+    - Família
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/api/familia/metas-aporte/2026-11"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Só DONO. Tira a meta definida do mês: volta a valer a estimada pela regra (ou a meta de partida). Resposta 204.

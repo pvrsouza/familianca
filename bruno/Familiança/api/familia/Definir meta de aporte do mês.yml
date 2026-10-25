@@ -1,0 +1,28 @@
+info:
+  name: Definir meta de aporte do mês
+  type: http
+  seq: 10
+  tags:
+    - Família
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/familia/metas-aporte/2026-11"
+  body:
+    type: json
+    data: |-
+      {
+        "percentual": 50
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |
+  Só DONO. Meta do mês (0 a 100%), do primeiro ano com dados até o ano atual + 2 (fora disso, 422). Vale no lugar da
+  estimativa e entra na base dos meses seguintes que não fecharam. Resposta 204; a meta sai em resumo.metasAporte.

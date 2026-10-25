@@ -13,6 +13,8 @@ import br.com.familianca.domain.model.VisaoAnual.LinhaCategoria;
 import br.com.familianca.domain.model.VisaoAnual.LinhaItem;
 import br.com.familianca.domain.model.VisaoAnual.LinhaGrupo;
 import br.com.familianca.domain.model.VisaoAnual.LinhaMembro;
+import br.com.familianca.domain.model.VisaoAnual.MetaAporteMes;
+import br.com.familianca.domain.model.VisaoAnual.OrigemMeta;
 import br.com.familianca.domain.vo.Dinheiro;
 import br.com.familianca.domain.vo.SerieMensal;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -65,9 +67,10 @@ public record VisaoAnualResponse(int ano, List<String> meses, Resumo resumo, Blo
             Serie saldoDisponivel, Serie despesasTotal, Serie despesasFixas, Serie despesasVariaveis,
             Serie fluxoCaixaLiquido, Serie rendaInvestimentos,
             @Schema(description = "% renda dos investimentos ÷ despesas fixas.") SeriePercentual grauIndependencia,
-            @Schema(description = "Meta de aporte × (renda − despesas), nunca negativo.") Serie aportePrevisto,
+            @Schema(description = "Meta de aporte do mês × (renda − despesas), nunca negativo.") Serie aportePrevisto,
             @Schema(description = "Variação mês a mês das despesas totais e a acumulada no ano (composta).")
-            SeriePercentual inflacaoFamiliar) {
+            SeriePercentual inflacaoFamiliar,
+            @Schema(description = "A meta de aporte de cada mês (12), com de onde veio.") List<MetaAporteDto> metasAporte) {
 
         static Resumo de(VisaoAnual v) {
             Fluxo f = v.fluxo();
@@ -78,8 +81,29 @@ public record VisaoAnualResponse(int ano, List<String> meses, Resumo resumo, Blo
                     Serie.de(f.despesasFixas()), Serie.de(f.despesasVariaveis()),
                     Serie.de(f.fluxoLiquido(), f.fluxoLiquidoAno()), Serie.de(f.rendaInvestimentos()),
                     new SeriePercentual(Valores.percentuais(f.grauIndependencia()), Valores.valor(f.grauIndependenciaAno())),
-                    Serie.de(f.aportePrevisto()), SeriePercentual.de(v.inflacaoFamiliar()));
+                    Serie.de(f.aportePrevisto()), SeriePercentual.de(v.inflacaoFamiliar()),
+                    f.metasAporte().stream().map(MetaAporteDto::de).toList());
         }
+    }
+
+    public record MetaAporteDto(
+            @Schema(description = "% da sobra a investir; nulo = sem meta.") BigDecimal meta,
+            @Schema(description = "DEFINIDA (à mão), ESTIMADA (pela regra) ou PARTIDA (meta de partida); nulo sem meta.")
+            OrigemMeta origem,
+            @Schema(description = "% da sobra de fato aplicado, de 0 a 100: só mês fechado com sobra positiva.")
+            BigDecimal realizado,
+            @Schema(description = "Os meses usados na estimativa; vazio se não foi estimada.") List<BaseMetaDto> base) {
+
+        static MetaAporteDto de(MetaAporteMes m) {
+            return new MetaAporteDto(Valores.valor(m.meta()), m.origem(), Valores.valor(m.realizado()),
+                    m.base().stream().map(b -> new BaseMetaDto(b.competencia().toString(), b.valor().valor(),
+                            b.realizado())).toList());
+        }
+    }
+
+    public record BaseMetaDto(String competencia, BigDecimal percentual,
+                              @Schema(description = "true = % realizado (mês fechado); false = a meta do mês.")
+                              boolean realizado) {
     }
 
     public record Bloco(Serie total, List<GrupoVisao> grupos) {
