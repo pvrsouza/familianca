@@ -572,6 +572,17 @@ Pontos de atenção constante na hora de desenvolver.
   fatura (depende de cartões).
 - **Cartões de crédito:** cartão no lançamento e visão da fatura (a planilha controla faturas). A forma de pagamento
   "no cartão de crédito" das recorrências já existe; falta dizer qual cartão e montar a fatura com vencimento.
+- **Open Finance (ideia de 2026-10-24, vista na AUVP):** importar sozinho os gastos e entradas das contas e cartões
+  da família, no lugar de lançar à mão. Pontos já levantados:
+  - Depende dos **cartões de crédito** (fatura) para não contar duas vezes o gasto no cartão e o pagamento da fatura.
+  - A transação importada tem que **conversar com o que já existe**: confirmar a recorrência prevista (a conta de luz
+    que chegou confirma a ocorrência do mês, e é paga no checklist de contas a pagar), sugerir a categoria pelas
+    anteriores, não duplicar o que já foi lançado à mão. A família continua revisando, não é automático cego.
+  - Precisa de um integrador autorizado (ex.: Pluggy, Belvo), que é custo por conexão: candidato a recurso de plano
+    pago. Investimentos podem vir também, mas só o saldo (não viramos gestor de carteira).
+  - Segurança e LGPD: consentimento por conta e por pessoa da família (cada um conecta as próprias contas),
+    credenciais/tokens do integrador cifrados e fora do log, revogar a qualquer momento, e entra no checklist de
+    `docs/seguranca.md` (segredo novo, auditoria do consentimento).
 - **Importar a planilha** (xlsx) de anos anteriores para o histórico. Já testado com um script fora do repositório
   que usa só a API (2026-10-17, ver "Aprendizados da carga da planilha"). Como produto, precisa de uma rota de
   importação em lote: pela API comum foram ~1.500 chamadas, 6 min com o teto de 300 req/min.
