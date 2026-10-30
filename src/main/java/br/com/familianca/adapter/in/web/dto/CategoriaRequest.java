@@ -5,6 +5,7 @@ import br.com.familianca.domain.model.Estimativa;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -14,7 +15,8 @@ import java.math.BigDecimal;
 public record CategoriaRequest(
         @NotNull Long grupoId,
         @NotBlank @Size(max = 120) String nome,
-        @Schema(description = "Nulo = depois das existentes (na criação) ou mantém (na edição).") Integer ordem,
+        @Schema(description = "Nulo = depois das existentes (na criação) ou mantém (na edição).")
+        @Min(value = 0, message = Faixas.ORDEM_NEGATIVA) Integer ordem,
         @Schema(description = "Receita na base das alíquotas da PJ (recurso DESPESAS_PJ).") Boolean tributavel,
         @Schema(description = "Despesa calculada: % sobre as receitas tributáveis do mês (recurso DESPESAS_PJ).",
                 example = "6") @DecimalMin("0") @DecimalMax("100") BigDecimal aliquota,

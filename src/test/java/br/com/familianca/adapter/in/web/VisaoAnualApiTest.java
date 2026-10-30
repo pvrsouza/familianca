@@ -120,7 +120,7 @@ class VisaoAnualApiTest extends IntegracaoBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ano").value(2026))
                 .andExpect(jsonPath("$.resumo.aplicacoes.ano").value(0));
-        como.perform(get("/api/visao-anual/1999")).andExpect(status().isUnprocessableEntity());
+        como.perform(get("/api/visao-anual/1999")).andExpect(status().isBadRequest());
     }
 
     @Test

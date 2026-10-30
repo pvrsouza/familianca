@@ -38,6 +38,9 @@ Uma linha por hipótese, da mais arriscada para a menos. Status: 🔴 não testa
 Uma entrada por entrega, a mais recente primeiro: o que mudou no produto, o que isso muda nas hipóteses, decisões
 tomadas e perguntas que ficaram.
 
+- **2026-10-30 (faixa de ano e ordem na API):** endurecimento de validação de entrada, sem efeito no produto
+  visível, nas hipóteses, nos custos ou nos planos. Nada a testar com famílias; só reduz risco antes de abrir a API
+  (app mobile) a quem não seja a nossa tela.
 - **2026-10-30 (resumo de Investimentos):** a frase do topo da tela separa aplicado, resgatado e abertura do ano
   (contados por investimento). Correção de texto, sem recurso novo, preço ou custo. **Efeito nas hipóteses:** nenhum
   direto; só reforça que a tela de Investimentos (H3) diz a verdade quando há resgate, o que importa antes de

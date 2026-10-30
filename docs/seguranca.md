@@ -126,7 +126,7 @@ conseguir entrar (falha fechada) até a chave voltar.
 | Conferir o TLS | 1 | Depois do deploy, rodar o SSL Labs no domínio (nota A ou mais) e conferir o redirecionamento de HTTP para HTTPS. Pedir o HSTS preload só quando o domínio estiver estável. |
 | ~~Tela do MFA no front~~ | 3 | ✅ Feito (2026-10-17): QR com a biblioteca `qrcode` no navegador, códigos de recuperação com "copiar" e segundo passo do login quando vem `mfaObrigatorio` (`ContaView`, `EntrarView`). |
 | Regras do front | 6 | Seguidas na v1: nenhum `v-html`, CSP sem mudança (sem `unsafe-eval`, fontes servidas pelo app). Manter em toda tela nova. |
-| Faixa nos parâmetros | 5 | `ano` entre 2000 e 2100 e `ordem` ≥ 0 (`@Validated` no controller + `@Min/@Max`). |
+| ~~Faixa nos parâmetros~~ | 5 | ✅ Feito (2026-10-30): `ano` entre 2000 e 2100 (URL, query e corpo do impacto) e `ordem` ≥ 0 (grupos e categorias), com `@Min/@Max` e a validação de método do Spring (sem `@Validated` na classe); fora da faixa responde 400 com "ano: deve estar entre 2000 e 2100". Testes em `FaixasApiTest`. |
 | Verificação de dependências | — | OWASP `dependency-check-maven` (ou Trivy na imagem) rodando no build e gitleaks no pre-commit para pegar segredo antes do commit. Quando houver repositório remoto: Dependabot e CI rodando `./mvnw test`. |
 
 ### Fase 2 — antes de abrir para outras famílias (assinatura)

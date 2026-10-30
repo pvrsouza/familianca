@@ -23,6 +23,7 @@ import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -133,6 +134,18 @@ public class TratadorErros extends ResponseEntityExceptionHandler {
                 .map(e -> e.getField() + ": " + e.getDefaultMessage())
                 .collect(Collectors.joining("; ")));
         return super.handleMethodArgumentNotValid(ex, headers, status, request);
+    }
+
+    /** Parâmetro de URL fora da faixa (ex.: ano): o padrão diz só "Validation failure"; aqui lista parâmetro: motivo. */
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(HandlerMethodValidationException ex,
+                                                                            HttpHeaders headers, HttpStatusCode status,
+                                                                            WebRequest request) {
+        ex.getBody().setDetail(ex.getParameterValidationResults().stream()
+                .flatMap(r -> r.getResolvableErrors().stream()
+                        .map(e -> r.getMethodParameter().getParameterName() + ": " + e.getDefaultMessage()))
+                .collect(Collectors.joining("; ")));
+        return super.handleHandlerMethodValidationException(ex, headers, status, request);
     }
 
     /** Passagem única de todos os erros tratados pelo Spring (validação, JSON, método, rota): registra o motivo. */

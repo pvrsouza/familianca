@@ -568,6 +568,10 @@ Pontos de atenção constante na hora de desenvolver.
   - **Quem mudou (2026-10-25):** cada meta definida, trocada ou devolvida à estimativa e cada troca da regra vão
     para o log `auditoria` (`META_APORTE_DEFINIDA`, `META_APORTE_REMOVIDA`, `REGRA_META_APORTE_ALTERADA`) com o id
     de quem fez, a família, o mês e o valor antes e depois ("de=estimativa para=50%").
+  - **Faixa do ano e da ordem na API (2026-10-30):** `ano` fora de 2000 a 2100 (em `/api/visao-anual/{ano}`,
+    `/api/saldos`, `/api/investimentos/carteira` e no corpo de `/api/impacto`) e `ordem` negativa em grupos e
+    categorias respondem 400 com o motivo. Estar na faixa não basta: a regra de negócio ainda recusa (422) ano sem
+    dados possível, como antes. Sem mudança na tela.
   - **Resumo da tela de Investimentos (2026-10-30):** a frase do topo separa o que entrou do que saiu. "Aplicados" e
     "resgatados" são contados **investimento a investimento** (aporte positivo = aplicado, negativo = resgatado), não
     pela soma do mês da carteira, que deixaria um aporte num investimento e um resgate noutro se anularem. Por isso a

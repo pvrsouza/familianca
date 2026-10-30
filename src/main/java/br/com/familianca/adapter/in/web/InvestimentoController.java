@@ -2,6 +2,7 @@ package br.com.familianca.adapter.in.web;
 
 import br.com.familianca.adapter.in.web.dto.CarteiraResponse;
 import br.com.familianca.adapter.in.web.dto.EncerramentoRequest;
+import br.com.familianca.adapter.in.web.dto.Faixas;
 import br.com.familianca.adapter.in.web.dto.InvestimentoRequest;
 import br.com.familianca.adapter.in.web.dto.InvestimentoResponse;
 import br.com.familianca.adapter.in.web.dto.MovimentoRequest;
@@ -17,6 +18,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -57,7 +60,7 @@ public class InvestimentoController {
 
     @GetMapping("/carteira")
     @Operation(summary = "Carteira no ano", description = "Séries mensais por investimento e da carteira. Sem `ano`, o atual.")
-    public CarteiraResponse carteira(@RequestParam(required = false) Integer ano) {
+    public CarteiraResponse carteira(@RequestParam(required = false) @Min(value = Faixas.ANO_MIN, message = Faixas.ANO_FORA) @Max(value = Faixas.ANO_MAX, message = Faixas.ANO_FORA) Integer ano) {
         return CarteiraResponse.de(investimentos.carteira(ano != null ? ano : lancamentos.anoAtual()));
     }
 

@@ -1,5 +1,6 @@
 package br.com.familianca.adapter.in.web;
 
+import br.com.familianca.adapter.in.web.dto.Faixas;
 import br.com.familianca.adapter.in.web.dto.MovimentoDoMesResponse;
 import br.com.familianca.adapter.in.web.dto.SaldoRequest;
 import br.com.familianca.adapter.in.web.dto.SaldoResponse;
@@ -11,6 +12,8 @@ import br.com.familianca.domain.vo.Competencia;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,7 +50,7 @@ public class SaldoController {
 
     @GetMapping
     @Operation(summary = "Saldos informados no ano", description = "Sem `ano`, o atual.")
-    public List<SaldoResponse> listar(@RequestParam(required = false) Integer ano) {
+    public List<SaldoResponse> listar(@RequestParam(required = false) @Min(value = Faixas.ANO_MIN, message = Faixas.ANO_FORA) @Max(value = Faixas.ANO_MAX, message = Faixas.ANO_FORA) Integer ano) {
         return saldos.listar(ano != null ? ano : lancamentos.anoAtual()).stream().map(SaldoResponse::de).toList();
     }
 

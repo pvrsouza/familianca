@@ -1,5 +1,6 @@
 package br.com.familianca.adapter.in.web;
 
+import br.com.familianca.adapter.in.web.dto.Faixas;
 import br.com.familianca.adapter.in.web.dto.ImpactoRequest;
 import br.com.familianca.adapter.in.web.dto.ImpactoResponse;
 import br.com.familianca.adapter.in.web.dto.Valores;
@@ -8,6 +9,8 @@ import br.com.familianca.application.port.in.ConsultarVisaoAnual;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,7 +47,7 @@ public class VisaoAnualController {
 
     @GetMapping("/api/visao-anual/{ano}")
     @Operation(summary = "Visão de um ano")
-    public VisaoAnualResponse ano(@PathVariable int ano) {
+    public VisaoAnualResponse ano(@PathVariable @Min(value = Faixas.ANO_MIN, message = Faixas.ANO_FORA) @Max(value = Faixas.ANO_MAX, message = Faixas.ANO_FORA) int ano) {
         return VisaoAnualResponse.de(visao.visaoAnual(ano));
     }
 

@@ -4,6 +4,7 @@ import br.com.familianca.application.port.in.GerenciarCategorias.DadosGrupo;
 import br.com.familianca.domain.model.Natureza;
 import br.com.familianca.domain.model.TipoMovimento;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -13,7 +14,8 @@ public record GrupoRequest(
         @NotNull Natureza natureza,
         @NotBlank @Size(max = 80) String nome,
         @Schema(description = "Grupo de despesas da empresa (recurso DESPESAS_PJ).") Boolean empresa,
-        @Schema(description = "Nulo = depois dos existentes (na criação) ou mantém (na edição).") Integer ordem,
+        @Schema(description = "Nulo = depois dos existentes (na criação) ou mantém (na edição).")
+        @Min(value = 0, message = Faixas.ORDEM_NEGATIVA) Integer ordem,
         @Schema(description = "Só na edição. Nulo = ativo.") Boolean ativo) {
 
     public DadosGrupo paraDados() {
