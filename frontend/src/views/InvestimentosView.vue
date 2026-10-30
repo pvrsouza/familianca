@@ -8,6 +8,7 @@ import { ErroApi, mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { avisar } from '../estado/avisos'
 import { MESES_CURTOS, TIPOS_INVESTIMENTO, anoAtual, competencia, competenciaCurta, competenciaPorExtenso, mesAtual, pct, reais, reaisCurtos } from '../util/formato'
+import { movimentoDoAno } from '../util/movimentoCarteira'
 import PainelLateral from '../componentes/PainelLateral.vue'
 import CampoValor from '../componentes/CampoValor.vue'
 import EstadoVazio from '../componentes/EstadoVazio.vue'
@@ -108,6 +109,8 @@ function valorCelula(p: { saldos: number[]; aportes: number[] }, i: number) {
 
 const foraDaTabela = computed(() => lista.value.filter((i) => !i.ativo
   && !carteira.value?.investimentos.some((p) => p.investimento.id === i.id)))
+
+const movimento = computed(() => (carteira.value ? movimentoDoAno(carteira.value) : null))
 
 const saldoFinal = computed(() => {
   const s = carteira.value?.saldos ?? []
@@ -320,7 +323,18 @@ watch(() => [route.query.atualizar, situacao.value] as const, ([atualizar]) => {
 
         <p class="resumo">
           A carteira começou {{ ano }} com <strong class="num">{{ reais(carteira.saldoInicial) }}</strong>.
-          No ano, foram aplicados <strong class="num">{{ reais(carteira.totalAportes) }}</strong> e rendeu
+          <template v-if="movimento && movimento.abertos > 0">
+            No ano, entraram <strong class="num">{{ reais(movimento.abertos) }}</strong> de
+            {{ movimento.mesAbertura ? `investimento que já existia (abertura em ${competenciaCurta(movimento.mesAbertura)})` : `${movimento.investimentosAbertos} investimentos que já existiam` }}<template v-if="movimento.aplicados > 0 || movimento.resgatados > 0">,</template>
+          </template>
+          <template v-if="movimento && movimento.aplicados > 0">
+            <template v-if="movimento.abertos <= 0">No ano, </template>foram aplicados <strong class="num">{{ reais(movimento.aplicados) }}</strong><template v-if="movimento.resgatados > 0">, resgatados <strong class="num">{{ reais(movimento.resgatados) }}</strong></template> e rendeu
+          </template>
+          <template v-else-if="movimento && movimento.resgatados > 0">
+            <template v-if="movimento.abertos <= 0">No ano, </template>foram resgatados <strong class="num">{{ reais(movimento.resgatados) }}</strong> e rendeu
+          </template>
+          <template v-else-if="movimento && movimento.abertos > 0">e rendeu</template>
+          <template v-else>No ano, a carteira só rendeu</template>
           <strong class="num receita">{{ reais(carteira.totalRendimentos) }}</strong><template v-if="carteira.rentabilidadeAno !== null">
           ({{ pct(carteira.rentabilidadeAno, 2) }} no ano)</template>. Saldo agora: <strong class="num">{{ reais(saldoFinal) }}</strong>.
         </p>

@@ -322,6 +322,7 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 
 ### Investimentos: abertura e salto de saldo
 - Sob o nome do investimento, no mesmo estilo do tipo (cinza pequeno): "abertura 50.000,00 em set/26", com a explicação no mouse.
+- Frase-resumo no topo (2026-10-30): saldo de abertura do ano, aberturas do ano, aplicados e resgatados (por investimento, só o que houve), rendimento e saldo agora, tudo em `.num`; sem marcação nova. A conta fica em `util/movimentoCarteira.ts`.
 - A tela de Investimentos é larga como a do ano (100rem) e a tabela da carteira usa células mais justas (0,5rem dos lados, primeira coluna com 11rem): os 12 meses e "No ano" cabem sem rolagem lateral a partir de ~1.300px de largura (a tabela pede 1.253px com centavos).
 - No mês em que resgatou tudo (saldo zero e aporte negativo), a célula do saldo mostra o resgate em vermelho ("−35.551,49") em vez de "–", para ficar claro o que aconteceu; os meses seguintes ficam "–".
 - "Encerrar" abre uma faixa abaixo da linha (como a do saldo): explica que o saldo vira zero e volta para a conta, pede o "Mês do resgate" (campo de mês, até o atual), mostra "Volta para a conta: R$ X" e tem "Encerrar" (botão de perigo) e "Cancelar". Encerrado aparece em cinza, com "Reativar".

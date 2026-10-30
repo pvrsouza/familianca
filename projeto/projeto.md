@@ -568,6 +568,14 @@ Pontos de atenção constante na hora de desenvolver.
   - **Quem mudou (2026-10-25):** cada meta definida, trocada ou devolvida à estimativa e cada troca da regra vão
     para o log `auditoria` (`META_APORTE_DEFINIDA`, `META_APORTE_REMOVIDA`, `REGRA_META_APORTE_ALTERADA`) com o id
     de quem fez, a família, o mês e o valor antes e depois ("de=estimativa para=50%").
+  - **Resumo da tela de Investimentos (2026-10-30):** a frase do topo separa o que entrou do que saiu. "Aplicados" e
+    "resgatados" são contados **investimento a investimento** (aporte positivo = aplicado, negativo = resgatado), não
+    pela soma do mês da carteira, que deixaria um aporte num investimento e um resgate noutro se anularem. Por isso a
+    transferência entre investimentos aparece nos dois lados (o sistema não registra a intenção). A abertura do ano
+    ("entraram R$ X de investimento que já existia, abertura em mar/26"; com várias, "N investimentos") só cita
+    aberturas cuja competência é do ano mostrado; as de anos anteriores já estão no "começou com". A frase só cita o
+    que aconteceu (sem "resgatados R$ 0"); sem nada aplicado nem resgatado: "a carteira só rendeu". A linha "Aportes"
+    da tabela continua mostrando o líquido do mês.
   - **Meta atingida ou não, na tela de Investimentos (2026-10-25):** sob o valor da linha "Aportes" de cada mês:
     - **mês fechado:** atingiu se aportou **pelo menos o aporte previsto** (meta do mês × sobra, em reais, sem
       tolerância): "✓ meta R$ X" em verde; senão "meta R$ X" e "faltou R$ Y" em coral;
@@ -641,8 +649,6 @@ Pontos de atenção constante na hora de desenvolver.
   runbook de incidente e o item abaixo. Lista completa em `.lgpd/gaps.md`.
 - **Excluir a conta e a família inteira** (LGPD): hoje dá para apagar o orçamento ("Recomeçar do zero"); falta
   excluir pessoas, convites, família e contas, com confirmação por e-mail, e exportar os dados antes.
-- **Resumo da tela de Investimentos:** a frase "foram aplicados" mostra o líquido (fica negativo com resgate) e não
-  cita as aberturas; separar "aplicados" de "resgatados" e dizer com quanto a carteira abriu.
 - **Contas a pagar — depois do checklist (feito em 2026-10-24):** lembretes de vencimento (e-mail/WhatsApp),
   candidato a recurso de plano pago; selo "faltam N" na faixa do mês da visão anual; agrupar as contas do cartão na
   fatura (depende de cartões).
