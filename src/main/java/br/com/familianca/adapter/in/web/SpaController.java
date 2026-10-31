@@ -14,11 +14,11 @@ public class SpaController {
     /** Mantenha igual às rotas de frontend/src/router.ts. */
     public static final String[] ROTAS = {
             "/entrar", "/criar-conta", "/convite/*", "/ano", "/ano/*", "/contas-a-pagar", "/lancamentos", "/recorrencias",
-            "/quanto-pesa", "/familia", "/categorias", "/investimentos", "/conta",
+            "/quanto-pesa", "/familia", "/categorias", "/investimentos", "/conta", "/importar",
     };
 
     @GetMapping({"/entrar", "/criar-conta", "/convite/{token}", "/ano", "/ano/{ano}", "/contas-a-pagar", "/lancamentos", "/recorrencias",
-            "/quanto-pesa", "/familia", "/categorias", "/investimentos", "/conta"})
+            "/quanto-pesa", "/familia", "/categorias", "/investimentos", "/conta", "/importar"})
     public String spa() {
         return "forward:/index.html";
     }

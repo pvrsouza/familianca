@@ -213,7 +213,7 @@ class ImportacaoApiTest extends IntegracaoBase {
                 .andExpect(status().isUnprocessableEntity());
         gravar(mvc, local, linha("E4", "CONFIRMAR_RECORRENCIA", "2026-10-10", "Aluguel", "10.00", "DESPESA", salario))
                 .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("ainda não disponível")));
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("recorrência")));
 
         assertThat(contar("lancamento")).isZero();
         assertThat(contar("importacao_lote")).isZero();
@@ -328,5 +328,41 @@ class ImportacaoApiTest extends IntegracaoBase {
         semSaldoInicial(dono);
         gravar(mvc, local, linha("I1", "IMPORTAR", "2026-10-10", "x", "10.00", "DESPESA", categoria("Habitação", "Supermercado")))
                 .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    void contaPendenteVemSugeridaEConfirmarGuardaAChaveEDesfazerDevolveAPendencia() throws Exception {
+        Long aluguel = postarERetornarId("/api/recorrencias", """
+                {"categoriaId": %d, "descricao": "Aluguel", "valor": 2000, "dia": 5, "frequencia": "MENSAL",
+                 "inicio": "2026-10"}""".formatted(categoria("Habitação", "Aluguel ou financiamento")));
+        byte[] arquivo = ofx("R1|20261006|-2040.00|Pix enviado IMOBILIARIA", "R2|20261007|-30.00|Padaria");
+
+        analisar(mvc, local, "extrato.ofx", arquivo)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.linhas[0].acaoSugerida").value("CONFIRMAR_RECORRENCIA"))
+                .andExpect(jsonPath("$.linhas[0].ocorrenciaPendente.recorrenciaId").value(aluguel))
+                .andExpect(jsonPath("$.linhas[0].ocorrenciaPendente.competencia").value("2026-10"))
+                .andExpect(jsonPath("$.linhas[1].acaoSugerida").value("IMPORTAR"))
+                .andExpect(jsonPath("$.linhas[1].ocorrenciaPendente").value(nullValue()));
+
+        gravar(mvc, local, """
+                {"chave": "R1", "acao": "CONFIRMAR_RECORRENCIA", "data": "2026-10-06", "descricao": "Aluguel",
+                 "valor": 2040.00, "tipo": "DESPESA", "recorrenciaId": %d, "competencia": "2026-10"}""".formatted(aluguel))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.confirmadas").value(1));
+
+        assertThat(jdbc.queryForObject(
+                "select count(*) from lancamento where importacao_chave = 'R1' and recorrencia_id is not null",
+                Integer.class)).isEqualTo(1);
+        analisar(mvc, local, "extrato.ofx", arquivo)
+                .andExpect(jsonPath("$.linhas[0].status").value("JA_IMPORTADA"))
+                .andExpect(jsonPath("$.linhas[0].acaoSugerida").value("IGNORAR"));
+
+        Long lote = jdbc.queryForObject("select id from importacao_lote", Long.class);
+        mvc.perform(delete("/api/importacoes/" + lote).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.removidos").value(1));
+        analisar(mvc, local, "extrato.ofx", arquivo)
+                .andExpect(jsonPath("$.linhas[0].acaoSugerida").value("CONFIRMAR_RECORRENCIA"));
     }
 }

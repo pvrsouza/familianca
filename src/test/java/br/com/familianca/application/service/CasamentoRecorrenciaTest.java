@@ -33,6 +33,25 @@ class CasamentoRecorrenciaTest extends IntegracaoBase {
     @Autowired
     private CasamentoRecorrencia casamento;
 
+    /** O MockMvc limpa o contexto de segurança ao fim de cada requisição: restaura o DONO se ninguém estiver logado. */
+    private void garantirUsuario() {
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            var principal = principal(dono);
+            SecurityContextHolder.getContext().setAuthentication(
+                    UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities()));
+        }
+    }
+
+    private Map<Integer, OcorrenciaCasada> casar(List<LinhaCasavel> linhas) {
+        garantirUsuario();
+        return casamento.casar(linhas);
+    }
+
+    private Lancamento confirmar(Long id, Competencia competencia, LocalDate data, Dinheiro valor) {
+        garantirUsuario();
+        return casamento.confirmar(id, competencia, data, valor);
+    }
+
     private Long aluguel() throws Exception {
         return recorrencia("Habitação", "Aluguel ou financiamento", "Aluguel", "2000", 5);
     }
@@ -51,7 +70,7 @@ class CasamentoRecorrenciaTest extends IntegracaoBase {
     @Test
     void casaOAluguelDentroDaToleranciaEDaJanela() throws Exception {
         Long id = aluguel();
-        Map<Integer, OcorrenciaCasada> r = casamento.casar(List.of(
+        Map<Integer, OcorrenciaCasada> r = casar(List.of(
                 linha(0, "2026-10-06", "2040.00", TipoMovimento.DESPESA)));
         assertThat(r).containsOnlyKeys(0);
         assertThat(r.get(0).recorrenciaId()).isEqualTo(id);
@@ -63,7 +82,7 @@ class CasamentoRecorrenciaTest extends IntegracaoBase {
     @Test
     void naoCasaValorMuitoDiferenteDataForaDaJanelaNemDirecaoErrada() throws Exception {
         aluguel();
-        assertThat(casamento.casar(List.of(
+        assertThat(casar(List.of(
                 linha(0, "2026-10-05", "3000.00", TipoMovimento.DESPESA),
                 linha(1, "2026-09-20", "2000.00", TipoMovimento.DESPESA),
                 linha(2, "2026-10-05", "2000.00", TipoMovimento.RECEITA)))).isEmpty();
@@ -75,7 +94,7 @@ class CasamentoRecorrenciaTest extends IntegracaoBase {
         Long pulada = recorrencia("Habitação", "Condomínio", "Condomínio", "800", 5);
         mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-10/confirmacao", confirmada)).andExpect(status().isCreated());
         mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-10/pulo", pulada)).andExpect(status().isOk());
-        assertThat(casamento.casar(List.of(
+        assertThat(casar(List.of(
                 linha(0, "2026-10-05", "2000.00", TipoMovimento.DESPESA),
                 linha(1, "2026-10-05", "800.00", TipoMovimento.DESPESA)))).isEmpty();
     }
@@ -83,7 +102,7 @@ class CasamentoRecorrenciaTest extends IntegracaoBase {
     @Test
     void umaOcorrenciaParaDuasLinhasIguaisCasaSoUma() throws Exception {
         aluguel();
-        Map<Integer, OcorrenciaCasada> r = casamento.casar(List.of(
+        Map<Integer, OcorrenciaCasada> r = casar(List.of(
                 linha(0, "2026-10-05", "2000.00", TipoMovimento.DESPESA),
                 linha(1, "2026-10-05", "2000.00", TipoMovimento.DESPESA)));
         assertThat(r).containsOnlyKeys(0);
@@ -93,14 +112,14 @@ class CasamentoRecorrenciaTest extends IntegracaoBase {
     void linhaComDuasOcorrenciasIgualmenteProximasNaoCasa() throws Exception {
         recorrencia("Habitação", "Aluguel ou financiamento", "Aluguel A", "1000", 5);
         recorrencia("Habitação", "Condomínio", "Aluguel B", "1000", 5);
-        assertThat(casamento.casar(List.of(linha(0, "2026-10-05", "1000.00", TipoMovimento.DESPESA)))).isEmpty();
+        assertThat(casar(List.of(linha(0, "2026-10-05", "1000.00", TipoMovimento.DESPESA)))).isEmpty();
     }
 
     @Test
     void escolheAMaisProximaEUmaOcorrenciaNaoServeADuas() throws Exception {
         Long a = recorrencia("Habitação", "Aluguel ou financiamento", "Aluguel A", "1000", 5);
         Long b = recorrencia("Habitação", "Condomínio", "Condomínio B", "1050", 5);
-        Map<Integer, OcorrenciaCasada> r = casamento.casar(List.of(
+        Map<Integer, OcorrenciaCasada> r = casar(List.of(
                 linha(0, "2026-10-05", "1040.00", TipoMovimento.DESPESA),
                 linha(1, "2026-10-05", "1000.00", TipoMovimento.DESPESA)));
         assertThat(r.get(0).recorrenciaId()).isEqualTo(b);
@@ -110,7 +129,7 @@ class CasamentoRecorrenciaTest extends IntegracaoBase {
     @Test
     void casaRecorrenciaDeReceitaNoMesDaCompetencia() throws Exception {
         Long salario = recorrencia("Receitas fixas", "Salário", "Salário", "5000", 5);
-        Map<Integer, OcorrenciaCasada> r = casamento.casar(List.of(
+        Map<Integer, OcorrenciaCasada> r = casar(List.of(
                 linha(0, "2026-10-07", "5000.00", TipoMovimento.RECEITA),
                 linha(1, "2026-10-07", "5000.00", TipoMovimento.DESPESA)));
         assertThat(r).containsOnlyKeys(0);
@@ -121,12 +140,12 @@ class CasamentoRecorrenciaTest extends IntegracaoBase {
     @Test
     void confirmarUsaValorEDataDoExtratoEFechaAOcorrencia() throws Exception {
         Long id = aluguel();
-        Lancamento l = casamento.confirmar(id, OUTUBRO, LocalDate.of(2026, 10, 6), Dinheiro.of("2040.00"));
+        Lancamento l = confirmar(id, OUTUBRO, LocalDate.of(2026, 10, 6), Dinheiro.of("2040.00"));
         assertThat(l.id()).isNotNull();
         assertThat(l.valor()).isEqualTo(Dinheiro.of("2040.00"));
         assertThat(l.data()).isEqualTo(LocalDate.of(2026, 10, 6));
         assertThat(l.recorrenciaId()).isEqualTo(id);
-        assertThat(casamento.casar(List.of(linha(0, "2026-10-06", "2040.00", TipoMovimento.DESPESA)))).isEmpty();
+        assertThat(casar(List.of(linha(0, "2026-10-06", "2040.00", TipoMovimento.DESPESA)))).isEmpty();
     }
 
     @Test
@@ -137,8 +156,8 @@ class CasamentoRecorrenciaTest extends IntegracaoBase {
         SecurityContextHolder.getContext().setAuthentication(
                 UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities()));
 
-        assertThat(casamento.casar(List.of(linha(0, "2026-10-05", "2000.00", TipoMovimento.DESPESA)))).isEmpty();
-        assertThatThrownBy(() -> casamento.confirmar(id, OUTUBRO, LocalDate.of(2026, 10, 5), Dinheiro.of("2000")))
+        assertThat(casar(List.of(linha(0, "2026-10-05", "2000.00", TipoMovimento.DESPESA)))).isEmpty();
+        assertThatThrownBy(() -> confirmar(id, OUTUBRO, LocalDate.of(2026, 10, 5), Dinheiro.of("2000")))
                 .isInstanceOf(AcessoNegadoException.class);
     }
 }

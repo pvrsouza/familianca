@@ -374,6 +374,10 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 ### Filtros da lista (Lançamentos)
 - Duas linhas: em cima o período (segmentado Mês / Ano / Entre datas, seguido das setas com o nome do período ou dos dois campos de data) e o tipo (Tudo / Despesas / Receitas); embaixo a busca com lupa (cresce para ocupar a linha), os selects de categoria (agrupados por grupo), origem e pessoa, e "Limpar filtros" sutil quando há filtro além do período. No celular, cada select ocupa a linha inteira. Sem resultado com filtro, o vazio diz "Nada encontrado" e oferece limpar.
 
+### Importar extrato
+- Página `/importar` em dois passos (escolher a conta e o arquivo; revisar), botão "Importar extrato" no cabeçalho de Lançamentos. O passo 1 diz em texto pequeno que o arquivo é lido e descartado. O passo 2 abre com o resumo ("128 linhas · 94 novas · 31 já importadas · 3 possíveis duplicatas · período") e filtros por status.
+- Cada linha é um cartão no celular e uma grade de 6 colunas a partir de 900px: data, descrição, valor (verde `.receita` para crédito e `--erro` para débito, sempre com + ou −, não só cor), categoria (só as do tipo da linha, a sugerida já marcada, "A classificar" se vazia), pessoa e ação em select (Importar, Ignorar — não é receita nem despesa, Confirmar a conta X com vencimento e valor previsto). Já importadas e possíveis duplicatas vêm desmarcadas ("Não importar agora"); a possível duplicata mostra o lançamento parecido em aviso. As já importadas ficam num `<details>` recolhido. Rodapé fixo com "Importar N lançamentos". Depois, o resultado e a lista de importações com "Desfazer importação" (a confirmação diz que o editado à mão fica).
+
 ### Estado vazio
 - Centralizado, ilustração mínima de barras (tinta de petróleo forte para realizado, coral claro tracejado para previsto), título 1,125rem, texto de 46ch e ações centralizadas.
 

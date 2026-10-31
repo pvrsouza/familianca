@@ -22,6 +22,7 @@ import br.com.familianca.domain.model.TipoMovimento;
 import br.com.familianca.domain.service.LeitorOfx;
 import br.com.familianca.domain.service.LeitorOfx.Extrato;
 import br.com.familianca.domain.service.LeitorOfx.Transacao;
+import br.com.familianca.domain.vo.Competencia;
 import br.com.familianca.domain.vo.Dinheiro;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -63,20 +64,22 @@ public class ImportacaoService implements GerenciarImportacoes {
     private final PlanoContasRepository planoContas;
     private final AcessoFamilia acesso;
     private final UsuarioAtual usuario;
+    private final CasamentoRecorrencia casamento;
 
     public ImportacaoService(ImportacaoRepository importacoes, LancamentoRepository lancamentos,
                              LocalSaldoRepository locais, PlanoContasRepository planoContas, AcessoFamilia acesso,
-                             UsuarioAtual usuario) {
+                             UsuarioAtual usuario, CasamentoRecorrencia casamento) {
         this.importacoes = importacoes;
         this.lancamentos = lancamentos;
         this.locais = locais;
         this.planoContas = planoContas;
         this.acesso = acesso;
         this.usuario = usuario;
+        this.casamento = casamento;
     }
 
+    // Sem readOnly: listar as ocorrências pendentes pode gravar confirmações automáticas.
     @Override
-    @Transactional(readOnly = true)
     public Analise analisar(byte[] conteudo, Long localSaldoId) {
         exigirLocal(localSaldoId);
         if (conteudo == null || conteudo.length == 0) {
@@ -118,10 +121,10 @@ public class ImportacaoService implements GerenciarImportacoes {
             }
             Acao acao = status == Status.JA_IMPORTADA || IGNORAVEL.matcher(LeitorOfx.normalizar(t.descricao())).find()
                     ? Acao.IGNORAR : Acao.IMPORTAR;
-            // Acao.CONFIRMAR_RECORRENCIA e ocorrenciaPendente: preenchidos pelo casamento com recorrências.
             linhas.add(new LinhaAnalise(linhas.size(), t.chave(), t.data(), t.descricao(), valor, tipo, status, acao,
                     sugestoes.get(tipo + "|" + LeitorOfx.normalizar(t.descricao())), parecido, null));
         }
+        casarComRecorrencias(linhas);
         return new Analise(extrato.banco(), mascarar(extrato.conta()), null, extrato.periodoDe(),
                 extrato.periodoAte(), new Resumo(linhas.size(), novas, jaImportadas, duplicatas), linhas);
     }
@@ -212,13 +215,28 @@ public class ImportacaoService implements GerenciarImportacoes {
         return new Desfeito(d.removidos(), d.mantidosPorEdicao());
     }
 
-    /**
-     * TODO(wire-casamento): confirmar a ocorrência da recorrência (l.recorrenciaId + l.competencia) com o valor e a
-     * data do extrato, como "pagar = confirmar", gravando também a chave (lancamentos.salvarImportado) e conferindo
-     * que a ocorrência está mesmo pendente. Por ora a ação não está disponível.
-     */
+    /** "Pagar = confirmar": confirma a ocorrência com o valor e a data do extrato e guarda a chave nela. */
     private void confirmarRecorrencia(LinhaPedido l, LoteImportacao lote, LocalSaldo local, String chave) {
-        throw new RegraNegocioException("Confirmação de recorrência ainda não disponível");
+        Lancamento confirmado = casamento.confirmar(obrigatorio(l.recorrenciaId(), "recorrência"),
+                Competencia.parse(obrigatorio(l.competencia(), "competência")), obrigatorio(l.data(), "data"),
+                Dinheiro.of(obrigatorio(l.valor(), "valor")));
+        lancamentos.salvarImportado(confirmado, lote.id(), local.id(), chave);
+    }
+
+    /** Só linhas novas e que não parecem transferência ou fatura são oferecidas a uma conta pendente. */
+    private void casarComRecorrencias(List<LinhaAnalise> linhas) {
+        List<CasamentoRecorrencia.LinhaCasavel> candidatas = linhas.stream()
+                .filter(l -> l.status() == Status.NOVA && l.acaoSugerida() == Acao.IMPORTAR)
+                .map(l -> new CasamentoRecorrencia.LinhaCasavel(l.indice(), l.data(), Dinheiro.of(l.valor()), l.tipo(),
+                        l.descricao()))
+                .toList();
+        casamento.casar(candidatas).forEach((indice, o) -> {
+            LinhaAnalise l = linhas.get(indice);
+            linhas.set(indice, new LinhaAnalise(l.indice(), l.chave(), l.data(), l.descricao(), l.valor(), l.tipo(),
+                    l.status(), Acao.CONFIRMAR_RECORRENCIA, l.categoriaIdSugerida(), l.lancamentoParecido(),
+                    new OcorrenciaPendente(o.recorrenciaId(), o.competencia().toString(), o.descricao(),
+                            o.valor().valor(), o.vencimento())));
+        });
     }
 
     private boolean podeDesfazer(LoteImportacao lote) {

@@ -37,6 +37,8 @@ indicação formal de um encarregado (Resolução CD/ANPD 2/2022, Art. 11). ⚠ 
 | Manter a sessão e a segurança | Identificador da sessão, endereço IP, horário e páginas da API acessadas | Legítimo interesse em proteger você e o serviço (Art. 7º, IX) |
 | Plano e assinatura | Plano da família, período de teste e validade | Execução do contrato — Art. 7º, V |
 
+**Importar extrato:** se vocês enviarem o extrato do banco (arquivo OFX), lemos o arquivo só para criar os lançamentos que vocês escolherem e o descartamos em seguida: **não guardamos o arquivo**. Guardamos, para não duplicar, apenas o identificador de cada transação que o banco informa. As descrições do banco podem trazer nomes de outras pessoas (por exemplo, em um Pix); elas ficam como a descrição do lançamento, com as mesmas regras do texto livre abaixo.
+
 **Cuidado com o texto livre:** as descrições dos lançamentos são escritas por vocês. Evite colocar informação
 desnecessária sobre outras pessoas ou sobre saúde, religião etc. Não usamos o conteúdo das descrições para
 nada além de mostrá-lo à sua família.

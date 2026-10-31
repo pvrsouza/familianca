@@ -52,8 +52,8 @@ nem tecnologia emergente) · nenhum SDK de terceiro no app (sem analytics, Sentr
 | Dados | valores, datas, categorias, descrição livre, membro que lançou, notas fiscais PJ, saldos por lugar, investimentos, metas |
 | Sensível por inferência | Possível (saúde, religião, sindicato) na descrição livre; sem uso além de mostrar à família |
 | Fonte | Membros da família |
-| Sistemas | `lancamento`, `recorrencia*`, `categoria`, `grupo_categoria`, `saldo_mes*`, `local_saldo`, `investimento`, `movimento_investimento`, `familia_meta_aporte` |
-| Retenção | Com a família; o DONO já apaga tudo em "Apagar todos os dados" (com senha); fica nos backups até 30 dias |
+| Sistemas | `lancamento` (com a chave de importação), `importacao_lote`, `importacao_ignorada`, `recorrencia*`, `categoria`, `grupo_categoria`, `saldo_mes*`, `local_saldo`, `investimento`, `movimento_investimento`, `familia_meta_aporte` |
+| Retenção | Com a família; o DONO já apaga tudo em "Apagar todos os dados" (com senha); fica nos backups até 30 dias. **Importação de extrato (2026-10-31):** o arquivo OFX não é guardado (lido em memória e descartado, nem o nome); a descrição de cada linha importada vira a do lançamento (pode trazer nome e CPF parcial de **terceiros** em Pix); linha ignorada guarda só a chave do banco (`FITID` ou hash), sem descrição nem valor; "Desfazer importação" apaga o lote e as chaves |
 
 ### A04 — Segurança, sessão e logs
 

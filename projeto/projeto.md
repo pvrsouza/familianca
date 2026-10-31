@@ -175,6 +175,43 @@ Pontos de atenção constante na hora de desenvolver.
 - **Data do pagamento na lista (2026-10-22):** em Lançamentos, cada item mostra "pago em" (despesa), "recebido em"
   (receita) ou "entrou na conta em" (nota fiscal) com a data.
 
+## Importação de extrato (2026-10-31)
+- **Para que serve:** lançar de uma vez as receitas e despesas de um extrato de banco ou cartão, sem digitar e sem
+  duplicar. Tela própria `/importar` (botão "Importar extrato" em Lançamentos), em dois passos: escolher a conta
+  (um "lugar do saldo") e o arquivo; revisar as linhas e importar.
+- **Formatos (v1):** só **OFX e OFC** (OFX 1.x e 2.x, UTF-8 ou Windows-1252), até 2 MB e 5.000 linhas. CSV fica para
+  a v2 (layout por banco); TXT e PDF fora (leitura frágil, e erro de leitura em dinheiro é o pior erro).
+- **O arquivo não é guardado:** é lido em memória e descartado (nem o nome). Fica no banco só o que virou lançamento,
+  a chave de idempotência e, das linhas ignoradas, apenas a chave. Reenviar o arquivo é seguro.
+- **Sem duplicar (idempotência):** a chave é `(família, conta, FITID)` com restrição única no banco; sem `FITID`, o
+  hash de data, valor e descrição normalizada mais o número da ocorrência (dois cafés de R$ 10 no mesmo dia não se
+  perdem). A chave fica no lançamento importado. Na revisão cada linha é **Nova**, **Já importada** (chave existente:
+  desmarcada) ou **Possível duplicata** (lançamento digitado à mão com mesmo valor e tipo e data a até 2 dias: mostra
+  o parecido e a pessoa decide; o sistema nunca descarta nem mescla sozinho). A conferência é refeita ao gravar.
+- **Apagou um lançamento importado e reimportou:** a linha volta como Nova (a chave mora no lançamento).
+- **Categoria e pessoa:** a categoria vem sugerida pela do último lançamento com a mesma descrição e o mesmo tipo
+  (crédito = receita, débito = despesa); sem sugestão, vai para "**A classificar**" (uma categoria de receita e
+  outra de despesa, criadas na hora). A pessoa padrão é quem importa; MEMBRO só pode usar a si mesmo. MEMBRO não
+  importa em conta de outra pessoa (403); DONO importa em qualquer uma.
+- **Ignorar:** linhas que não são receita nem despesa (transferência entre contas, pagamento de fatura, aplicação,
+  resgate) vêm com "Ignorar" sugerido por palavra-chave; a pessoa pode trocar. Estorno entra como receita comum ou
+  é ignorado (tratamento fino fica para depois).
+- **Casar com conta pendente:** se a linha bate com uma ocorrência pendente de recorrência (mesma direção; valor
+  dentro de ±5%, ou ±20% quando a conta varia e tem estimativa; data de 7 dias antes a 15 depois do vencimento, ou
+  no mês da competência se não houver vencimento), a ação sugerida é "Confirmar a conta X" (regra "pagar =
+  confirmar", com o valor e a data do extrato), no lugar de criar um lançamento novo e contar em dobro. Na dúvida
+  não casa: empate entre duas contas, ou uma conta para duas linhas (casa só uma). Só vale para ocorrências até hoje
+  nos últimos 12 meses.
+- **Lote e desfazer:** cada importação é um lote (conta, período do extrato, quantas importadas, ignoradas e
+  confirmadas, quem, quando; sem nome de arquivo nem descrições). "Desfazer importação" (DONO ou quem importou)
+  apaga os lançamentos do lote, **menos os que já foram editados à mão**, e mostra quantos ficaram; as chaves das
+  ignoradas somem e o extrato pode ser reimportado. Desfazer uma confirmação faz a conta voltar a ser pendente.
+- **Plano:** liberado a todos na v1; mede-se o uso (hipótese em `projeto/negocio.md`).
+- **Tudo ou nada:** a gravação é uma transação; erro numa linha ("Linha N: ...") desfaz todas.
+- **Ainda não faz:** avisar se o banco e a conta do OFX não são os da conta escolhida (o cadastro do lugar do saldo
+  não guarda banco nem conta); ligar aplicação e resgate aos investimentos; cartão de crédito como origem (espera
+  "Cartões de crédito").
+
 ## Recorrências
 - Receita ou despesa que se repete: mensal, bimestral, trimestral, semestral ou anual, a partir de um mês de
   início, até um mês de fim (opcional), num dia do mês (31 vira o último dia em meses curtos).
@@ -657,6 +694,11 @@ Pontos de atenção constante na hora de desenvolver.
 - **Contas a pagar — depois do checklist (feito em 2026-10-24):** lembretes de vencimento (e-mail/WhatsApp),
   candidato a recurso de plano pago; selo "faltam N" na faixa do mês da visão anual; agrupar as contas do cartão na
   fatura (depende de cartões).
+- **Importação de extrato — depois da v1 (2026-10-31):** CSV por banco (mapeamento de colunas); aviso de "outra
+  conta" (guardar banco e conta no lugar do saldo); aplicação e resgate ligados aos investimentos; estorno com
+  tratamento próprio; origem em cartão de crédito (junto de "Cartões de crédito"); regras aprendidas de categoria
+  ("descrição contém X"); testar com arquivos reais de bancos e do cartão (os testes usam amostras sintéticas);
+  o lote entra no "Histórico" quando a auditoria for feita.
 - **Cartões de crédito:** cartão no lançamento e visão da fatura (a planilha controla faturas). A forma de pagamento
   "no cartão de crédito" das recorrências já existe; falta dizer qual cartão e montar a fatura com vencimento.
 - **Auditoria de tudo o que é feito (pedido de 2026-10-25):** registrar toda alteração dos dados da família — quem
