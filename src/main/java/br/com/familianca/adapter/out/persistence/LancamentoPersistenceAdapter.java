@@ -1,5 +1,6 @@
 package br.com.familianca.adapter.out.persistence;
 
+import br.com.familianca.application.port.out.CategoriaPorDescricao;
 import br.com.familianca.application.port.out.DescricaoUsada;
 import br.com.familianca.application.port.out.LancamentoRepository;
 import br.com.familianca.application.port.out.UsuarioAtual;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -47,6 +49,28 @@ public class LancamentoPersistenceAdapter implements LancamentoRepository {
     @Override
     public Lancamento salvar(Lancamento l) {
         return paraDominio(jpa.save(paraEntidade(l)));
+    }
+
+    @Override
+    public Lancamento salvarImportado(Lancamento l, Long loteId, Long localSaldoId, String chave) {
+        LancamentoEntity e = paraEntidade(l);
+        e.importacaoLoteId = loteId;
+        e.importacaoLocalSaldoId = localSaldoId;
+        e.importacaoChave = chave;
+        return paraDominio(jpa.save(e));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Lancamento> listarDigitados(LocalDate de, LocalDate ate) {
+        return jpa.findByFamiliaIdAndDataBetweenAndImportacaoChaveIsNull(usuario.familiaId(), de, ate).stream()
+                .map(LancamentoPersistenceAdapter::paraDominio).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoriaPorDescricao> categoriasPorDescricao(Collection<String> descricoes) {
+        return descricoes.isEmpty() ? List.of() : jpa.categoriasPorDescricao(usuario.familiaId(), descricoes);
     }
 
     @Override
@@ -115,6 +139,8 @@ public class LancamentoPersistenceAdapter implements LancamentoRepository {
         if (l.id() != null) {
             e = jpa.findByIdAndFamiliaId(l.id(), usuario.familiaId())
                     .orElseThrow(() -> new NaoEncontradoException("Lançamento", l.id()));
+            // Alterado depois de importado: desfazer o lote não o apaga.
+            e.editadoAposImportacao = e.editadoAposImportacao || e.importacaoLoteId != null;
         } else {
             e = new LancamentoEntity();
             e.familiaId = usuario.familiaId();

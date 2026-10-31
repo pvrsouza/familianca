@@ -1,12 +1,15 @@
 package br.com.familianca.adapter.out.persistence;
 
+import br.com.familianca.application.port.out.CategoriaPorDescricao;
 import br.com.familianca.application.port.out.DescricaoUsada;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +30,32 @@ public interface LancamentoJpaRepository extends JpaRepository<LancamentoEntity,
     boolean existsByRecorrenciaId(Long recorrenciaId);
 
     boolean existsByCategoriaId(Long categoriaId);
+
+    List<LancamentoEntity> findByFamiliaIdAndDataBetweenAndImportacaoChaveIsNull(Long familiaId, LocalDate de,
+                                                                                  LocalDate ate);
+
+    @Query("""
+            select l.importacaoChave from LancamentoEntity l
+            where l.familiaId = :familiaId and l.importacaoLocalSaldoId = :localId and l.importacaoChave in :chaves""")
+    List<String> chavesImportadas(@Param("familiaId") Long familiaId, @Param("localId") Long localId,
+                                  @Param("chaves") Collection<String> chaves);
+
+    @Query("""
+            select new br.com.familianca.application.port.out.CategoriaPorDescricao(
+                sem_acento(lower(l.descricao)), l.categoriaId)
+            from LancamentoEntity l
+            where l.familiaId = :familiaId and sem_acento(lower(l.descricao)) in :descricoes
+            order by l.data desc, l.id desc""")
+    List<CategoriaPorDescricao> categoriasPorDescricao(@Param("familiaId") Long familiaId,
+                                                       @Param("descricoes") Collection<String> descricoes);
+
+    int countByImportacaoLoteIdAndEditadoAposImportacaoTrue(Long loteId);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            delete from LancamentoEntity l
+            where l.familiaId = :familiaId and l.importacaoLoteId = :loteId and l.editadoAposImportacao = false""")
+    int apagarNaoEditadosDoLote(@Param("familiaId") Long familiaId, @Param("loteId") Long loteId);
 
     /** Descrições já usadas na categoria: as mais frequentes primeiro e, no empate, as mais recentes. */
     @Query("""

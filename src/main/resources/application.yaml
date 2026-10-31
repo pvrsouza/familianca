@@ -15,6 +15,12 @@ spring:
     # Sem FLYWAY_USER, usa o mesmo usuário da aplicação (ambiente local).
     user: ${FLYWAY_USER:${DB_USER:familianca}}
     password: ${FLYWAY_PASSWORD:${DB_PASSWORD:familianca}}
+  servlet:
+    # Importação de extrato (OFX/OFC): 2 MB por arquivo, mantido em memória (o limiar evita arquivo temporário em disco).
+    multipart:
+      max-file-size: 2MB
+      file-size-threshold: 3MB
+      max-request-size: 2100KB
   session:
     # Tabelas versionadas no Flyway (V1), não criadas pelo Spring Session.
     jdbc:

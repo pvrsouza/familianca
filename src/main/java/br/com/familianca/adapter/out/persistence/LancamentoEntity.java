@@ -34,6 +34,10 @@ public class LancamentoEntity {
     String observacao;
     String nfCompetencia;
     LocalDate nfEmissao;
+    String importacaoChave;
+    Long importacaoLocalSaldoId;
+    Long importacaoLoteId;
+    boolean editadoAposImportacao;
     @Column(insertable = false, updatable = false)
     OffsetDateTime criadoEm;
 }
