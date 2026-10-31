@@ -451,3 +451,71 @@ export interface SituacaoMfa {
   ativo: boolean
   disponivel: boolean
 }
+
+// Importação de extrato (OFX/OFC)
+export type StatusLinhaImportacao = 'NOVA' | 'JA_IMPORTADA' | 'POSSIVEL_DUPLICATA'
+export type AcaoImportacao = 'IMPORTAR' | 'IGNORAR' | 'CONFIRMAR_RECORRENCIA'
+
+export interface LinhaExtrato {
+  indice: number
+  chave: string
+  data: string
+  descricao: string
+  valor: number
+  tipo: Tipo
+  status: StatusLinhaImportacao
+  acaoSugerida: AcaoImportacao
+  categoriaIdSugerida: number | null
+  lancamentoParecido: { id: number; data: string; descricao: string; valor: number; categoriaNome: string } | null
+  ocorrenciaPendente: { recorrenciaId: number; competencia: string; descricao: string; valor: number; vencimento: string } | null
+}
+
+export interface AnaliseExtrato {
+  banco: string | null
+  contaOfx: string | null
+  avisoConta: string | null
+  periodoDe: string | null
+  periodoAte: string | null
+  resumo: { total: number; novas: number; jaImportadas: number; possiveisDuplicatas: number }
+  linhas: LinhaExtrato[]
+}
+
+export interface LinhaParaGravar {
+  chave: string
+  acao: AcaoImportacao
+  data: string
+  descricao: string
+  valor: number
+  tipo: Tipo
+  categoriaId: number | null
+  membroId: number | null
+  recorrenciaId: number | null
+  competencia: string | null
+}
+
+export interface ImportacaoFeita {
+  loteId: number
+  importadas: number
+  ignoradas: number
+  confirmadas: number
+  jaExistiam: number
+}
+
+export interface ImportacaoLote {
+  id: number
+  localSaldoId: number
+  localSaldoNome: string
+  periodoDe: string | null
+  periodoAte: string | null
+  importadas: number
+  ignoradas: number
+  confirmadas: number
+  feitaPor: string
+  feitaEm: string
+  podeDesfazer: boolean
+}
+
+export interface ImportacaoDesfeita {
+  removidos: number
+  mantidosPorEdicao: number
+}

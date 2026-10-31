@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronLeft, ChevronRight, Repeat, Search, X } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Repeat, Search, Upload, X } from 'lucide-vue-next'
 import { lancamentos as apiLancamentos, type OrigemLancamento } from '../api/servicos'
 import type { Lancamento, Tipo } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
@@ -206,6 +206,7 @@ const tituloMes = computed(() => tituloPeriodo.value.charAt(0).toUpperCase() + t
         <h1>Lançamentos</h1>
         <p>O que entrou e saiu, de quem é cada um. Cada pessoa altera os próprios; quem organiza altera todos.</p>
       </div>
+      <RouterLink to="/importar" class="botao"><Upload aria-hidden="true" /> Importar extrato</RouterLink>
     </header>
 
     <div class="filtros">

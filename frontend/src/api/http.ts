@@ -66,14 +66,16 @@ export async function requisitar<T>(metodo: string, caminho: string, opcoes: Opc
     const token = lerCookie('XSRF-TOKEN')
     if (token) cabecalhos['X-XSRF-TOKEN'] = token
   }
-  if (opcoes.corpo !== undefined) cabecalhos['Content-Type'] = 'application/json'
+  // FormData (upload): o navegador define o Content-Type com o boundary.
+  const upload = opcoes.corpo instanceof FormData
+  if (opcoes.corpo !== undefined && !upload) cabecalhos['Content-Type'] = 'application/json'
 
   let resposta: Response
   try {
     resposta = await fetch(caminho, {
       method: metodo,
       headers: cabecalhos,
-      body: opcoes.corpo !== undefined ? JSON.stringify(opcoes.corpo) : undefined,
+      body: opcoes.corpo === undefined ? undefined : upload ? (opcoes.corpo as FormData) : JSON.stringify(opcoes.corpo),
       credentials: 'same-origin',
       signal: opcoes.sinal,
     })

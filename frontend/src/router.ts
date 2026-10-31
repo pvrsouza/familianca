@@ -20,6 +20,7 @@ const router = createRouter({
         { path: 'ano/:ano(\\d{4})?', component: () => import('./views/VisaoAnualView.vue'), meta: { titulo: 'O ano' } },
         { path: 'contas-a-pagar', component: () => import('./views/ContasAPagarView.vue'), meta: { titulo: 'Contas a pagar' } },
         { path: 'lancamentos', component: () => import('./views/LancamentosView.vue'), meta: { titulo: 'Lançamentos' } },
+        { path: 'importar', component: () => import('./views/ImportarView.vue'), meta: { titulo: 'Importar extrato' } },
         { path: 'recorrencias', component: () => import('./views/RecorrenciasView.vue'), meta: { titulo: 'Recorrências' } },
         { path: 'quanto-pesa', component: () => import('./views/QuantoPesaView.vue'), meta: { titulo: 'Quanto pesa no ano?' } },
         { path: 'familia', component: () => import('./views/FamiliaView.vue'), meta: { titulo: 'Família' } },
