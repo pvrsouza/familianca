@@ -18,8 +18,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
@@ -40,6 +40,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Negar por padrão: só o login, o token CSRF, o cadastro, o link de convite, o health e os arquivos do front são
@@ -146,15 +147,21 @@ public class SecurityConfig {
 
     @Bean
     PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
+        // Grava "{bcrypt}$2a$12$...": o prefixo diz o algoritmo, então trocar para Argon2 depois é só mudar o id de
+        // gravação. Hash antigo, sem prefixo, segue sendo conferido como BCrypt e é regravado no próximo login.
+        BCryptPasswordEncoder bcrypt = new BCryptPasswordEncoder(12);
+        DelegatingPasswordEncoder encoder = new DelegatingPasswordEncoder("bcrypt", Map.of("bcrypt", bcrypt));
+        encoder.setDefaultPasswordEncoderForMatches(bcrypt);
+        return encoder;
     }
 
     /** Publica os eventos de login (ok/falha) que a {@link AuditoriaSeguranca} registra. */
     @Bean
-    AuthenticationManager authenticationManager(UserDetailsService usuarios, PasswordEncoder senhas,
+    AuthenticationManager authenticationManager(UsuarioDetailsService usuarios, PasswordEncoder senhas,
                                                 ApplicationEventPublisher eventos) {
         DaoAuthenticationProvider provedor = new DaoAuthenticationProvider(usuarios);
         provedor.setPasswordEncoder(senhas);
+        provedor.setUserDetailsPasswordService(usuarios);
         ProviderManager gerenciador = new ProviderManager(provedor);
         gerenciador.setAuthenticationEventPublisher(new DefaultAuthenticationEventPublisher(eventos));
         return gerenciador;

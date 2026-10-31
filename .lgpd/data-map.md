@@ -15,7 +15,7 @@ nem tecnologia emergente) · nenhum SDK de terceiro no app (sem analytics, Sentr
 | Sistemas | Postgres 16 no VPS (rede interna do compose), logs do Docker no VPS |
 | Operadores | KingHost (VPS, validação do produto); Cloudflare R2 (backup); futuro: AWS — ver G05 |
 | Transferência internacional | KingHost: não (Brasil). **Cloudflare R2: sim** (sem região no Brasil; o dump vai cifrado pelo `rclone crypt` e a Cloudflare não tem a chave). AWS: usar `sa-east-1` (São Paulo) para não haver transferência |
-| Segurança | TLS (Caddy, HSTS), BCrypt 12, MFA TOTP opcional, isolamento por `familia_id`, papéis, sessão 30 min/12 h, rate limit, backup cifrado, app sem permissão de DDL ([`docs/seguranca.md`](../docs/seguranca.md)) |
+| Segurança | TLS (Caddy, HSTS), BCrypt 12 migrável (prefixo `{bcrypt}`), MFA TOTP opcional, isolamento por `familia_id`, papéis, sessão 30 min/12 h, rate limit, backup cifrado, app sem permissão de DDL ([`docs/seguranca.md`](../docs/seguranca.md)) |
 | Alto risco / RIPD | Não / N/A |
 
 ### A01 — Conta e autenticação

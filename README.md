@@ -143,7 +143,9 @@ Mesma lógica do controle-alugueis, mais o que está abaixo. Avaliação item a 
   é auditado só na primeira recusa); por IP no cadastro e no aceite de convite
   (429 com `Retry-After`). Erro de login é sempre "Credenciais inválidas". Além disso, teto de 300 requisições por
   minuto por IP em toda a `/api` (`API_MAX_REQUISICOES`).
-- **Senhas:** BCrypt (custo 12), 12 a 64 caracteres.
+- **Senhas:** BCrypt (custo 12) gravado com prefixo de algoritmo (`{bcrypt}$2a$12$...`, `DelegatingPasswordEncoder`),
+  12 a 64 caracteres. Hash antigo, sem prefixo, ainda confere e é regravado no próximo login (trocar de algoritmo ou
+  de custo é mudar o `SecurityConfig`; os hashes migram sozinhos no login).
 - **Verificação em duas etapas (opcional):** aplicativo autenticador (TOTP, RFC 6238) em `/api/conta/mfa`, com 10
   códigos de recuperação de uso único. O segredo fica cifrado no banco (AES-256-GCM, chave `MFA_CHAVE` fora do
   banco); o mesmo código não vale duas vezes. Com MFA ativo, o login exige `codigoMfa` (sem ele: 401 com

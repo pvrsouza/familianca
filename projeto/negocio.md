@@ -38,6 +38,9 @@ Uma linha por hipótese, da mais arriscada para a menos. Status: 🔴 não testa
 Uma entrada por entrega, a mais recente primeiro: o que mudou no produto, o que isso muda nas hipóteses, decisões
 tomadas e perguntas que ficaram.
 
+- **2026-10-31 (hash de senha migrável):** infraestrutura de segurança (prefixo `{bcrypt}` e regravação no login), sem
+  efeito no produto visível, nas hipóteses, nos planos nem no custo. Só tira o risco de ter de forçar reset de senha em
+  massa se for preciso trocar de algoritmo depois de abrir a outras famílias. Nada a testar com famílias.
 - **2026-10-31 (limite de login por IP):** segurança da fase 2, sem efeito no produto visível, nos planos nem no
   custo (bucket em memória). Não toca em nenhuma hipótese. Só reduz o risco de credential stuffing antes de abrir o
   produto a outras famílias, quando uma conta invadida custaria confiança (e LGPD). Risco novo de operação: no deploy

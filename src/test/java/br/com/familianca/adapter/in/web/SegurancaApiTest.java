@@ -5,6 +5,7 @@ import br.com.familianca.IntegracaoBase;
 import br.com.familianca.domain.model.Membro;
 import br.com.familianca.domain.model.PapelFamilia;
 import br.com.familianca.domain.model.Plano;
+import br.com.familianca.domain.model.Usuario;
 import br.com.familianca.domain.service.Totp;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
@@ -15,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.test.web.support.WebTestUtils;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
@@ -269,6 +271,31 @@ class SegurancaApiTest extends IntegracaoBase {
 
         // Outro IP não é afetado.
         assertThat(loginDoIp(nav, "203.0.113.8", "dono@teste.com").getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void hashAntigoSemPrefixoEntraEEhRegravadoComPrefixo() throws Exception {
+        Usuario u = usuarios.buscarPorEmail("dono@teste.com").orElseThrow();
+        String legado = new BCryptPasswordEncoder(12).encode(SENHA_PADRAO);
+        assertThat(legado).startsWith("$2a$12$");
+        u.trocarSenha(legado);
+        usuarios.salvar(u);
+
+        // Senha errada não mexe no hash.
+        assertThat(new Navegador().login("dono@teste.com", "senha-errada-123").getStatus()).isEqualTo(401);
+        assertThat(usuarios.buscarPorEmail("dono@teste.com").orElseThrow().senhaHash()).isEqualTo(legado);
+
+        // Login certo com o hash antigo funciona e regrava no formato com prefixo, que continua valendo.
+        assertThat(new Navegador().login("dono@teste.com", SENHA_PADRAO).getStatus()).isEqualTo(200);
+        String novo = usuarios.buscarPorEmail("dono@teste.com").orElseThrow().senhaHash();
+        assertThat(novo).startsWith("{bcrypt}$2a$12$").isNotEqualTo(legado);
+        assertThat(new Navegador().login("dono@teste.com", SENHA_PADRAO).getStatus()).isEqualTo(200);
+        assertThat(usuarios.buscarPorEmail("dono@teste.com").orElseThrow().senhaHash()).isEqualTo(novo);
+    }
+
+    @Test
+    void senhaNovaJaEhGravadaComPrefixo() {
+        assertThat(usuarios.buscarPorEmail("dono@teste.com").orElseThrow().senhaHash()).startsWith("{bcrypt}$2a$12$");
     }
 
     private MockHttpServletResponse loginDoIp(Navegador nav, String ip, String email) throws Exception {

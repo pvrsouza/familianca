@@ -628,7 +628,7 @@ Pontos de atenção constante na hora de desenvolver.
 
 - **Segurança:** fases 1 a 3 do plano em [`docs/seguranca.md`](../docs/seguranca.md). Antes do deploy: script com
   backup e rollback, tela do MFA no front. Antes de abrir para clientes: MFA obrigatório para ADMIN e e-mail
-  transacional. Depende de infra: gerenciador de segredos e rotação. (Limite de login por IP feito em 2026-10-31;
+  transacional. Depende de infra: gerenciador de segredos e rotação. (Limite de login por IP e hash de senha migrável feitos em 2026-10-31;
   no deploy, o proxy precisa sobrescrever o `X-Forwarded-For`.)
 - **Frontend — próximos passos** (v1 pronta; contexto em [`PRODUCT.md`](../PRODUCT.md)):
   - Usar no dia a dia da família e ajustar as telas com o que aparecer.
