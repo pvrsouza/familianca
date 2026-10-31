@@ -36,7 +36,7 @@ entra no plano no fim deste arquivo.
 | 1 | HTTPS | ✅ | O Caddy termina o TLS (certificado automático) e é o único caminho até o app, que não publica porta. No `prod`: HSTS de 1 ano, cookies `Secure` e `forward-headers-strategy` para o app saber que a requisição veio por HTTPS. |
 | 2 | Senhas com hash | ✅ | BCrypt custo 12, senha de 12 a 64 caracteres, hash nunca vai para a sessão nem para a resposta. Mesma resposta para usuário inexistente e senha errada. |
 | 3 | MFA | 🟡 | **Novo:** verificação em duas etapas opcional por aplicativo autenticador (TOTP), com códigos de recuperação. Só liga quando o ambiente tem `MFA_CHAVE`; sem ela, fica desligada e não bloqueia o deploy. **Front pronto** (QR gerado no navegador, códigos de recuperação, segundo passo do login). Falta: definir a chave em produção e obrigatoriedade para ADMIN. |
-| 4 | Rate limit | 🟡 | Login (5 a cada 15 min por IP + e-mail), cadastro, aceite de convite, troca de senha e MFA. **Novo:** teto de 300 req/min por IP em toda a `/api`. Falta: contador fora da memória para mais de uma instância (🔒) e um limite por IP no login que valha para todos os e-mails. |
+| 4 | Rate limit | 🟡 | Login (5 a cada 15 min por IP + e-mail), cadastro, aceite de convite, troca de senha e MFA. **Novo:** teto de 300 req/min por IP em toda a `/api`. **Novo (2026-10-31):** 30 a cada 15 min por IP no login, para qualquer e-mail (credential stuffing). Falta: contador fora da memória para mais de uma instância (🔒). |
 | 5 | Validação de inputs | ✅ | Bean Validation em todos os corpos de requisição (tamanho, formato, faixa) e regras de novo no domínio. Ajuste pequeno no plano: faixa para os parâmetros `ano`. |
 | 6 | Sanitização de dados | ✅ | **Novo:** todo texto livre passa por `Validacoes.limpar` (normalização NFC, sem caracteres de controle nem de direção do Unicode). HTML não é escapado na API (o front escapa), e a CSP bloqueia script de outra origem e inline. |
 | 7 | SQL Injection | ✅ | Só Spring Data (consultas derivadas e JPQL com parâmetros nomeados). **Novo:** o `ArquiteturaTest` reprova JDBC direto, `@Query` nativa e consulta montada no `EntityManager`. |
@@ -55,6 +55,7 @@ entra no plano no fim deste arquivo.
 | Login exige `codigoMfa` quando o MFA está ativo (401 com `mfaObrigatorio`); código errado conta no limite de tentativas e vai para a auditoria (`MFA_FALHA`) | `AuthController` |
 | Duração máxima da sessão (12 h) | `DuracaoMaximaSessao` |
 | Teto de requisições por IP na `/api` | `LimiteRequisicoesApi` |
+| Limite de login por IP para qualquer e-mail (30 a cada 15 min), checado antes do de IP + e-mail | `LimiteTentativasLogin`, `AuthController` |
 | Limpeza de texto livre (controle, direção do Unicode, NFC) | `domain/Validacoes` |
 | Regras de arquitetura contra SQL montado à mão | `ArquiteturaTest` |
 | Aviso de segredos fracos no perfil `prod` (só log, não bloqueia) | `SegredosProducao` |
@@ -121,7 +122,7 @@ conseguir entrar (falha fechada) até a chave voltar.
 | Item | Requisito | O que fazer |
 |---|---|---|
 | Ligar o MFA em produção | 3 | Gerar a `MFA_CHAVE` e colocá-la no `.env` do VPS (pode ser depois da primeira subida). |
-| Script de deploy com rollback | 9 | No guia `deploy_vps.md` (já pendente), criar um `infra/deploy/deploy.sh` que faz backup, gera a tag `AAAAMMDD-HHMM`, sobe, confere o `/actuator/health` e, se falhar, volta para a tag anterior. Guardar as 3 últimas imagens. |
+| Script de deploy com rollback | 9 | O proxy tem de sobrescrever o `X-Forwarded-For` com o IP real (sem isso o limite por IP é forjável ou todos dividem um bucket). No guia `deploy_vps.md` (já pendente), criar um `infra/deploy/deploy.sh` que faz backup, gera a tag `AAAAMMDD-HHMM`, sobe, confere o `/actuator/health` e, se falhar, volta para a tag anterior. Guardar as 3 últimas imagens. |
 | Teste de restore | 9 | Restaurar um backup de produção numa base de teste uma vez por mês (o controle-alugueis já tem o roteiro). |
 | Conferir o TLS | 1 | Depois do deploy, rodar o SSL Labs no domínio (nota A ou mais) e conferir o redirecionamento de HTTP para HTTPS. Pedir o HSTS preload só quando o domínio estiver estável. |
 | ~~Tela do MFA no front~~ | 3 | ✅ Feito (2026-10-17): QR com a biblioteca `qrcode` no navegador, códigos de recuperação com "copiar" e segundo passo do login quando vem `mfaObrigatorio` (`ContaView`, `EntrarView`). |
@@ -136,7 +137,7 @@ conseguir entrar (falha fechada) até a chave voltar.
 | MFA obrigatório para ADMIN | 3, 10 | O login com MFA ganha a autoridade `FATOR_MFA`; `/api/admin/**` passa a exigir `ROLE_ADMIN` **e** `FATOR_MFA` (o ADMIN ainda entra para ativar o MFA, mas não administra antes disso). |
 | E-mail transacional | 3, 11 | Precisa de um provedor de e-mail (🔒). Com ele: confirmar o e-mail no cadastro, "esqueci minha senha" (token de uso único, como o convite) e aviso de "MFA ativado/desativado" e "senha trocada". |
 | Reset de MFA pelo suporte | 3 | Endpoint de ADMIN para apagar o MFA de um usuário que perdeu celular e códigos, com registro na auditoria e confirmação por e-mail. |
-| Limite de login por IP | 4 | Segundo bucket por IP (ex.: 30 tentativas a cada 15 min, para qualquer e-mail), contra quem testa muitas contas a partir do mesmo IP (credential stuffing). |
+| ~~Limite de login por IP~~ | 4 | ✅ Feito (2026-10-31): segundo bucket por IP no login (30 a cada 15 min, `LOGIN_MAX_TENTATIVAS_IP`), checado antes do de IP + e-mail; o login certo não devolve a tentativa; mesmo 429 e `LOGIN_BLOQUEADO` só na primeira recusa da rodada. Teste em `SegurancaApiTest`. Depende do proxy sobrescrever o `X-Forwarded-For` (ver deploy). |
 | Sessões ativas | 11 | Listar as sessões do usuário (Spring Session já indexa por usuário) e oferecer "sair de todos os dispositivos". |
 | Senhas vazadas | 2 | Recusar senha que aparece em vazamentos (Have I Been Pwned por k-anonymity: só os 5 primeiros caracteres do SHA-1 saem do servidor). |
 | Algoritmo de hash migrável | 2 | Trocar para `DelegatingPasswordEncoder` (prefixo `{bcrypt}`) para poder adotar Argon2 depois, re-hashando no login. |

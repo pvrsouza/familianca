@@ -65,6 +65,8 @@ familianca:
       duracao-maxima: ${SESSAO_DURACAO_MAXIMA:12h}
     login:
       max-tentativas: ${LOGIN_MAX_TENTATIVAS:5}
+      # Por IP, para qualquer e-mail (credential stuffing); só o login, e o login certo não devolve a tentativa.
+      max-tentativas-ip: ${LOGIN_MAX_TENTATIVAS_IP:30}
       janela: ${LOGIN_JANELA:15m}
     # Teto de requisições por IP em toda a /api (429 com Retry-After).
     limite-api:

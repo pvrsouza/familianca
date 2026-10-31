@@ -138,7 +138,9 @@ Mesma lógica do controle-alugueis, mais o que está abaixo. Avaliação item a 
   guarda o usuário, a família, o membro e os papéis.
 - **CSRF** em toda requisição que altera dados, inclusive login, logout, cadastro e aceite de convite
   (`GET /api/auth/csrf` → header `X-XSRF-TOKEN`).
-- **Limite de tentativas:** 5 a cada 15 min por IP + e-mail no login; por IP no cadastro e no aceite de convite
+- **Limite de tentativas:** 5 a cada 15 min por IP + e-mail no login e, além disso, 30 a cada 15 min por IP para
+  qualquer e-mail (`LOGIN_MAX_TENTATIVAS_IP`; só no login, o login certo não devolve a tentativa e o `LOGIN_BLOQUEADO`
+  é auditado só na primeira recusa); por IP no cadastro e no aceite de convite
   (429 com `Retry-After`). Erro de login é sempre "Credenciais inválidas". Além disso, teto de 300 requisições por
   minuto por IP em toda a `/api` (`API_MAX_REQUISICOES`).
 - **Senhas:** BCrypt (custo 12), 12 a 64 caracteres.

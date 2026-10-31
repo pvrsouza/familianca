@@ -254,6 +254,34 @@ class SegurancaApiTest extends IntegracaoBase {
     }
 
     @Test
+    void limitePorIpValeParaQualquerEmailENaoEhDevolvidoNoLoginCerto() throws Exception {
+        Navegador nav = new Navegador();
+        nav.csrf();
+        // 29 logins certos do mesmo IP (não devolvem a tentativa) + 1 com e-mail diferente a cada vez.
+        for (int i = 0; i < 30; i++) {
+            String email = i % 2 == 0 ? "dono@teste.com" : "outro" + i + "@teste.com";
+            assertThat(loginDoIp(nav, "203.0.113.7", email).getStatus()).isIn(200, 401);
+        }
+        MockHttpServletResponse bloqueado = loginDoIp(nav, "203.0.113.7", "terceiro@teste.com");
+        assertThat(bloqueado.getStatus()).isEqualTo(429);
+        assertThat(bloqueado.getHeader("Retry-After")).isEqualTo("900");
+        assertThat(loginDoIp(nav, "203.0.113.7", "dono@teste.com").getStatus()).isEqualTo(429);
+
+        // Outro IP não é afetado.
+        assertThat(loginDoIp(nav, "203.0.113.8", "dono@teste.com").getStatus()).isEqualTo(200);
+    }
+
+    private MockHttpServletResponse loginDoIp(Navegador nav, String ip, String email) throws Exception {
+        return nav.enviar(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .with(req -> {
+                    req.setRemoteAddr(ip);
+                    return req;
+                })
+                .content("""
+                        {"email": "%s", "senha": "%s"}""".formatted(email, SENHA_PADRAO)));
+    }
+
+    @Test
     void membroRemovidoPerdeASessaoENaoEntraMais() throws Exception {
         Membro filha = adicionarMembro(dono, "filha@teste.com", PapelFamilia.MEMBRO);
         Navegador daFilha = new Navegador();

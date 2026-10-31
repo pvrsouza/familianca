@@ -89,6 +89,15 @@ public class AuthController {
                                        HttpServletResponse response) {
         String email = Usuario.normalizarEmail(corpo.email());
         String ip = request.getRemoteAddr();
+        // O limite do IP vem antes: IP bloqueado não gasta tentativa do e-mail. Audita só a primeira recusa da rodada.
+        switch (limite.tentarPorIp(ip)) {
+            case PERMITIDO -> { }
+            case BLOQUEADO_AGORA -> {
+                auditoria.loginBloqueado(email);
+                throw new TentativasExcedidasException(limite.segundosParaNovaTentativa());
+            }
+            case BLOQUEADO -> throw new TentativasExcedidasException(limite.segundosParaNovaTentativa());
+        }
         if (!limite.tentar(ip, email)) {
             auditoria.loginBloqueado(email);
             throw new TentativasExcedidasException(limite.segundosParaNovaTentativa());

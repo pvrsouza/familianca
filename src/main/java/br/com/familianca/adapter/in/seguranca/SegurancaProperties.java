@@ -38,9 +38,13 @@ public record SegurancaProperties(
             @DefaultValue("12h") Duration duracaoMaxima) {
     }
 
-    /** Limite de tentativas de login por IP + e-mail. */
+    /**
+     * Limite de tentativas de login por IP + e-mail e, além dele, por IP para qualquer e-mail (contra quem testa
+     * muitas contas do mesmo IP). O login certo não devolve tentativa ao limite do IP.
+     */
     public record Login(
             @DefaultValue("5") int maxTentativas,
+            @DefaultValue("30") int maxTentativasIp,
             @DefaultValue("15m") Duration janela) {
     }
 
