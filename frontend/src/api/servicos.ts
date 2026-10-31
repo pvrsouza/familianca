@@ -1,6 +1,6 @@
 import { api } from './http'
 import type {
-  Carteira, Categoria, Convite, ConviteAberto, Estimativa, Familia, FormaPagamento, Frequencia, Grupo, Impacto, Investimento, Lancamento, Membro,
+  Carteira, Categoria, Convite, ConviteAberto, Estimativa, Familia, FormaPagamento, Frequencia, Grupo, Impacto, ImportacaoFeita, ImportacaoLote, ImportacaoDesfeita, AnaliseExtrato, LinhaParaGravar, Investimento, Lancamento, Membro,
   ContasDoMes, SaldosDoMes, Natureza, NotaFiscal, Papel, Pendente, Periodicidade, Recorrencia, Saldo, MovimentoDoMes, LugarSaldo, TipoLugarSaldo, SituacaoMfa, Tipo, TipoInvestimento,
   UsuarioLogado, VisaoAnual,
 } from './tipos'
@@ -232,4 +232,18 @@ export const visao = {
   ano: (ano: number) => api.get<VisaoAnual>(`/api/visao-anual/${ano}`),
   impacto: (valor: number, periodicidade: Periodicidade, ano?: number) =>
     api.post<Impacto>('/api/impacto', { valor, periodicidade, ano }),
+}
+
+export const importacoes = {
+  /** Lê o arquivo OFX/OFC no servidor e devolve as linhas classificadas. O arquivo não fica guardado. */
+  analisar: (arquivo: File, localSaldoId: number) => {
+    const f = new FormData()
+    f.append('arquivo', arquivo)
+    f.append('localSaldoId', String(localSaldoId))
+    return api.post<AnaliseExtrato>('/api/importacoes/analisar', f)
+  },
+  gravar: (d: { localSaldoId: number; periodoDe: string | null; periodoAte: string | null; linhas: LinhaParaGravar[] }) =>
+    api.post<ImportacaoFeita>('/api/importacoes', d),
+  listar: () => api.get<ImportacaoLote[]>('/api/importacoes'),
+  desfazer: (id: number) => api.delete<ImportacaoDesfeita>(`/api/importacoes/${id}`),
 }
