@@ -1,7 +1,9 @@
 package br.com.familianca.adapter.in.web;
 
 import br.com.familianca.domain.exception.AcessoNegadoException;
+import br.com.familianca.domain.exception.ArquivoInvalidoException;
 import br.com.familianca.domain.exception.ConflitoException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import br.com.familianca.domain.exception.NaoEncontradoException;
 import br.com.familianca.domain.exception.RecursoForaDoPlanoException;
 import br.com.familianca.domain.exception.RegraNegocioException;
@@ -60,6 +62,11 @@ public class TratadorErros extends ResponseEntityExceptionHandler {
     @ExceptionHandler(RegraNegocioException.class)
     ProblemDetail regraNegocio(RegraNegocioException e, HttpServletRequest req) {
         return problema(req, UNPROCESSABLE, "Regra de negócio violada", e.getMessage());
+    }
+
+    @ExceptionHandler(ArquivoInvalidoException.class)
+    ProblemDetail arquivoInvalido(ArquivoInvalidoException e, HttpServletRequest req) {
+        return problema(req, HttpStatus.BAD_REQUEST, "Arquivo inválido", e.getMessage());
     }
 
     @ExceptionHandler(RecursoForaDoPlanoException.class)
@@ -123,6 +130,17 @@ public class TratadorErros extends ResponseEntityExceptionHandler {
                 "JSON inválido: " + (causa == null ? ex.getMessage() : causa.lines().findFirst().orElse(causa)));
         corpo.setTitle("Requisição inválida");
         return handleExceptionInternal(ex, corpo, headers, status, request);
+    }
+
+    /** Upload acima do limite do multipart (2 MB): 400 como os demais arquivos inválidos, em vez de 413. */
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex,
+                                                                          HttpHeaders headers, HttpStatusCode status,
+                                                                          WebRequest request) {
+        ProblemDetail corpo = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                "O arquivo é grande demais: o máximo é 2 MB");
+        corpo.setTitle("Arquivo inválido");
+        return handleExceptionInternal(ex, corpo, headers, HttpStatus.BAD_REQUEST, request);
     }
 
     /** Detalhe padrão é "Invalid request content."; aqui lista campo: motivo. */

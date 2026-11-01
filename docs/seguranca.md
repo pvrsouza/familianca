@@ -128,6 +128,7 @@ conseguir entrar (falha fechada) até a chave voltar.
 | ~~Tela do MFA no front~~ | 3 | ✅ Feito (2026-10-17): QR com a biblioteca `qrcode` no navegador, códigos de recuperação com "copiar" e segundo passo do login quando vem `mfaObrigatorio` (`ContaView`, `EntrarView`). |
 | Regras do front | 6 | Seguidas na v1: nenhum `v-html`, CSP sem mudança (sem `unsafe-eval`, fontes servidas pelo app). Manter em toda tela nova. |
 | ~~Faixa nos parâmetros~~ | 5 | ✅ Feito (2026-10-30): `ano` entre 2000 e 2100 (URL, query e corpo do impacto) e `ordem` ≥ 0 (grupos e categorias), com `@Min/@Max` e a validação de método do Spring (sem `@Validated` na classe); fora da faixa responde 400 com "ano: deve estar entre 2000 e 2100". Testes em `FaixasApiTest`. |
+| Importação de extrato: limite próprio | 4 | `/api/importacoes/analisar` lê até 2 MB e 5.000 linhas por requisição e hoje só tem o teto global de 300 req/min por IP. Antes de abrir para outras famílias, avaliar um limite menor (ex.: 10 análises por minuto por usuário). Já aplicado (2026-10-31): leitor de OFX sem parser XML (sem XXE/DTD), limites de tamanho e linhas, conferência de duplicidade refeita ao gravar com restrição única, permissões MEMBRO/DONO, nada de descrição ou valor em log, arquivo nunca em disco. |
 | Verificação de dependências | — | OWASP `dependency-check-maven` (ou Trivy na imagem) rodando no build e gitleaks no pre-commit para pegar segredo antes do commit. Quando houver repositório remoto: Dependabot e CI rodando `./mvnw test`. |
 
 ### Fase 2 — antes de abrir para outras famílias (assinatura)

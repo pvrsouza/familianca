@@ -28,4 +28,12 @@ public final class Referencias {
             return m != null ? new MembroRef(m.id(), m.nome()) : null;
         }
     }
+
+    /** A conta (lugar onde está o dinheiro) do lançamento. */
+    public record LocalRef(Long id, String nome) {
+
+        public static LocalRef de(br.com.familianca.domain.model.LocalSaldo l) {
+            return l == null ? null : new LocalRef(l.id(), l.nome());
+        }
+    }
 }

@@ -35,11 +35,13 @@ public record RecorrenciaRequest(
                 Só despesa: a conta não tem data certa para pagar (ex.: mesada). O dia só posiciona a ocorrência no                 mês e não há "em dia / com atraso". Nulo = tem vencimento.""") Boolean semVencimento,
         @Schema(description = """
                 Só despesa: BOLETO_PIX (alguém paga até o vencimento), DEBITO_AUTOMATICO (sai sozinho; basta                 conferir) ou CARTAO_CREDITO (vai para a fatura; sem vencimento próprio). Nulo = não informado.""")
-        FormaPagamento formaPagamento) {
+        FormaPagamento formaPagamento,
+        @Schema(description = "A conta (lugar onde está o dinheiro) das ocorrências: cada confirmação nasce com ela. "
+                + "Opcional; nulo = sem conta. MEMBRO só usa conta dele ou da família toda.") Long localSaldoId) {
 
     public DadosRecorrencia paraDados() {
         return new DadosRecorrencia(categoriaId, membroId, descricao, Valores.dinheiro(valor), dia, frequencia,
                 Competencia.parse(inicio), fim != null && !fim.isBlank() ? Competencia.parse(fim) : null, observacao,
-                Boolean.TRUE.equals(confirmarSozinha), Boolean.TRUE.equals(semVencimento), formaPagamento);
+                Boolean.TRUE.equals(confirmarSozinha), Boolean.TRUE.equals(semVencimento), formaPagamento, localSaldoId);
     }
 }

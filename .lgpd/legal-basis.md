@@ -44,6 +44,7 @@ só precisa registrar a **ciência** da política (versão + data), que é trans
 - **Justificativa**: é a funcionalidade contratada. Se no futuro houver categorização automática ou Open Finance,
   reavaliar (Art. 9º, § 2º) e considerar Art. 11 para o que for sensível.
 - **Retenção**: enquanto a família existir; "Apagar todos os dados" já remove; exclusão da família pendente (G02).
+- **Importação de extrato (2026-10-31)**: mesma base (Art. 7º, V): é só outra forma de lançar o que a família já lançaria à mão, por pedido dela. Minimização (Art. 6º, III): o arquivo não é guardado e a linha ignorada guarda só a chave. As descrições do banco podem trazer nome e CPF parcial de terceiros (Pix); ficam como a descrição do lançamento, sob as mesmas regras do texto livre. Sem categorização por IA, perfil nem compartilhamento.
 - **Revogação possível?**: exclusão a qualquer momento pelo DONO.
 - **Última revisão**: 2026-10-25
 

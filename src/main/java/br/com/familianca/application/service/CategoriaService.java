@@ -145,7 +145,8 @@ public class CategoriaService implements GerenciarCategorias {
                 dados.ordem() != null ? dados.ordem() : atual.ordem(), ativa, dados.tributavel(), dados.aliquota(),
                 dados.recorrente() != null ? dados.recorrente() : atual.recorrente(),
                 dados.estimativaInformada() ? dados.estimativa() : atual.estimativa(),
-                mantemRegra ? atual.estimativaDesde() : null, mantemRegra ? atual.estimativaAntes() : null);
+                mantemRegra ? atual.estimativaDesde() : null, mantemRegra ? atual.estimativaAntes() : null,
+                atual.aClassificar());
         categoria.validarNo(grupo);
         boolean passaAUsarPj = (categoria.tributavel() && !atual.tributavel())
                 || (categoria.calculada() && !Objects.equals(categoria.aliquota(), atual.aliquota()));

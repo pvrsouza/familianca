@@ -3,6 +3,7 @@ package br.com.familianca.application.service;
 import br.com.familianca.application.port.in.GerenciarLancamentos;
 import br.com.familianca.application.port.out.DescricaoUsada;
 import br.com.familianca.application.port.out.LancamentoRepository;
+import br.com.familianca.application.port.out.LocalSaldoRepository;
 import br.com.familianca.application.port.out.PlanoContasRepository;
 import br.com.familianca.application.port.out.RecorrenciaRepository;
 import br.com.familianca.application.port.out.Relogio;
@@ -12,6 +13,7 @@ import br.com.familianca.domain.exception.RegraNegocioException;
 import br.com.familianca.domain.model.Categoria;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Lancamento;
+import br.com.familianca.domain.model.LocalSaldo;
 import br.com.familianca.domain.model.Membro;
 import br.com.familianca.domain.model.Parcela;
 import br.com.familianca.domain.model.Recorrencia;
@@ -57,10 +59,15 @@ public class LancamentoService implements GerenciarLancamentos {
     private final Relogio relogio;
     private final RecorrenciaRepository recorrencias;
     private final ConfirmacaoAutomatica confirmacaoAutomatica;
+    private final LocalSaldoRepository locais;
+    private final ValidadorConta validadorConta;
 
     public LancamentoService(LancamentoRepository lancamentos, PlanoContasRepository planoContas,
                              AcessoFamilia acesso, Relogio relogio, RecorrenciaRepository recorrencias,
-                             ConfirmacaoAutomatica confirmacaoAutomatica) {
+                             ConfirmacaoAutomatica confirmacaoAutomatica, LocalSaldoRepository locais,
+                             ValidadorConta validadorConta) {
+        this.locais = locais;
+        this.validadorConta = validadorConta;
         this.lancamentos = lancamentos;
         this.planoContas = planoContas;
         this.acesso = acesso;
@@ -92,6 +99,8 @@ public class LancamentoService implements GerenciarLancamentos {
                 .filter(l -> f.grupoId() == null || l.grupo().id().equals(f.grupoId()))
                 .filter(l -> f.membroId() == null || l.lancamento().membroId().equals(f.membroId()))
                 .filter(l -> f.tipo() == null || l.grupo().tipo() == f.tipo())
+                .filter(l -> f.localSaldoId() == null || f.localSaldoId().equals(l.lancamento().localSaldoId()))
+                .filter(l -> !f.semConta() || l.lancamento().localSaldoId() == null)
                 .sorted(Comparator.comparing((LancamentoDetalhado l) -> l.lancamento().data())
                         .thenComparing(l -> l.lancamento().id()).reversed())
                 .toList();
@@ -108,7 +117,7 @@ public class LancamentoService implements GerenciarLancamentos {
         Membro membro = validar(dados);
         acesso.exigirSaldoInicial();
         Lancamento novo = new Lancamento(null, dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
-                dados.data(), null, null, null, dados.observacao(), dados.notaFiscal());
+                dados.data(), null, null, null, dados.observacao(), dados.notaFiscal(), dados.localSaldoId());
         return detalhador().detalhar(lancamentos.salvar(novo));
     }
 
@@ -123,7 +132,8 @@ public class LancamentoService implements GerenciarLancamentos {
         List<Lancamento> novos = GERADOR.gerar(obrigatorio(dados.valor(), "valor"), parcelas,
                         obrigatorio(dados.data(), "data")).stream()
                 .map(p -> new Lancamento(null, dados.categoriaId(), membro.id(), dados.descricao(), p.valor(),
-                        p.data(), null, null, new Parcela(parcelamento, p.numero(), parcelas), dados.observacao()))
+                        p.data(), null, null, new Parcela(parcelamento, p.numero(), parcelas), dados.observacao(), null,
+                        dados.localSaldoId()))
                 .toList();
         Detalhador d = detalhador();
         return lancamentos.salvarTodos(novos).stream()
@@ -135,9 +145,9 @@ public class LancamentoService implements GerenciarLancamentos {
     public LancamentoDetalhado atualizar(Long id, DadosLancamento dados) {
         Lancamento atual = exigir(id);
         acesso.exigirPodeAlterar(atual.membroId());
-        Membro membro = validar(dados);
+        Membro membro = validar(dados, atual.localSaldoId());
         Lancamento editado = atual.editado(dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
-                dados.data(), dados.observacao(), dados.notaFiscal());
+                dados.data(), dados.observacao(), dados.notaFiscal(), dados.localSaldoId());
         // Confirmação de recorrência: categoria, descrição e pessoa são da recorrência (senão o mês contaria noutra
         // categoria e entraria na previsão da conta). Muda-se a recorrência, que vale para todos os meses.
         if (atual.recorrenciaId() != null && (!editado.categoriaId().equals(atual.categoriaId())
@@ -247,6 +257,12 @@ public class LancamentoService implements GerenciarLancamentos {
 
     /** Categoria lançável e membro ativo; MEMBRO só lança em nome próprio. */
     private Membro validar(DadosLancamento dados) {
+        return validar(dados, null);
+    }
+
+    /** contaAtual: a conta que o lançamento já tem (na edição); mantê-la não exige que ela ainda esteja ativa. */
+    private Membro validar(DadosLancamento dados, Long contaAtual) {
+        validadorConta.exigir(dados.localSaldoId(), contaAtual);
         Categoria categoria = planoContas.buscarCategoria(obrigatorio(dados.categoriaId(), "categoria"))
                 .orElseThrow(() -> new NaoEncontradoException("Categoria não encontrada: " + dados.categoriaId()));
         categoria.exigirLancavel(planoContas.buscarGrupo(categoria.grupoId()).orElseThrow());
@@ -262,7 +278,7 @@ public class LancamentoService implements GerenciarLancamentos {
 
     private Detalhador detalhador() {
         return new Detalhador(planoContas.listarCategorias(), planoContas.listarGrupos(), acesso.membrosPorId(),
-                recorrencias.listar());
+                recorrencias.listar(), locais.listar());
     }
 
     /** Junta categoria, grupo e membro carregados uma vez por chamada. */
@@ -272,9 +288,16 @@ public class LancamentoService implements GerenciarLancamentos {
         private final Map<Long, Grupo> grupos;
         private final Map<Long, Membro> membros;
         private final Map<Long, Recorrencia> recorrencias;
+        private final Map<Long, LocalSaldo> locais;
 
         Detalhador(List<Categoria> categorias, List<Grupo> grupos, Map<Long, Membro> membros,
                    List<Recorrencia> recorrencias) {
+            this(categorias, grupos, membros, recorrencias, List.of());
+        }
+
+        Detalhador(List<Categoria> categorias, List<Grupo> grupos, Map<Long, Membro> membros,
+                   List<Recorrencia> recorrencias, List<LocalSaldo> locais) {
+            this.locais = locais.stream().collect(Collectors.toMap(LocalSaldo::id, Function.identity()));
             this.categorias = categorias.stream().collect(Collectors.toMap(Categoria::id, Function.identity()));
             this.grupos = grupos.stream().collect(Collectors.toMap(Grupo::id, Function.identity()));
             this.membros = membros;
@@ -284,7 +307,8 @@ public class LancamentoService implements GerenciarLancamentos {
         LancamentoDetalhado detalhar(Lancamento l) {
             Categoria c = categorias.get(l.categoriaId());
             Grupo g = grupos.get(c.grupoId());
-            return new LancamentoDetalhado(l, c, g, membros.get(l.membroId()), vencimento(l, g));
+            return new LancamentoDetalhado(l, c, g, membros.get(l.membroId()), vencimento(l, g),
+                    l.localSaldoId() != null ? locais.get(l.localSaldoId()) : null);
         }
 
         /** Vencimento da conta que o lançamento pagou: só confirmação de despesa que se repete e tem vencimento. */

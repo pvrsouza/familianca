@@ -255,6 +255,41 @@ class RecorrenciaApiTest extends IntegracaoBase {
     }
 
     @Test
+    void contaDaRecorrenciaVaiParaCadaConfirmacaoEPodeMudarNoMes() throws Exception {
+        Long itau = postarERetornarId("/api/locais-saldo", "{\"nome\": \"Itaú\", \"tipo\": \"CONTA_CORRENTE\"}");
+        Long nubank = postarERetornarId("/api/locais-saldo", "{\"nome\": \"Nubank\", \"tipo\": \"CONTA_CORRENTE\"}");
+        Long condominio = categoria("Habitação", "Condomínio");
+        String corpo = """
+                {"categoriaId": %d, "descricao": "Condomínio", "valor": 200, "dia": 5, "frequencia": "MENSAL",
+                 "inicio": "2026-08", "localSaldoId": %d%s}""";
+
+        Long id = postarERetornarId("/api/recorrencias", corpo.formatted(condominio, itau, ""));
+        mvc.perform(get("/api/recorrencias/{id}", id)).andExpect(jsonPath("$.localSaldoId").value(itau));
+
+        // Confirmar sem dizer a conta usa a da recorrência; dizendo, vale só naquele mês.
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-09/confirmacao", id))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.conta.nome").value("Itaú"));
+        mvc.perform(post("/api/recorrencias/{id}/ocorrencias/2026-10/confirmacao", id)
+                        .contentType(APPLICATION_JSON).content("{\"localSaldoId\": %d}".formatted(nubank)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.conta.nome").value("Nubank"));
+        mvc.perform(get("/api/recorrencias/{id}", id)).andExpect(jsonPath("$.localSaldoId").value(itau));
+
+        // Conta que não existe: 404.
+        mvc.perform(post("/api/recorrencias").contentType(APPLICATION_JSON)
+                .content(corpo.formatted(condominio, 999999L, "").replace("\"Condomínio\"", "\"Outro\"")))
+                .andExpect(status().isNotFound());
+
+        // A que confirma sozinha também leva a conta: em 06/12, novembro e dezembro nascem no Itaú.
+        mvc.perform(put("/api/recorrencias/{id}", id).contentType(APPLICATION_JSON)
+                .content(corpo.formatted(condominio, itau, ", \"confirmarSozinha\": true"))).andExpect(status().isOk());
+        relogio.definir(java.time.LocalDate.of(2026, 12, 6));
+        mvc.perform(get("/api/lancamentos").param("de", "2026-11-01").param("ate", "2026-12-31"))
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].conta.nome").value("Itaú"))
+                .andExpect(jsonPath("$[1].conta.nome").value("Itaú"));
+    }
+
+    @Test
     void vencimentoFormaDePagamentoEAtraso() throws Exception {
         // Hoje = 17/10/2026. Condomínio por boleto, vence dia 10.
         Long condominio = postarERetornarId("/api/recorrencias", """

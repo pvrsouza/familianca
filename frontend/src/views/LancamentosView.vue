@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronLeft, ChevronRight, Repeat, Search, X } from 'lucide-vue-next'
-import { lancamentos as apiLancamentos, type OrigemLancamento } from '../api/servicos'
-import type { Lancamento, Tipo } from '../api/tipos'
+import { ChevronLeft, ChevronRight, Repeat, Search, Upload, X } from 'lucide-vue-next'
+import { lancamentos as apiLancamentos, lugaresSaldo, type OrigemLancamento } from '../api/servicos'
+import type { Lancamento, LugarSaldo, Tipo } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { catalogo } from '../estado/catalogo'
@@ -12,6 +12,7 @@ import { MESES, anoAtual, competenciaPorExtenso, dataCurta, dataPorExtenso, mesA
 import PainelLateral from '../componentes/PainelLateral.vue'
 import FormLancamento from '../componentes/FormLancamento.vue'
 import EstadoVazio from '../componentes/EstadoVazio.vue'
+import AvisoSemCategoria from '../componentes/AvisoSemCategoria.vue'
 import Mensagem from '../componentes/Mensagem.vue'
 
 const route = useRoute()
@@ -43,7 +44,12 @@ const ORIGENS: Record<OrigemLancamento, string> = {
 const origem = computed<OrigemLancamento | null>(() =>
   typeof route.query.origem === 'string' && route.query.origem in ORIGENS ? (route.query.origem as OrigemLancamento) : null)
 /** Algum filtro além do período: o vazio diz "nada encontrado" e oferece limpar. */
-const filtrando = computed(() => !!(termo.value || categoriaId.value || origem.value || tipo.value || membroId.value))
+const filtrando = computed(() => !!(termo.value || categoriaId.value || origem.value || tipo.value || membroId.value || soAClassificar.value || conta.value))
+/** Filtro de conta na URL: o id do lugar ou "sem" (lançamentos sem conta). */
+const conta = computed(() => (route.query.conta === 'sem' ? 'sem' : Number(route.query.conta) || null))
+const contas = ref<LugarSaldo[]>([])
+/** Só o que está na categoria "A classificar" (a marca é da categoria, não do nome). */
+const soAClassificar = computed(() => route.query.aClassificar === '1')
 
 // A busca vai para a URL (e para o servidor) só quando a pessoa para de digitar.
 const busca = ref(termo.value)
@@ -54,7 +60,11 @@ watch(busca, (v) => {
 })
 watch(termo, (t) => { if (t !== busca.value.trim()) busca.value = t })
 
-const lista = ref<Lancamento[]>([])
+const todos = ref<Lancamento[]>([])
+const idsAClassificar = computed(() => new Set(catalogo.estado.grupos.flatMap((g) => g.categorias.filter((c) => c.aClassificar).map((c) => c.id))))
+const aClassificar = (l: Lancamento) => idsAClassificar.value.has(l.categoria.id)
+const qtdAClassificar = computed(() => todos.value.filter(aClassificar).length)
+const lista = computed(() => (soAClassificar.value ? todos.value.filter(aClassificar) : todos.value))
 const carregando = ref(true)
 const erro = ref('')
 const novo = ref(route.query.novo === '1')
@@ -81,13 +91,15 @@ async function carregar() {
   carregando.value = true
   erro.value = ''
   try {
-    lista.value = await apiLancamentos.listar({
+    todos.value = await apiLancamentos.listar({
       ...periodo(),
       categoriaId: categoriaId.value ?? undefined,
       membroId: membroId.value ?? undefined,
       tipo: tipo.value ?? undefined,
       q: termo.value || undefined,
       origem: origem.value ?? undefined,
+      localSaldoId: typeof conta.value === 'number' ? conta.value : undefined,
+      semConta: conta.value === 'sem' ? true : undefined,
     })
   } catch (e) {
     erro.value = mensagemDeErro(e)
@@ -97,8 +109,15 @@ async function carregar() {
 }
 
 watch(() => [route.query.ano, route.query.mes, route.query.periodo, route.query.de, route.query.ate, route.query.categoriaId,
-  route.query.tipo, route.query.membroId, route.query.q, route.query.origem, sessao.estado.versaoDados], carregar, { immediate: true })
-onMounted(() => catalogo.carregar())
+  route.query.tipo, route.query.membroId, route.query.q, route.query.origem, route.query.conta, sessao.estado.versaoDados], carregar, { immediate: true })
+onMounted(async () => {
+  catalogo.carregar()
+  try {
+    contas.value = await lugaresSaldo.listar()
+  } catch {
+    contas.value = [] // sem a lista, só o filtro de conta some; a lista de lançamentos segue
+  }
+})
 
 function filtrar(mudanca: Record<string, string | number | null | undefined>) {
   const q: Record<string, string> = {}
@@ -130,7 +149,7 @@ function mudarTipo(t: Tipo | null) {
 
 function limparFiltros() {
   busca.value = ''
-  filtrar({ q: null, categoriaId: null, origem: null, tipo: null, membroId: null })
+  filtrar({ q: null, categoriaId: null, origem: null, tipo: null, membroId: null, aClassificar: null, conta: null })
 }
 
 function mudarMes(delta: number) {
@@ -206,6 +225,7 @@ const tituloMes = computed(() => tituloPeriodo.value.charAt(0).toUpperCase() + t
         <h1>Lançamentos</h1>
         <p>O que entrou e saiu, de quem é cada um. Cada pessoa altera os próprios; quem organiza altera todos.</p>
       </div>
+      <RouterLink to="/importar" class="botao"><Upload aria-hidden="true" /> Importar extrato</RouterLink>
     </header>
 
     <div class="filtros">
@@ -284,6 +304,15 @@ const tituloMes = computed(() => tituloPeriodo.value.charAt(0).toUpperCase() + t
           </select>
         </label>
 
+        <label v-if="contas.length" class="filtro-select">
+          <span class="sr">Conta</span>
+          <select class="selecao" :value="conta ?? ''" @change="filtrar({ conta: ($event.target as HTMLSelectElement).value || null })">
+            <option value="">Todas as contas</option>
+            <option v-for="c in contas" :key="c.id" :value="c.id">{{ c.nome }}{{ c.ativo ? '' : ' (desativada)' }}</option>
+            <option value="sem">Sem conta</option>
+          </select>
+        </label>
+
         <label v-if="membros.length > 1" class="filtro-select">
           <span class="sr">Pessoa</span>
           <select class="selecao" :value="membroId ?? ''" @change="filtrar({ membroId: ($event.target as HTMLSelectElement).value || null })">
@@ -297,6 +326,13 @@ const tituloMes = computed(() => tituloPeriodo.value.charAt(0).toUpperCase() + t
         </button>
       </div>
     </div>
+
+    <AvisoSemCategoria v-if="!carregando && (qtdAClassificar || soAClassificar)" :quantidade="qtdAClassificar" periodo="neste período">
+      <button type="button" class="botao botao-pequeno" :aria-pressed="soAClassificar"
+              @click="filtrar({ aClassificar: soAClassificar ? null : 1 })">
+        {{ soAClassificar ? 'Ver todos' : 'Ver só esses' }}
+      </button>
+    </AvisoSemCategoria>
 
     <p v-if="!carregando && lista.length" class="totais">
       <span>Despesas <strong class="num">{{ reais(totalDespesas) }}</strong></span>
@@ -336,11 +372,11 @@ const tituloMes = computed(() => tituloPeriodo.value.charAt(0).toUpperCase() + t
         <ul class="lista">
           <li v-for="l in itens" :key="l.id">
             <component :is="podeAlterar(l) ? 'button' : 'div'" :type="podeAlterar(l) ? 'button' : undefined"
-                       class="item" :class="{ clicavel: podeAlterar(l) }" @click="abrir(l)">
+                       class="item" :class="{ clicavel: podeAlterar(l), 'sem-categoria': aClassificar(l) }" @click="abrir(l)">
               <span class="item-texto">
-                <span class="descricao">{{ l.descricao }}</span>
+                <span class="descricao">{{ l.descricao }}<span v-if="aClassificar(l)" class="selo selo-atraso">sem categoria</span></span>
                 <span class="meta">
-                  {{ l.categoria.nome }} · {{ l.grupo.nome }}<template v-if="l.membro"> · {{ l.membro.nome }}</template>
+                  {{ l.categoria.nome }} · {{ l.grupo.nome }}<template v-if="l.membro"> · {{ l.membro.nome }}</template><template v-if="l.conta"> · {{ l.conta.nome }}</template>
                   · {{ l.notaFiscal ? 'entrou na conta' : l.tipo === 'RECEITA' ? 'recebido' : 'pago' }} em {{ dataPorExtenso(l.data) }}
                   <template v-if="l.notaFiscal">
                     <br />Nota<template v-if="l.notaFiscal.competencia"> de {{ competenciaPorExtenso(l.notaFiscal.competencia) }}</template><template
@@ -523,6 +559,15 @@ const tituloMes = computed(() => tituloPeriodo.value.charAt(0).toUpperCase() + t
 
 .item.clicavel {
   cursor: pointer;
+}
+
+/* Sem categoria: faixa na borda esquerda, além do selo, para a pessoa achar de relance ao rolar a lista. */
+.item.sem-categoria {
+  box-shadow: inset 4px 0 0 var(--erro);
+}
+
+.descricao .selo {
+  margin-left: var(--e-2);
 }
 
 .item.clicavel:hover {

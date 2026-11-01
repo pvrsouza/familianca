@@ -3,6 +3,7 @@ package br.com.familianca.application.port.in;
 import br.com.familianca.domain.model.Categoria;
 import br.com.familianca.domain.model.Grupo;
 import br.com.familianca.domain.model.Lancamento;
+import br.com.familianca.domain.model.LocalSaldo;
 import br.com.familianca.domain.model.Membro;
 import br.com.familianca.domain.model.NotaFiscal;
 import br.com.familianca.domain.model.TipoMovimento;
@@ -44,35 +45,49 @@ public interface GerenciarLancamentos {
 
     /**
      * termo: parte da descrição, observação, categoria, grupo ou pessoa, sem ligar para acento e maiúscula; nulo =
-     * todos. origem: de onde veio o lançamento; nulo = todos.
+     * todos. origem: de onde veio o lançamento; nulo = todos. localSaldoId: só os dessa conta; semConta: só os que
+     * não têm conta.
      */
     record Filtro(LocalDate de, LocalDate ate, Long categoriaId, Long grupoId, Long membroId, TipoMovimento tipo,
-                  String termo, Origem origem) {
+                  String termo, Origem origem, Long localSaldoId, boolean semConta) {
+
+        public Filtro(LocalDate de, LocalDate ate, Long categoriaId, Long grupoId, Long membroId, TipoMovimento tipo,
+                      String termo, Origem origem) {
+            this(de, ate, categoriaId, grupoId, membroId, tipo, termo, origem, null, false);
+        }
 
         public Filtro(LocalDate de, LocalDate ate, Long categoriaId, Long grupoId, Long membroId, TipoMovimento tipo) {
-            this(de, ate, categoriaId, grupoId, membroId, tipo, null, null);
+            this(de, ate, categoriaId, grupoId, membroId, tipo, null, null, null, false);
         }
     }
 
     /** AVULSO: lançado uma vez; RECORRENTE: confirmação de algo que se repete; PARCELADO: parcela de uma compra. */
     enum Origem { AVULSO, RECORRENTE, PARCELADO }
 
-    /** membroId nulo = o membro logado. notaFiscal: só receita tributável; nulo = não informada. */
+    /**
+     * membroId nulo = o membro logado. notaFiscal: só receita tributável; nulo = não informada. localSaldoId: a conta
+     * (opcional; nulo = sem conta).
+     */
     record DadosLancamento(Long categoriaId, Long membroId, String descricao, Dinheiro valor, LocalDate data,
-                           String observacao, NotaFiscal notaFiscal) {
+                           String observacao, NotaFiscal notaFiscal, Long localSaldoId) {
+
+        public DadosLancamento(Long categoriaId, Long membroId, String descricao, Dinheiro valor, LocalDate data,
+                               String observacao, NotaFiscal notaFiscal) {
+            this(categoriaId, membroId, descricao, valor, data, observacao, notaFiscal, null);
+        }
 
         public DadosLancamento(Long categoriaId, Long membroId, String descricao, Dinheiro valor, LocalDate data,
                                String observacao) {
-            this(categoriaId, membroId, descricao, valor, data, observacao, null);
+            this(categoriaId, membroId, descricao, valor, data, observacao, null, null);
         }
     }
 
     /** @param vencimento da ocorrência que o lançamento confirmou (despesa com vencimento); nulo = não tem */
     record LancamentoDetalhado(Lancamento lancamento, Categoria categoria, Grupo grupo, Membro membro,
-                               LocalDate vencimento) {
+                               LocalDate vencimento, LocalSaldo local) {
 
         public LancamentoDetalhado(Lancamento lancamento, Categoria categoria, Grupo grupo, Membro membro) {
-            this(lancamento, categoria, grupo, membro, null);
+            this(lancamento, categoria, grupo, membro, null, null);
         }
     }
 }

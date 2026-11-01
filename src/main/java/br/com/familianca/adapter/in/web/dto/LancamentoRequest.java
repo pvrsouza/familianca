@@ -19,10 +19,12 @@ public record LancamentoRequest(
         @NotNull @Positive BigDecimal valor,
         @Schema(description = "Define o mês do lançamento. Na nota fiscal, é o dia em que o dinheiro entrou na conta.") @NotNull LocalDate data,
         @Size(max = 500) String observacao,
-        @Schema(description = "Só receita tributável. Nulo = sem nota.") @Valid NotaFiscalDto notaFiscal) {
+        @Schema(description = "Só receita tributável. Nulo = sem nota.") @Valid NotaFiscalDto notaFiscal,
+        @Schema(description = "A conta (lugar onde está o dinheiro). Opcional; nulo = sem conta. MEMBRO só usa conta "
+                + "dele ou da família toda.") Long localSaldoId) {
 
     public DadosLancamento paraDados() {
         return new DadosLancamento(categoriaId, membroId, descricao, Valores.dinheiro(valor), data, observacao,
-                notaFiscal != null ? notaFiscal.paraDominio() : null);
+                notaFiscal != null ? notaFiscal.paraDominio() : null, localSaldoId);
     }
 }

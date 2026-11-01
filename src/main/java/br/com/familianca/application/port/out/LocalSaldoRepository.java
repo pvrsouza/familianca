@@ -18,6 +18,6 @@ public interface LocalSaldoRepository {
 
     boolean existeNome(String nome, Long ignorarId);
 
-    /** Se já entrou em algum saldo de mês. */
+    /** Se já entrou em algum saldo de mês ou tem lançamentos. */
     boolean emUso(Long id);
 }

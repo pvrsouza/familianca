@@ -3,7 +3,7 @@
 **Projeto**: Familiança
 **Cenário**: A — Greenfield (ainda sem deploy nem famílias de fora)
 **Início**: 2026-10-25
-**Última atualização**: 2026-10-25
+**Última atualização**: 2026-10-31 (importação de extrato: A03, G15, rascunho da política)
 **Controlador**: CSS Consultoria em Tecnologia da Informação Ltda. (PVRS Consultoria em TI), CNPJ
 42.694.582/0001-01, ME no Simples Nacional — decidido em 2026-10-25 no lugar da pessoa física (não expõe CPF e
 endereço residencial, emite nota da assinatura, separa o patrimônio; em troca, guarda o registro de acesso por 6

@@ -16,6 +16,8 @@ import static br.com.familianca.domain.Validacoes.obrigatorio;
  *   lançamentos nem recorrências; o valor sai do cálculo.
  * - recorrente: o que costuma se repetir todo mês (ex.: aluguel, telefone, salário). Ao lançar nela, o sistema já
  *   sugere repetir o valor no ano (cria a recorrência). Não obriga: dá para lançar uma vez só.
+ * - aClassificar: a categoria que a importação de extrato usa quando a linha não tem categoria. É uma marca da
+ *   categoria (não depende do nome): sobrevive a renomeação e a tela usa para destacar o que falta classificar.
  * - estimativa: como prever os próximos meses (a estimativa da despesa avulsa e o previsto das contas que se repetem
  *   e seguem a categoria); nulo = segue a regra da família.
  * - estimativaDesde/estimativaAntes: a regra mudou a partir de um mês futuro; até lá vale estimativaAntes (nula =
@@ -23,7 +25,7 @@ import static br.com.familianca.domain.Validacoes.obrigatorio;
  */
 public record Categoria(Long id, Long grupoId, String nome, int ordem, boolean ativa, boolean tributavel,
                         Percentual aliquota, boolean recorrente, Estimativa estimativa, Competencia estimativaDesde,
-                        Estimativa estimativaAntes) {
+                        Estimativa estimativaAntes, boolean aClassificar) {
 
     public static final int NOME_MAXIMO = 120;
 
@@ -45,6 +47,13 @@ public record Categoria(Long id, Long grupoId, String nome, int ordem, boolean a
         if (estimativaDesde == null) {
             estimativaAntes = null;
         }
+    }
+
+    public Categoria(Long id, Long grupoId, String nome, int ordem, boolean ativa, boolean tributavel,
+                     Percentual aliquota, boolean recorrente, Estimativa estimativa, Competencia estimativaDesde,
+                     Estimativa estimativaAntes) {
+        this(id, grupoId, nome, ordem, ativa, tributavel, aliquota, recorrente, estimativa, estimativaDesde,
+                estimativaAntes, false);
     }
 
     public Categoria(Long id, Long grupoId, String nome, int ordem, boolean ativa, boolean tributavel,
@@ -88,7 +97,7 @@ public record Categoria(Long id, Long grupoId, String nome, int ordem, boolean a
         Estimativa antes = estimativaEm(mesAtual);
         boolean depois = desde != null && mesAtual.antesDe(desde) && !Objects.equals(antes, nova);
         return new Categoria(id, grupoId, nome, ordem, ativa, tributavel, aliquota, recorrente, nova,
-                depois ? desde : null, depois ? antes : null);
+                depois ? desde : null, depois ? antes : null, aClassificar);
     }
 
     public boolean calculada() {

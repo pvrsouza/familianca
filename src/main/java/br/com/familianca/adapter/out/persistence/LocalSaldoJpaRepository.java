@@ -23,4 +23,7 @@ public interface LocalSaldoJpaRepository extends JpaRepository<LocalSaldoEntity,
             select count(s) > 0 from SaldoMesEntity s join s.porLocal p
             where s.familiaId = :familiaId and key(p) = :localId""")
     boolean emUso(@Param("familiaId") Long familiaId, @Param("localId") Long localId);
+
+    @Query("select count(l) > 0 from LancamentoEntity l where l.familiaId = :familiaId and l.localSaldoId = :localId")
+    boolean temLancamentos(@Param("familiaId") Long familiaId, @Param("localId") Long localId);
 }

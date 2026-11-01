@@ -34,6 +34,8 @@ import static br.com.familianca.domain.Validacoes.opcional;
  *   como a data da ocorrência: é a data sugerida ao confirmar e a que decide se já venceu.
  * - valoresAjustados: valor previsto diferente só numa ocorrência (a conta deste mês veio mais cara), sem confirmar.
  *   Vale acima da estimativa pela regra e é o valor usado ao confirmar sem informar outro.
+ * - localSaldoId: a conta (lugar onde está o dinheiro) das ocorrências; cada confirmação nasce com ela (dá para trocar
+ *   só no mês ao confirmar). Nulo = sem conta.
  * - estimativa: regra própria para prever os próximos meses desta conta (ver {@link Estimativa}); nula = segue a da
  *   categoria (ou da família). Só despesa.
  * - estimativaDesde/estimativaAntes: a regra mudou a partir de um mês futuro; até lá vale estimativaAntes (nula =
@@ -45,7 +47,7 @@ public record Recorrencia(Long id, Long categoriaId, Long membroId, String descr
                           boolean semVencimento, FormaPagamento formaPagamento,
                           Map<Competencia, LocalDate> vencimentosAjustados,
                           Map<Competencia, Dinheiro> valoresAjustados, Estimativa estimativa,
-                          Competencia estimativaDesde, Estimativa estimativaAntes) {
+                          Competencia estimativaDesde, Estimativa estimativaAntes, Long localSaldoId) {
 
     /** Um vencimento ajustado pode cair até este número de meses antes ou depois do mês da ocorrência. */
     public static final int AJUSTE_MAXIMO_MESES = 2;
@@ -86,6 +88,18 @@ public record Recorrencia(Long id, Long categoriaId, Long membroId, String descr
         if (estimativaDesde == null) {
             estimativaAntes = null;
         }
+    }
+
+    /** Sem conta. */
+    public Recorrencia(Long id, Long categoriaId, Long membroId, String descricao, Dinheiro valor, int dia,
+                       Frequencia frequencia, Competencia inicio, Competencia fim, String observacao,
+                       Set<Competencia> puladas, LocalDate confirmarSozinhaDesde, Competencia valorDesde,
+                       boolean semVencimento, FormaPagamento formaPagamento,
+                       Map<Competencia, LocalDate> vencimentosAjustados, Map<Competencia, Dinheiro> valoresAjustados,
+                       Estimativa estimativa, Competencia estimativaDesde, Estimativa estimativaAntes) {
+        this(id, categoriaId, membroId, descricao, valor, dia, frequencia, inicio, fim, observacao, puladas,
+                confirmarSozinhaDesde, valorDesde, semVencimento, formaPagamento, vencimentosAjustados,
+                valoresAjustados, estimativa, estimativaDesde, estimativaAntes, null);
     }
 
     public Recorrencia(Long id, Long categoriaId, Long membroId, String descricao, Dinheiro valor, int dia,
@@ -218,7 +232,7 @@ public record Recorrencia(Long id, Long categoriaId, Long membroId, String descr
         }
         return new Recorrencia(id, categoriaId, membroId, descricao, valor, dia, frequencia, inicio, fim, observacao,
                 puladas, confirmarSozinhaDesde, valorDesde, semVencimento, formaPagamento, novos, valoresAjustados,
-                estimativa, estimativaDesde, estimativaAntes);
+                estimativa, estimativaDesde, estimativaAntes, localSaldoId);
     }
 
     /** O valor ajustado daquele mês, se houver. */
@@ -236,7 +250,7 @@ public record Recorrencia(Long id, Long categoriaId, Long membroId, String descr
         }
         return new Recorrencia(id, categoriaId, membroId, descricao, valor, dia, frequencia, inicio, fim, observacao,
                 puladas, confirmarSozinhaDesde, valorDesde, semVencimento, formaPagamento, vencimentosAjustados, novos,
-                estimativa, estimativaDesde, estimativaAntes);
+                estimativa, estimativaDesde, estimativaAntes, localSaldoId);
     }
 
     /**
@@ -261,7 +275,14 @@ public record Recorrencia(Long id, Long categoriaId, Long membroId, String descr
         Competencia desde = novo.equals(valor) ? valorDesde : competencia;
         return new Recorrencia(id, categoriaId, membroId, descricao, novo, dia, frequencia, inicio, fim, observacao,
                 puladas, confirmarSozinhaDesde, desde, semVencimento, formaPagamento, vencimentosAjustados, novos,
-                estimativa, estimativaDesde, estimativaAntes);
+                estimativa, estimativaDesde, estimativaAntes, localSaldoId);
+    }
+
+    /** Mesma recorrência com outra conta (nula = sem conta). */
+    public Recorrencia comConta(Long novaConta) {
+        return new Recorrencia(id, categoriaId, membroId, descricao, valor, dia, frequencia, inicio, fim, observacao,
+                puladas, confirmarSozinhaDesde, valorDesde, semVencimento, formaPagamento, vencimentosAjustados,
+                valoresAjustados, estimativa, estimativaDesde, estimativaAntes, novaConta);
     }
 
     /** Quanto a recorrência pesa num ano cheio (valor × vezes por ano), independentemente de início e fim. */
@@ -272,7 +293,7 @@ public record Recorrencia(Long id, Long categoriaId, Long membroId, String descr
     public Recorrencia comPuladas(Set<Competencia> novas) {
         return new Recorrencia(id, categoriaId, membroId, descricao, valor, dia, frequencia, inicio, fim, observacao,
                 novas, confirmarSozinhaDesde, valorDesde, semVencimento, formaPagamento, vencimentosAjustados,
-                valoresAjustados, estimativa, estimativaDesde, estimativaAntes);
+                valoresAjustados, estimativa, estimativaDesde, estimativaAntes, localSaldoId);
     }
 
     /** A regra própria que vale no mês (nula = segue a categoria): antes de estimativaDesde, a de antes da mudança. */
@@ -290,7 +311,8 @@ public record Recorrencia(Long id, Long categoriaId, Long membroId, String descr
         boolean depois = desde != null && mesAtual.antesDe(desde) && !Objects.equals(antes, nova);
         Recorrencia r = new Recorrencia(id, categoriaId, membroId, descricao, valor, dia, frequencia, inicio, fim,
                 observacao, puladas, confirmarSozinhaDesde, valorDesde, semVencimento, formaPagamento,
-                vencimentosAjustados, valoresAjustados, nova, depois ? desde : null, depois ? antes : null);
+                vencimentosAjustados, valoresAjustados, nova, depois ? desde : null, depois ? antes : null,
+                localSaldoId);
         return desde != null ? r.semAjustesDesde(desde) : r;
     }
 
@@ -300,6 +322,6 @@ public record Recorrencia(Long id, Long categoriaId, Long membroId, String descr
         novos.keySet().removeIf(c -> !c.antesDe(desde));
         return new Recorrencia(id, categoriaId, membroId, descricao, valor, dia, frequencia, inicio, fim, observacao,
                 puladas, confirmarSozinhaDesde, valorDesde, semVencimento, formaPagamento, vencimentosAjustados, novos,
-                estimativa, estimativaDesde, estimativaAntes);
+                estimativa, estimativaDesde, estimativaAntes, localSaldoId);
     }
 }

@@ -4,6 +4,7 @@ import br.com.familianca.domain.model.Lancamento;
 import br.com.familianca.domain.vo.Competencia;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,6 +39,17 @@ public interface LancamentoRepository {
 
     /** Descrições distintas já lançadas na categoria, as mais usadas primeiro. */
     List<String> descricoesMaisUsadas(Long categoriaId, int limite);
+
+    /** Lançamento vindo de um extrato: guarda de que lote veio e a chave que impede importar de novo. */
+    Lancamento salvarImportado(Lancamento lancamento, Long loteId, Long localSaldoId, String chave);
+
+    /** Lançamentos com data entre de e ate (inclusive) que não vieram de importação (digitados à mão). */
+    List<Lancamento> listarDigitados(LocalDate de, LocalDate ate);
+
+    /**
+     * Categoria de cada lançamento cuja descrição (sem acento, minúscula) está na lista, o mais recente primeiro.
+     */
+    List<CategoriaPorDescricao> categoriasPorDescricao(Collection<String> descricoes);
 
     /** Descrições da categoria que contêm o termo ou se parecem com ele; termo já sem acento e minúsculo. */
     List<DescricaoUsada> buscarDescricoes(Long categoriaId, String termo, int limite);

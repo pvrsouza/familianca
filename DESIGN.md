@@ -374,6 +374,10 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 ### Filtros da lista (Lançamentos)
 - Duas linhas: em cima o período (segmentado Mês / Ano / Entre datas, seguido das setas com o nome do período ou dos dois campos de data) e o tipo (Tudo / Despesas / Receitas); embaixo a busca com lupa (cresce para ocupar a linha), os selects de categoria (agrupados por grupo), origem e pessoa, e "Limpar filtros" sutil quando há filtro além do período. No celular, cada select ocupa a linha inteira. Sem resultado com filtro, o vazio diz "Nada encontrado" e oferece limpar.
 
+### Importar extrato
+- Página `/importar` em dois passos (escolher a conta e o arquivo; revisar), botão "Importar extrato" no cabeçalho de Lançamentos. O passo 1 diz em texto pequeno que o arquivo é lido e descartado. O passo 2 abre com o resumo ("128 linhas · 94 novas · 31 já importadas · 3 possíveis duplicatas · período") e filtros por status.
+- Cada linha é um cartão no celular e uma grade de 6 colunas a partir de 900px: data, descrição, valor (verde `.receita` para crédito e `--erro` para débito, sempre com + ou −, não só cor), categoria (só as do tipo da linha, a sugerida já marcada, "A classificar" se vazia), pessoa e ação em select (Importar, Ignorar — não é receita nem despesa, Confirmar a conta X com vencimento e valor previsto). Já importadas e possíveis duplicatas vêm desmarcadas ("Não importar agora"); a possível duplicata mostra o lançamento parecido em aviso. As já importadas ficam num `<details>` recolhido. Rodapé fixo com "Importar N lançamentos". Depois, o resultado e a lista de importações com "Desfazer importação" (a confirmação diz que o editado à mão fica).
+
 ### Estado vazio
 - Centralizado, ilustração mínima de barras (tinta de petróleo forte para realizado, coral claro tracejado para previsto), título 1,125rem, texto de 46ch e ações centralizadas.
 
@@ -395,3 +399,11 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 - **Don't** usar Fraunces em rótulos, botões, tabelas ou textos, nem introduzir uma terceira família de fonte.
 - **Don't** dar sombra a superfícies em repouso; sombra é só para menu, painel lateral, aviso rápido e barra inferior.
 - **Don't** usar sombras pretas; elas são tingidas de petróleo noite ou grafite.
+
+### Lançamento sem categoria (Lançamentos, 2026-10-31)
+Lançamento na categoria marcada `aClassificar` leva o selo `selo-atraso` "sem categoria" ao lado da descrição e uma faixa de 4px em `--erro` na borda esquerda da linha (`box-shadow` inset, sem mudar o layout). No topo da lista, um `.aviso` com ícone `TriangleAlert` diz quantos há no período e o botão "Ver só esses" / "Ver todos" liga o filtro `?aClassificar=1`. A cor não é o único sinal: o selo tem texto.
+O aviso é o componente `AvisoSemCategoria` (ícone, contagem e período em texto; a ação entra por slot) e também aparece no topo de "O ano", antes das contas para conferir, com o link "Ver e classificar".
+
+### Conta no lançamento (2026-10-31)
+No formulário de lançamento, "Conta (opcional)" é um `select` com "Sem conta" e as contas permitidas, com a explicação de uma linha embaixo (`texto-2`); fica entre a data/pessoa e a nota fiscal e some quando o lançamento vira recorrência ("Repetir no ano", "Ainda vou pagar"). Na lista, a conta é o último item da linha de meta ("categoria · grupo · pessoa · conta"); lançamento sem conta não escreve nada. O filtro "Conta" é mais um `select` na linha de filtros, com "Todas as contas", cada conta (desativada leva o sufixo) e "Sem conta".
+A conta também está em "Nova recorrência" e na confirmação do mês: o mesmo componente `CampoConta` (select com ajuda de uma linha). Na confirmação, ele aparece dentro de "Outro valor" como "Conta em <mês>" (sem a opção "Sem conta" quando a recorrência já tem conta, porque a escolha vale só naquele mês). No lançamento com "Repetir no ano", a ajuda diz que a conta vale para todas as vezes.

@@ -175,6 +175,7 @@ public class PlanoContasPersistenceAdapter implements PlanoContasRepository {
         e.estimativa = c.estimativa() != null ? c.estimativa().name() : null;
         e.estimativaDesde = c.estimativaDesde() != null ? c.estimativaDesde().toString() : null;
         e.estimativaAntes = c.estimativaAntes() != null ? c.estimativaAntes().name() : null;
+        e.aClassificar = c.aClassificar();
     }
 
     private static Grupo paraDominio(GrupoCategoriaEntity e) {
@@ -187,6 +188,6 @@ public class PlanoContasPersistenceAdapter implements PlanoContasRepository {
                 e.aliquota != null ? Percentual.of(e.aliquota) : null, e.recorrente,
                 e.estimativa != null ? Estimativa.valueOf(e.estimativa) : null,
                 e.estimativaDesde != null ? Competencia.parse(e.estimativaDesde) : null,
-                e.estimativaAntes != null ? Estimativa.valueOf(e.estimativaAntes) : null);
+                e.estimativaAntes != null ? Estimativa.valueOf(e.estimativaAntes) : null, e.aClassificar);
     }
 }

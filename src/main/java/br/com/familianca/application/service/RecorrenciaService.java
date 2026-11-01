@@ -3,6 +3,7 @@ package br.com.familianca.application.service;
 import br.com.familianca.application.port.in.GerenciarLancamentos.LancamentoDetalhado;
 import br.com.familianca.application.port.in.GerenciarRecorrencias;
 import br.com.familianca.application.port.out.LancamentoRepository;
+import br.com.familianca.application.port.out.LocalSaldoRepository;
 import br.com.familianca.application.port.out.PlanoContasRepository;
 import br.com.familianca.application.port.out.RecorrenciaRepository;
 import br.com.familianca.application.port.out.Relogio;
@@ -52,10 +53,15 @@ public class RecorrenciaService implements GerenciarRecorrencias {
     private final Relogio relogio;
     private final ConfirmacaoAutomatica confirmacaoAutomatica;
     private final PrevisaoFamilia previsaoFamilia;
+    private final LocalSaldoRepository locais;
+    private final ValidadorConta validadorConta;
 
     public RecorrenciaService(RecorrenciaRepository recorrencias, LancamentoRepository lancamentos,
                               PlanoContasRepository planoContas, AcessoFamilia acesso, Relogio relogio,
-                              ConfirmacaoAutomatica confirmacaoAutomatica, PrevisaoFamilia previsaoFamilia) {
+                              ConfirmacaoAutomatica confirmacaoAutomatica, PrevisaoFamilia previsaoFamilia,
+                              LocalSaldoRepository locais, ValidadorConta validadorConta) {
+        this.locais = locais;
+        this.validadorConta = validadorConta;
         this.recorrencias = recorrencias;
         this.lancamentos = lancamentos;
         this.planoContas = planoContas;
@@ -86,6 +92,7 @@ public class RecorrenciaService implements GerenciarRecorrencias {
     @Override
     public RecorrenciaDetalhada criar(DadosRecorrencia dados) {
         Membro membro = validar(dados);
+        validadorConta.exigir(dados.localSaldoId(), null);
         acesso.exigirSaldoInicial();
         // Despesa nova já nasce prevista pela média dos últimos 3 meses (regra própria, que dá para trocar depois).
         boolean estimavel = !dados.confirmarSozinha() && planoContas.buscarCategoria(dados.categoriaId())
@@ -94,7 +101,8 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         Recorrencia nova = new Recorrencia(null, dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
                 dados.dia(), dados.frequencia(), dados.inicio(), dados.fim(), dados.observacao(), Set.of(),
                 dados.confirmarSozinha() ? relogio.hoje() : null, null, dados.semVencimento(),
-                dados.formaPagamento(), Map.of(), Map.of(), estimavel ? Estimativa.MEDIA_3M : null);
+                dados.formaPagamento(), Map.of(), Map.of(), estimavel ? Estimativa.MEDIA_3M : null, null, null,
+                dados.localSaldoId());
         return detalhar(recorrencias.salvar(nova));
     }
 
@@ -103,6 +111,7 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         Recorrencia atual = exigir(id);
         acesso.exigirPodeAlterar(atual.membroId());
         Membro membro = validar(dados);
+        validadorConta.exigir(dados.localSaldoId(), atual.localSaldoId());
         // Ligada continua valendo desde quando foi ligada; ligar agora vale a partir de hoje.
         LocalDate desde = !dados.confirmarSozinha() ? null
                 : atual.confirmaSozinha() ? atual.confirmarSozinhaDesde() : relogio.hoje();
@@ -114,7 +123,8 @@ public class RecorrenciaService implements GerenciarRecorrencias {
         Recorrencia editada = new Recorrencia(id, dados.categoriaId(), membro.id(), dados.descricao(), dados.valor(),
                 dados.dia(), dados.frequencia(), dados.inicio(), dados.fim(), dados.observacao(), atual.puladas(),
                 desde, valorDesde, dados.semVencimento(), dados.formaPagamento(), atual.vencimentosAjustados(),
-                atual.valoresAjustados(), atual.estimativa(), atual.estimativaDesde(), atual.estimativaAntes());
+                atual.valoresAjustados(), atual.estimativa(), atual.estimativaDesde(), atual.estimativaAntes(),
+                dados.localSaldoId());
         return detalhar(recorrencias.salvar(editada));
     }
 
@@ -218,7 +228,7 @@ public class RecorrenciaService implements GerenciarRecorrencias {
 
     @Override
     public LancamentoDetalhado confirmar(Long id, Competencia competencia, Dinheiro valor, LocalDate data,
-                                         NotaFiscal notaFiscal) {
+                                         NotaFiscal notaFiscal, Long localSaldoId) {
         Recorrencia r = antesDoInicio(id, competencia) ? exigirHistorico(id, competencia)
                 : exigirOcorrencia(id, competencia);
         acesso.exigirSaldoInicial();
@@ -234,11 +244,14 @@ public class RecorrenciaService implements GerenciarRecorrencias {
                     + ") entrou na conta");
         }
         acesso.responsavel(r.membroId());
+        // Conta só deste mês, se informada; senão a da recorrência (que pode ter sido desativada depois: vale).
+        Long conta = localSaldoId != null ? localSaldoId : r.localSaldoId();
+        validadorConta.exigir(conta, r.localSaldoId());
         // Sem valor informado, vale o previsto (a estimativa pela regra, do mês atual em diante, ou o cadastrado).
         Dinheiro previsto = valor != null ? valor : previsaoFamilia.calcular(List.of(r)).valorEm(r, competencia);
         Lancamento lancamento = new Lancamento(null, r.categoriaId(), r.membroId(), r.descricao(),
                 previsto, data != null ? data : r.dataEm(competencia), r.id(), competencia,
-                null, null, notaFiscal);
+                null, null, notaFiscal, conta);
         return detalhador().detalhar(lancamentos.salvar(lancamento));
     }
 
@@ -384,7 +397,7 @@ public class RecorrenciaService implements GerenciarRecorrencias {
 
     private Detalhador detalhador() {
         return new Detalhador(planoContas.listarCategorias(), planoContas.listarGrupos(), acesso.membrosPorId(),
-                recorrencias.listar());
+                recorrencias.listar(), locais.listar());
     }
 
     private RecorrenciaDetalhada detalhar(Recorrencia r) {

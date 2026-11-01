@@ -29,4 +29,6 @@ public class CategoriaEntity {
     /** A regra mudou a partir deste mês (AAAA-MM); até lá vale estimativaAntes (nulo = a da família). */
     String estimativaDesde;
     String estimativaAntes;
+    /** Marca a categoria que a importação usa para o que não foi classificado (não depende do nome). */
+    boolean aClassificar;
 }

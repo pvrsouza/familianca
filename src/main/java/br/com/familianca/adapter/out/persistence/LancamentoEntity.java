@@ -34,6 +34,12 @@ public class LancamentoEntity {
     String observacao;
     String nfCompetencia;
     LocalDate nfEmissao;
+    String importacaoChave;
+    Long importacaoLocalSaldoId;
+    /** A conta do lançamento (opcional). */
+    Long localSaldoId;
+    Long importacaoLoteId;
+    boolean editadoAposImportacao;
     @Column(insertable = false, updatable = false)
     OffsetDateTime criadoEm;
 }

@@ -29,12 +29,49 @@ Uma linha por hipótese, da mais arriscada para a menos. Status: 🔴 não testa
 | H1 | Quem organiza consegue fazer os outros membros usarem (não vira planilha de uma pessoa só). | Membros ativos por família nas primeiras 5 a 8 famílias. | 🔴 |
 | H2 | Famílias pagam por visão anual + colaboração, mesmo com apps gratuitos e o app do banco. | Entrevistas e conversão do teste Premium. | 🔴 |
 | H3 | Investimentos e PJ são o que separa os planos (e não o número de pessoas). | Quais recursos as famílias em teste usam antes de cair para o Gratuito. | 🔴 |
-| H4 | Open Finance é necessário para reter (lançar à mão cansa). | Frequência de lançamento após 30 e 60 dias; custo por conexão × preço do plano. | 🔴 |
+| H4 | Open Finance é necessário para reter (lançar à mão cansa). | Frequência de lançamento após 30 e 60 dias; custo por conexão × preço do plano. **Teste barato desde 2026-10-31:** quantas famílias importam extrato OFX, com que frequência (tabela `importacao_lote`) e quantas linhas por mês. | 🔴 |
 | H5 | O convite pelo WhatsApp é um canal de aquisição (membros viram organizadores de outra família). | Origem dos cadastros novos. | 🔴 |
 | H6 | Privacidade (sem anúncio, sem venda de dados, dados no Brasil) pesa na decisão de pagar, contra apps gratuitos que vivem de dados e o app do banco. | Nas entrevistas, perguntar o que impede pôr o orçamento da família num app; ver se a promessa muda a disposição a pagar. | 🔴 |
 
 # Registro de iterações
 
+- **2026-10-31 (conta em cada lançamento):** o lançamento ganha conta opcional (campo no formulário, com a última
+  usada já preenchida, rótulo na lista e filtro por conta). Serve para a família conferir o app contra o extrato do
+  banco. **Efeito nas hipóteses:** toca a **H4** (lançar à mão cansa): conferir com o extrato é parte do custo de
+  manter o orçamento, e a conta liga o lançamento digitado ao importado. Também prepara, sem prometer, o saldo
+  calculado por conta, que seria um motivo para pagar. **Canvas:** nenhum bloco muda; sem recurso pago e sem custo.
+  **Crítica:** conta opcional pode nunca ser preenchida; se a maioria dos lançamentos novos continua sem conta, o
+  filtro vale pouco e a ideia de calcular saldo por conta não se sustenta. **Atualização no mesmo dia:** a recorrência também ganhou conta (as confirmações do mês, até as automáticas,
+  nascem nela), porque as contas fixas (condomínio, aluguel) são as que mais se confere com o extrato; sem isso o
+  campo sumia nas categorias recorrentes. **Pergunta aberta (H4):** que parte dos
+  lançamentos manuais novos tem conta depois de 30 dias, e quem preenche também confere com o extrato? Se for baixa,
+  perguntar nas entrevistas se a conta é o que falta ou se o problema é outro.
+- **2026-10-31 (destaque do que ficou sem categoria):** o lançamento na categoria "A classificar" (a que a
+  importação usa quando não sabe classificar) agora leva selo e faixa na lista, e um aviso conta quantos há no
+  período, com atalho para ver só esses. A marca passou a ser da categoria, não do nome. **Efeito nas hipóteses:**
+  toca a **H4**: se importar troca "digitar" por "classificar", a fricção só mudou de lugar; o destaque deixa a
+  pessoa ver e fechar essa fila, e dá uma medida nova. **Canvas:** nenhum bloco muda; sem recurso pago, sem custo.
+  **Crítica:** o destaque ajuda a resolver, mas não resolve sozinho; sem regras aprendidas de categoria, quem importa
+  todo mês reclassifica as mesmas descrições. **Pergunta aberta (H4):** que parte das linhas importadas continua
+  "sem categoria" 7 dias depois, e quem importa uma segunda vez classifica menos (a sugestão pela última descrição
+  funciona)? Se a fila não cai, "regras aprendidas" sobe na lista antes do Open Finance.
+
+- **2026-10-31 (importação de extrato OFX/OFC):** a família envia o extrato do banco ou do cartão, vê o que é novo, o
+  que já foi importado e o que parece duplicado, e importa só o que quiser; a linha que bate com uma conta
+  recorrente pendente confirma a conta em vez de criar outro lançamento. Liberado a todos os planos na v1.
+  **Efeito nas hipóteses:** é o teste mais barato da **H4** (lançar à mão cansa; Open Finance seria necessário para
+  reter). OFX não custa por conexão e a família continua no controle (arquivo descartado, sem acesso contínuo à
+  conta). Se as famílias importam todo mês, a fricção é real e o Open Finance tem um mercado; se não importam, o
+  problema não era digitar. Toca também a **H6** (privacidade): "o arquivo é lido e descartado" é uma promessa
+  verificável. **Canvas:** proposta de valor (menos trabalho para lançar), custos (nenhum novo; sem fornecedor) e
+  receita (decisão: sem recurso pago por ora, porque ainda não há famílias de fora para testar disposição a pagar, e
+  travar esconderia a hipótese principal). **Hipótese mais arriscada afetada:** H4. **Crítica:** o risco é medir
+  intenção, não hábito: importar uma vez para carregar o histórico não prova que a fricção mensal some. Baixar o
+  OFX no app do banco já é um atrito que pode derrubar o uso. **Perguntas abertas:** depois de 30 dias, a família
+  importa de novo ou volta a digitar? Quais bancos e cartões não exportam OFX (o Nubank, por exemplo, só exporta
+  CSV, a confirmar com as famílias)? Se muitos exportarem só CSV, a v2 deixa de ser opcional. **Próxima ação:**
+  nas 5 a 8 famílias de validação, pedir que importem o extrato do mês e contar, no `importacao_lote`, quantas
+  voltam no mês seguinte; perguntar o banco de cada uma para priorizar o CSV.
 Uma entrada por entrega, a mais recente primeiro: o que mudou no produto, o que isso muda nas hipóteses, decisões
 tomadas e perguntas que ficaram.
 

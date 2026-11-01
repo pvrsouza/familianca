@@ -12,5 +12,6 @@ public record ConfirmacaoRequest(
         @Schema(description = "Valor real. Nulo = o previsto.") @Positive BigDecimal valor,
         @Schema(description = "Data real. Nula = o dia da recorrência na competência (receita tributável: obrigatória, é o dia "
                 + "em que o dinheiro entrou na conta).") LocalDate data,
-        @Schema(description = "Só receita tributável. Nulo = sem nota.") @Valid NotaFiscalDto notaFiscal) {
+        @Schema(description = "Só receita tributável. Nulo = sem nota.") @Valid NotaFiscalDto notaFiscal,
+        @Schema(description = "Conta só deste mês. Nulo = a conta da recorrência.") Long localSaldoId) {
 }

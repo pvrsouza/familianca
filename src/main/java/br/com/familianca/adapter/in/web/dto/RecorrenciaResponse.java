@@ -58,7 +58,9 @@ public record RecorrenciaResponse(Long id, TipoMovimento tipo, CategoriaRef cate
                                   Estimativa estimativaAntes,
                                   @Schema(description = "Como a conta é prevista do mês atual em diante: um trecho por "
                                           + "regra (valor nulo = o cadastrado). Vazio em receita e conta que confirma "
-                                          + "sozinha.") List<BaseEstimativaDto> previsoes) {
+                                          + "sozinha.") List<BaseEstimativaDto> previsoes,
+                                  @Schema(description = "Id da conta (lugar onde está o dinheiro) das ocorrências; "
+                                          + "nulo = sem conta.") Long localSaldoId) {
 
     public record VencimentoAjustado(String competencia, LocalDate vencimento) {
     }
@@ -83,6 +85,6 @@ public record RecorrenciaResponse(Long id, TipoMovimento tipo, CategoriaRef cate
                         .map(e -> new ValorAjustado(e.getKey().toString(), e.getValue().valor())).toList(),
                 r.estimativa(), d.previsao() != null ? BaseEstimativaDto.de(d.previsao().base()) : null,
                 r.estimativaDesde() != null ? r.estimativaDesde().toString() : null, r.estimativaAntes(),
-                BaseEstimativaDto.de(d.previsoes()));
+                BaseEstimativaDto.de(d.previsoes()), r.localSaldoId());
     }
 }

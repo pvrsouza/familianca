@@ -59,8 +59,12 @@ public class LancamentoController {
             @Parameter(description = "Parte da descrição, observação, categoria, grupo ou pessoa (sem ligar para "
                     + "acento e maiúscula), até 200 caracteres") @RequestParam(required = false) String q,
             @Parameter(description = "AVULSO, RECORRENTE (confirmação de algo que se repete) ou PARCELADO")
-            @RequestParam(required = false) Origem origem) {
-        return lancamentos.listar(new Filtro(de, ate, categoriaId, grupoId, membroId, tipo, q, origem)).stream()
+            @RequestParam(required = false) Origem origem,
+            @Parameter(description = "Só os lançamentos dessa conta (lugar onde está o dinheiro)")
+            @RequestParam(required = false) Long localSaldoId,
+            @Parameter(description = "true = só os que não têm conta") @RequestParam(required = false) Boolean semConta) {
+        return lancamentos.listar(new Filtro(de, ate, categoriaId, grupoId, membroId, tipo, q, origem, localSaldoId,
+                Boolean.TRUE.equals(semConta))).stream()
                 .map(LancamentoResponse::de).toList();
     }
 

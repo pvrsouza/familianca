@@ -15,11 +15,12 @@ import static br.com.familianca.domain.Validacoes.opcional;
  * - membroId: de quem é o gasto ou a receita; é o que aparece na visão por pessoa.
  * - recorrenciaId + competenciaRecorrencia: ocorrência confirmada de uma recorrência.
  * - parcela: posição numa compra parcelada.
+ * - localSaldoId: a conta (lugar onde está o dinheiro) do lançamento; nulo = sem conta (opcional).
  * - notaFiscal: competência e emissão da nota (só receita tributável; nulo = não informada). A data é a do pagamento.
  */
 public record Lancamento(Long id, Long categoriaId, Long membroId, String descricao, Dinheiro valor, LocalDate data,
                          Long recorrenciaId, Competencia competenciaRecorrencia, Parcela parcela, String observacao,
-                         NotaFiscal notaFiscal) {
+                         NotaFiscal notaFiscal, Long localSaldoId) {
 
     public static final int DESCRICAO_MAXIMO = 200;
 
@@ -44,11 +45,19 @@ public record Lancamento(Long id, Long categoriaId, Long membroId, String descri
         observacao = opcional(observacao);
     }
 
+    /** Lançamento sem conta. */
+    public Lancamento(Long id, Long categoriaId, Long membroId, String descricao, Dinheiro valor, LocalDate data,
+                      Long recorrenciaId, Competencia competenciaRecorrencia, Parcela parcela, String observacao,
+                      NotaFiscal notaFiscal) {
+        this(id, categoriaId, membroId, descricao, valor, data, recorrenciaId, competenciaRecorrencia, parcela,
+                observacao, notaFiscal, null);
+    }
+
     /** Lançamento sem nota fiscal. */
     public Lancamento(Long id, Long categoriaId, Long membroId, String descricao, Dinheiro valor, LocalDate data,
                       Long recorrenciaId, Competencia competenciaRecorrencia, Parcela parcela, String observacao) {
         this(id, categoriaId, membroId, descricao, valor, data, recorrenciaId, competenciaRecorrencia, parcela,
-                observacao, null);
+                observacao, null, null);
     }
 
     public Competencia competencia() {
@@ -57,8 +66,8 @@ public record Lancamento(Long id, Long categoriaId, Long membroId, String descri
 
     /** Mesmo lançamento com os dados editáveis trocados; a origem (recorrência, parcela) se mantém. */
     public Lancamento editado(Long categoriaId, Long membroId, String descricao, Dinheiro valor, LocalDate data,
-                              String observacao, NotaFiscal notaFiscal) {
+                              String observacao, NotaFiscal notaFiscal, Long localSaldoId) {
         return new Lancamento(id, categoriaId, membroId, descricao, valor, data, recorrenciaId,
-                competenciaRecorrencia, parcela, observacao, notaFiscal);
+                competenciaRecorrencia, parcela, observacao, notaFiscal, localSaldoId);
     }
 }

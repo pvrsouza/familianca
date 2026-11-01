@@ -2,6 +2,7 @@ package br.com.familianca.adapter.in.web.dto;
 
 import br.com.familianca.adapter.in.web.dto.Referencias.CategoriaRef;
 import br.com.familianca.adapter.in.web.dto.Referencias.GrupoRef;
+import br.com.familianca.adapter.in.web.dto.Referencias.LocalRef;
 import br.com.familianca.adapter.in.web.dto.Referencias.MembroRef;
 import br.com.familianca.application.port.in.GerenciarLancamentos.LancamentoDetalhado;
 import br.com.familianca.domain.model.Lancamento;
@@ -28,7 +29,9 @@ public record LancamentoResponse(Long id, TipoMovimento tipo, CategoriaRef categ
                                  @Schema(description = "Dias pagos depois do vencimento: 0 = em dia; nulo = sem vencimento.")
                                  Integer diasAtraso,
                                  @Schema(description = "Competência e emissão da nota (receita tributável); nulo = sem nota.")
-                                 NotaFiscalDto notaFiscal) {
+                                 NotaFiscalDto notaFiscal,
+                                 @Schema(description = "A conta (lugar onde está o dinheiro); nulo = sem conta.")
+                                 LocalRef conta) {
 
     public static LancamentoResponse de(LancamentoDetalhado d) {
         Lancamento l = d.lancamento();
@@ -38,7 +41,7 @@ public record LancamentoResponse(Long id, TipoMovimento tipo, CategoriaRef categ
                 l.parcela() != null ? new ParcelaResponse(l.parcela().parcelamentoId(), l.parcela().numero(),
                         l.parcela().total()) : null,
                 l.observacao(), d.vencimento(), diasAtraso(l.data(), d.vencimento()),
-                NotaFiscalDto.de(l.notaFiscal()));
+                NotaFiscalDto.de(l.notaFiscal()), LocalRef.de(d.local()));
     }
 
     private static Integer diasAtraso(LocalDate pagamento, LocalDate vencimento) {
