@@ -7,6 +7,8 @@ import { mensagemDeErro } from '../api/http'
 import { catalogo } from '../estado/catalogo'
 import { sessao } from '../estado/sessao'
 import { FREQUENCIAS, competenciaPorExtenso, hoje, reais } from '../util/formato'
+import { guardarUltimaConta } from '../util/ultimaConta'
+import CampoConta from './CampoConta.vue'
 import CampoDescricao from './CampoDescricao.vue'
 import CamposNotaFiscal from './CamposNotaFiscal.vue'
 import CampoValor from './CampoValor.vue'
@@ -28,6 +30,8 @@ const form = reactive({
   categoriaId: l?.categoria.id ?? props.categoriaInicial ?? (null as number | null),
   data: l?.data ?? props.dataInicial ?? hoje(),
   membroId: l?.membro?.id ?? sessao.estado.usuario?.membroId ?? null,
+  /** A conta é opcional; no lançamento novo, vem a última usada por esta pessoa neste navegador. */
+  localSaldoId: (l?.conta?.id ?? null) as number | null,
   parcelado: false,
   parcelas: 2,
   observacao: l?.observacao ?? '',
@@ -110,6 +114,7 @@ function trocarTipo(t: Tipo) {
 async function lancarAPagar(base: { categoriaId: number; membroId: number | null; descricao: string; observacao: string | null }) {
   await recorrencias.criar({
     ...base,
+    localSaldoId: form.localSaldoId,
     valor: form.valor!,
     dia: Number(form.data.slice(8, 10)),
     frequencia: 'UNICA',
@@ -126,6 +131,7 @@ async function lancarRepetindo(base: { categoriaId: number; membroId: number | n
   const despesa = form.tipo === 'DESPESA'
   const r = await recorrencias.criar({
     ...base,
+    localSaldoId: form.localSaldoId,
     valor: form.valor!,
     dia: comVencimento.value ? form.vencimento! : Number(form.data.slice(8, 10)),
     frequencia: form.frequencia,
@@ -160,7 +166,8 @@ async function salvar() {
     descricao: form.descricao.trim(),
     observacao: form.observacao.trim() || null,
   }
-  const comNota = { ...base, notaFiscal: notaFiscal.value }
+  const conta = form.localSaldoId
+  const comNota = { ...base, notaFiscal: notaFiscal.value, localSaldoId: conta }
   try {
     if (props.lancamento) {
       await lancamentos.atualizar(props.lancamento.id, { ...comNota, valor: form.valor, data: form.data })
@@ -170,12 +177,13 @@ async function salvar() {
     } else if (form.aPagar) {
       await lancarAPagar(base)
     } else if (form.parcelado) {
-      await lancamentos.lancarParcelado({ ...base, valorTotal: form.valor, parcelas: form.parcelas, primeiraData: form.data })
+      await lancamentos.lancarParcelado({ ...base, valorTotal: form.valor, parcelas: form.parcelas, primeiraData: form.data, localSaldoId: conta })
       emit('salvo', `Compra lançada em ${form.parcelas} parcelas.`)
     } else {
       await lancamentos.lancar({ ...comNota, valor: form.valor, data: form.data })
       emit('salvo', form.tipo === 'RECEITA' ? 'Receita lançada.' : 'Despesa lançada.')
     }
+    if (!props.lancamento) guardarUltimaConta(sessao.estado.usuario?.membroId, conta)
     sessao.avisarMudanca()
   } catch (e) {
     erro.value = mensagemDeErro(e)
@@ -234,6 +242,9 @@ async function salvar() {
                :value="props.lancamento?.membro?.nome ?? sessao.estado.usuario?.nome" />
       </div>
     </div>
+
+    <CampoConta id="l-conta" v-model="form.localSaldoId" :conta-atual="props.lancamento?.conta?.id" :lembrar="!editando"
+                :ajuda="form.repetir ? 'Vale para todas as vezes em que repetir; dá para trocar só em um mês ao confirmar.' : undefined" />
 
     <CamposNotaFiscal v-if="ehNota" v-model:competencia="form.nfCompetencia" v-model:emissao="form.nfEmissao"
                       id-base="l" />

@@ -7,6 +7,7 @@ import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
 import { catalogo } from '../estado/catalogo'
 import { competenciaPorExtenso, dataPorExtenso, diasEntre, hoje, reais, vencimentoDe } from '../util/formato'
+import CampoConta from './CampoConta.vue'
 import CampoValor from './CampoValor.vue'
 import CamposNotaFiscal from './CamposNotaFiscal.vue'
 import Mensagem from './Mensagem.vue'
@@ -36,6 +37,8 @@ async function perguntarPulo() {
   botaoPular.value?.focus()
 }
 const valor = ref<number | null>(props.valorPrevisto)
+// Conta só deste mês (aparece em "Outro valor"); começa na da recorrência.
+const contaDoMes = ref<number | null>(props.recorrencia.localSaldoId)
 const ocupado = ref(false)
 const erro = ref('')
 const mes = computed(() => competenciaPorExtenso(props.competencia))
@@ -153,7 +156,8 @@ async function confirmar() {
     const v = outroValor.value ? valor.value! : props.valorPrevisto
     await api.confirmar(props.recorrencia.id, props.competencia, outroValor.value ? v : undefined,
       ehNota.value ? recebidoEm.value : vencimento.value ? pagoEm.value : undefined,
-      ehNota.value ? notaFiscal.value : undefined)
+      ehNota.value ? notaFiscal.value : undefined,
+      outroValor.value && contaDoMes.value !== props.recorrencia.localSaldoId ? contaDoMes.value : undefined)
     sessao.avisarMudanca()
     emit('feito', receita.value
       ? `${props.recorrencia.descricao}: ${reais(v)} recebidos em ${mes.value}.`
@@ -255,6 +259,9 @@ async function pular() {
       <label class="rotulo" :for="`valor-${recorrencia.id}-${competencia}`">
         {{ receita ? 'Quanto chegou' : 'Valor real' }}
       </label>
+      <CampoConta v-if="!compacto" :id="`conta-${recorrencia.id}-${competencia}`" v-model="contaDoMes"
+                  :conta-atual="recorrencia.localSaldoId" :obrigatoria="recorrencia.localSaldoId !== null" :rotulo="`Conta em ${mes}`"
+                  ajuda="Muda só este mês; a conta da recorrência continua a mesma." />
       <div class="linha">
         <CampoValor :id="`valor-${recorrencia.id}-${competencia}`" v-model="valor" obrigatorio class="campo-valor" />
         <button type="button" class="botao botao-primario botao-pequeno" :disabled="ocupado" @click="confirmar">

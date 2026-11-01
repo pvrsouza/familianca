@@ -69,7 +69,7 @@ public class LocalSaldoPersistenceAdapter implements LocalSaldoRepository {
     @Override
     @Transactional(readOnly = true)
     public boolean emUso(Long id) {
-        return jpa.emUso(usuario.familiaId(), id);
+        return jpa.emUso(usuario.familiaId(), id) || jpa.temLancamentos(usuario.familiaId(), id);
     }
 
     private static LocalSaldo paraDominio(LocalSaldoEntity e) {

@@ -52,6 +52,8 @@ public class RecorrenciaEntity {
     /** A regra mudou a partir deste mês (AAAA-MM); até lá vale estimativaAntes (nulo = segue a categoria). */
     String estimativaDesde;
     String estimativaAntes;
+    /** A conta das ocorrências (opcional). */
+    Long localSaldoId;
     /** Vencimento ajustado por competência (AAAA-MM). */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "recorrencia_vencimento", joinColumns = @JoinColumn(name = "recorrencia_id"))

@@ -196,6 +196,29 @@ class ImportacaoApiTest extends IntegracaoBase {
     }
 
     @Test
+    void aClassificarEMarcadaNaCategoriaESobreviveARenomeacao() throws Exception {
+        gravar(mvc, local, linha("M1", "IMPORTAR", "2026-10-10", "Sem categoria", "10.00", "DESPESA", null))
+                .andExpect(status().isCreated());
+        Long id = jdbc.queryForObject("select id from categoria where a_classificar and familia_id = ?", Long.class,
+                dono.familiaId());
+        Long grupoId = jdbc.queryForObject("select grupo_id from categoria where id = ?", Long.class, id);
+        mvc.perform(get("/api/categorias"))
+                .andExpect(jsonPath("$..categorias[?(@.id == %d)].aClassificar".formatted(id)).value(true));
+
+        mvc.perform(put("/api/categorias/{id}", id).contentType(APPLICATION_JSON)
+                .content("{\"grupoId\": %d, \"nome\": \"Revisar depois\"}".formatted(grupoId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.aClassificar").value(true));
+
+        gravar(mvc, local, linha("M2", "IMPORTAR", "2026-10-11", "Outra sem categoria", "5.00", "DESPESA", null))
+                .andExpect(status().isCreated());
+        assertThat(jdbc.queryForObject("select count(*) from categoria where a_classificar and familia_id = ?",
+                Integer.class, dono.familiaId())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from lancamento where categoria_id = ?", Integer.class, id))
+                .isEqualTo(2);
+    }
+
+    @Test
     void tudoOuNadaERegrasDeCategoria() throws Exception {
         Long mercado = categoria("Habitação", "Supermercado");
         Long salario = categoria("Receitas fixas", "Salário");

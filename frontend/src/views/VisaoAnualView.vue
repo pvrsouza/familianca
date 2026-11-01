@@ -2,10 +2,11 @@
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { Check, ChevronLeft, ChevronRight } from 'lucide-vue-next'
-import { investimentos, recorrencias, visao as apiVisao } from '../api/servicos'
+import { investimentos, lancamentos as apiLancamentos, recorrencias, visao as apiVisao } from '../api/servicos'
 import type { CategoriaVisao, Pendente, SaldosDoMes, Tipo, VisaoAnual } from '../api/tipos'
 import { mensagemDeErro } from '../api/http'
 import { sessao } from '../estado/sessao'
+import { catalogo } from '../estado/catalogo'
 import { guia } from '../estado/guia'
 import { MESES, alcanceInflacao, anoAtual, competenciaPorExtenso, mesAtual, reais, ultimoAnoPrevisto, variacao } from '../util/formato'
 import { useMidia } from '../util/midia'
@@ -13,6 +14,7 @@ import TabelaAno from '../componentes/ano/TabelaAno.vue'
 import AnoCelular from '../componentes/ano/AnoCelular.vue'
 import FluxoCaixa from '../componentes/ano/FluxoCaixa.vue'
 import PorPessoa from '../componentes/ano/PorPessoa.vue'
+import AvisoSemCategoria from '../componentes/AvisoSemCategoria.vue'
 import Mensagem from '../componentes/Mensagem.vue'
 import PainelMes, { type AlvoMes } from '../componentes/ano/PainelMes.vue'
 import PainelSaldo from '../componentes/ano/PainelSaldo.vue'
@@ -45,6 +47,20 @@ watch(() => [sessao.dono.value, sessao.tem('INVESTIMENTOS'), sessao.estado.versa
 const busca = ref('')
 const erro = ref('')
 const pendentes = ref<Pendente[]>([])
+/** Lançamentos do ano na categoria "A classificar" (a da receita e a da despesa): só essas duas são buscadas. */
+const semCategoria = ref(0)
+
+async function contarSemCategoria() {
+  try {
+    await catalogo.carregar()
+    const ids = catalogo.estado.grupos.flatMap((g) => g.categorias.filter((c) => c.aClassificar).map((c) => c.id))
+    const listas = await Promise.all(ids.map((categoriaId) =>
+      apiLancamentos.listar({ categoriaId, de: `${ano.value}-01-01`, ate: `${ano.value}-12-31` })))
+    semCategoria.value = listas.reduce((s, l) => s + l.length, 0)
+  } catch {
+    semCategoria.value = 0 // o aviso é um extra: sem ele a tela continua inteira
+  }
+}
 
 const mesDestaque = computed(() => (ano.value === anoAtual() ? mesAtual() : null))
 
@@ -58,6 +74,7 @@ async function carregar() {
     ])
     dados.value = v
     pendentes.value = p
+    contarSemCategoria()
   } catch (e) {
     erro.value = mensagemDeErro(e)
   } finally {
@@ -270,6 +287,11 @@ const proximo = computed(() => passos.value.findIndex(pendente))
         </span>
         <span v-if="inflacao !== null" class="linha-previsto">Inflação da família {{ alcanceInflacao(dados!.ano) }}: <strong class="num">{{ variacao(inflacao) }}</strong>.</span>
       </p>
+
+      <AvisoSemCategoria v-if="semCategoria > 0 && !vazio" :quantidade="semCategoria" :periodo="`em ${ano}`">
+        <RouterLink :to="{ path: '/lancamentos', query: { periodo: 'ano', ano: String(ano), aClassificar: '1' } }"
+                    class="botao botao-pequeno">Ver e classificar</RouterLink>
+      </AvisoSemCategoria>
 
       <Mensagem v-if="pendentes.length > 0 && !vazio" class="pendentes">
         Para conferir: {{ textoPendentes }}. É o que se repete e já venceu; confirmem o valor ou marquem que não houve.

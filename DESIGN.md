@@ -399,3 +399,11 @@ Firmes e calmos, sem brilho: a cor muda, o botão não pula.
 - **Don't** usar Fraunces em rótulos, botões, tabelas ou textos, nem introduzir uma terceira família de fonte.
 - **Don't** dar sombra a superfícies em repouso; sombra é só para menu, painel lateral, aviso rápido e barra inferior.
 - **Don't** usar sombras pretas; elas são tingidas de petróleo noite ou grafite.
+
+### Lançamento sem categoria (Lançamentos, 2026-10-31)
+Lançamento na categoria marcada `aClassificar` leva o selo `selo-atraso` "sem categoria" ao lado da descrição e uma faixa de 4px em `--erro` na borda esquerda da linha (`box-shadow` inset, sem mudar o layout). No topo da lista, um `.aviso` com ícone `TriangleAlert` diz quantos há no período e o botão "Ver só esses" / "Ver todos" liga o filtro `?aClassificar=1`. A cor não é o único sinal: o selo tem texto.
+O aviso é o componente `AvisoSemCategoria` (ícone, contagem e período em texto; a ação entra por slot) e também aparece no topo de "O ano", antes das contas para conferir, com o link "Ver e classificar".
+
+### Conta no lançamento (2026-10-31)
+No formulário de lançamento, "Conta (opcional)" é um `select` com "Sem conta" e as contas permitidas, com a explicação de uma linha embaixo (`texto-2`); fica entre a data/pessoa e a nota fiscal e some quando o lançamento vira recorrência ("Repetir no ano", "Ainda vou pagar"). Na lista, a conta é o último item da linha de meta ("categoria · grupo · pessoa · conta"); lançamento sem conta não escreve nada. O filtro "Conta" é mais um `select` na linha de filtros, com "Todas as contas", cada conta (desativada leva o sufixo) e "Sem conta".
+A conta também está em "Nova recorrência" e na confirmação do mês: o mesmo componente `CampoConta` (select com ajuda de uma linha). Na confirmação, ele aparece dentro de "Outro valor" como "Conta em <mês>" (sem a opção "Sem conta" quando a recorrência já tem conta, porque a escolha vale só naquele mês). No lançamento com "Repetir no ano", a ajuda diz que a conta vale para todas as vezes.

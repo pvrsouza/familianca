@@ -56,6 +56,7 @@ public class LancamentoPersistenceAdapter implements LancamentoRepository {
         LancamentoEntity e = paraEntidade(l);
         e.importacaoLoteId = loteId;
         e.importacaoLocalSaldoId = localSaldoId;
+        e.localSaldoId = localSaldoId;
         e.importacaoChave = chave;
         return paraDominio(jpa.save(e));
     }
@@ -159,6 +160,7 @@ public class LancamentoPersistenceAdapter implements LancamentoRepository {
         e.nfCompetencia = l.notaFiscal() != null && l.notaFiscal().competencia() != null
                 ? l.notaFiscal().competencia().toString() : null;
         e.nfEmissao = l.notaFiscal() != null ? l.notaFiscal().emissao() : null;
+        e.localSaldoId = l.localSaldoId();
         return e;
     }
 
@@ -167,6 +169,6 @@ public class LancamentoPersistenceAdapter implements LancamentoRepository {
                 e.recorrenciaId, e.competenciaRecorrencia != null ? Competencia.parse(e.competenciaRecorrencia) : null,
                 e.parcelamentoId != null ? new Parcela(e.parcelamentoId, e.parcelaNumero, e.parcelaTotal) : null,
                 e.observacao, NotaFiscal.de(e.nfCompetencia != null ? Competencia.parse(e.nfCompetencia) : null,
-                        e.nfEmissao));
+                        e.nfEmissao), e.localSaldoId);
     }
 }

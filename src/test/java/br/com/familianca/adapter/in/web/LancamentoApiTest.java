@@ -57,6 +57,65 @@ class LancamentoApiTest extends IntegracaoBase {
     }
 
     @Test
+    void contaDoLancamentoEOpcionalFiltraEProtegeOLugar() throws Exception {
+        Long itau = postarERetornarId("/api/locais-saldo", "{\"nome\": \"Itaú\", \"tipo\": \"CONTA_CORRENTE\"}");
+        Long cat = categoria("Habitação", "Supermercado");
+
+        // Sem conta é válido; com conta, a resposta traz id e nome.
+        Long semConta = lancar("Habitação", "Supermercado", "Sem conta", "10", "2026-10-05");
+        mvc.perform(get("/api/lancamentos/{id}", semConta)).andExpect(jsonPath("$.conta").doesNotExist());
+        String corpo = """
+                {"categoriaId": %d, "descricao": "No Itaú", "valor": 20, "data": "2026-10-06", "localSaldoId": %d}"""
+                .formatted(cat, itau);
+        String resposta = mvc.perform(post("/api/lancamentos").contentType(APPLICATION_JSON).content(corpo))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.conta.nome").value("Itaú"))
+                .andReturn().getResponse().getContentAsString();
+        Long comConta = ((Number) JsonPath.read(resposta, "$.id")).longValue();
+
+        // Filtros: por conta e "sem conta".
+        mvc.perform(get("/api/lancamentos").param("localSaldoId", itau.toString()))
+                .andExpect(jsonPath("$", hasSize(1))).andExpect(jsonPath("$[0].descricao").value("No Itaú"));
+        mvc.perform(get("/api/lancamentos").param("semConta", "true"))
+                .andExpect(jsonPath("$", hasSize(1))).andExpect(jsonPath("$[0].descricao").value("Sem conta"));
+
+        // Conta que não existe: 404. Editar tira ou troca a conta.
+        mvc.perform(post("/api/lancamentos").contentType(APPLICATION_JSON)
+                .content("{\"categoriaId\": %d, \"descricao\": \"X\", \"valor\": 20, \"data\": \"2026-10-06\", \"localSaldoId\": 999999}".formatted(cat))).andExpect(status().isNotFound());
+        mvc.perform(put("/api/lancamentos/{id}", comConta).contentType(APPLICATION_JSON).content("""
+                        {"categoriaId": %d, "descricao": "No Itaú", "valor": 20, "data": "2026-10-06"}""".formatted(cat)))
+                .andExpect(jsonPath("$.conta").doesNotExist());
+        mvc.perform(put("/api/lancamentos/{id}", comConta).contentType(APPLICATION_JSON).content(corpo))
+                .andExpect(jsonPath("$.conta.id").value(itau));
+
+        // Conta com lançamento não se exclui (só desativa); desativada, não recebe lançamento novo, mas o antigo fica.
+        mvc.perform(delete("/api/locais-saldo/{id}", itau)).andExpect(status().isConflict());
+        mvc.perform(put("/api/locais-saldo/{id}", itau).contentType(APPLICATION_JSON)
+                .content("{\"nome\": \"Itaú\", \"tipo\": \"CONTA_CORRENTE\", \"ativo\": false}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/lancamentos").contentType(APPLICATION_JSON).content(corpo))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(put("/api/lancamentos/{id}", comConta).contentType(APPLICATION_JSON).content(corpo))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void membroSoLancaEmContaDelaOuDaFamilia() throws Exception {
+        Membro maria = adicionarMembro(dono, "maria@teste.com", PapelFamilia.MEMBRO);
+        Long doDono = postarERetornarId("/api/locais-saldo",
+                "{\"nome\": \"Conta do dono\", \"tipo\": \"CONTA_CORRENTE\", \"membroId\": %d}".formatted(dono.id()));
+        Long conjunta = postarERetornarId("/api/locais-saldo", "{\"nome\": \"Conjunta\", \"tipo\": \"CONTA_CORRENTE\"}");
+        Long cat = categoria("Habitação", "Supermercado");
+        String modelo = """
+                {"categoriaId": %d, "descricao": "Compra", "valor": 5, "data": "2026-10-06", "localSaldoId": %d}""";
+
+        mvcComo(maria).perform(post("/api/lancamentos").contentType(APPLICATION_JSON)
+                .content(modelo.formatted(cat, doDono))).andExpect(status().isForbidden());
+        mvcComo(maria).perform(post("/api/lancamentos").contentType(APPLICATION_JSON)
+                .content(modelo.formatted(cat, conjunta))).andExpect(status().isCreated());
+    }
+
+    @Test
     void filtraPorTermoEOrigem() throws Exception {
         lancar("Habitação", "Supermercado", "Açougue do Zé", "120", "2026-10-05");
         lancar("Habitação", "Supermercado", "Feira", "80", "2026-10-06");

@@ -21,10 +21,11 @@ public record ParceladoRequest(
         @NotNull @Min(2) @Max(60) Integer parcelas,
         @Schema(description = "Data da 1ª parcela; as demais, no mesmo dia dos meses seguintes.")
         @NotNull LocalDate primeiraData,
-        @Size(max = 500) String observacao) {
+        @Size(max = 500) String observacao,
+        @Schema(description = "A conta (opcional); vale para todas as parcelas.") Long localSaldoId) {
 
     public DadosLancamento paraDados() {
         return new DadosLancamento(categoriaId, membroId, descricao, Valores.dinheiro(valorTotal), primeiraData,
-                observacao);
+                observacao, null, localSaldoId);
     }
 }

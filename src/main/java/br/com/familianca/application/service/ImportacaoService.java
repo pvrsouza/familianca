@@ -302,7 +302,7 @@ public class ImportacaoService implements GerenciarImportacoes {
     private Categoria criarOuBuscarAClassificar(TipoMovimento tipo, Map<Long, Categoria> categorias,
                                                 Map<Long, Grupo> grupos) {
         var existente = categorias.values().stream()
-                .filter(c -> A_CLASSIFICAR.equalsIgnoreCase(c.nome()) && grupos.get(c.grupoId()).tipo() == tipo)
+                .filter(c -> c.aClassificar() && grupos.get(c.grupoId()).tipo() == tipo)
                 .findFirst();
         if (existente.isPresent()) {
             return existente.get();
@@ -317,7 +317,8 @@ public class ImportacaoService implements GerenciarImportacoes {
                     grupos.put(novo.id(), novo);
                     return novo;
                 });
-        Categoria nova = planoContas.salvarCategoria(new Categoria(null, grupo.id(), A_CLASSIFICAR, 0, true, false, null));
+        Categoria nova = planoContas.salvarCategoria(new Categoria(null, grupo.id(), A_CLASSIFICAR, 0, true, false, null, false,
+                null, null, null, true));
         categorias.put(nova.id(), nova);
         return nova;
     }

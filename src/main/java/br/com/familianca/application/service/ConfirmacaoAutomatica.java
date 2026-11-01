@@ -80,7 +80,8 @@ public class ConfirmacaoAutomatica {
             Dinheiro ajustado = r.valorAjustadoEm(o.competencia());
             lancamentos.salvar(new Lancamento(null, r.categoriaId(), r.membroId(), r.descricao(),
                     ajustado != null ? ajustado : r.valor(),
-                    r.dataEm(o.competencia()), r.id(), o.competencia(), null, r.observacao()));
+                    r.dataEm(o.competencia()), r.id(), o.competencia(), null, r.observacao(), null,
+                    r.localSaldoId()));
         }
     }
 

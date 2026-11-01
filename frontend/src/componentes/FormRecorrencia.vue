@@ -6,6 +6,8 @@ import { mensagemDeErro } from '../api/http'
 import { catalogo } from '../estado/catalogo'
 import { sessao } from '../estado/sessao'
 import { FORMAS_PAGAMENTO, FREQUENCIAS, anoAtual, mesAtual, competencia, dataPorExtenso, reais } from '../util/formato'
+import { guardarUltimaConta } from '../util/ultimaConta'
+import CampoConta from './CampoConta.vue'
 import CampoDescricao from './CampoDescricao.vue'
 import CampoValor from './CampoValor.vue'
 import Mensagem from './Mensagem.vue'
@@ -32,6 +34,7 @@ const form = reactive({
   confirmarSozinha: r?.confirmarSozinha ?? false,
   semVencimento: r?.semVencimento ?? false,
   formaPagamento: (r?.formaPagamento ?? '') as FormaPagamento | '',
+  localSaldoId: (r?.localSaldoId ?? null) as number | null,
 })
 const enviando = ref(false)
 const erro = ref('')
@@ -86,6 +89,7 @@ async function salvar() {
     confirmarSozinha: despesa.value && form.confirmarSozinha,
     semVencimento: despesa.value && form.semVencimento,
     formaPagamento: despesa.value && form.formaPagamento ? form.formaPagamento : null,
+    localSaldoId: form.localSaldoId,
   }
   try {
     if (props.recorrencia) {
@@ -93,6 +97,7 @@ async function salvar() {
       emit('salvo', 'Recorrência atualizada. As ocorrências ainda não confirmadas já seguem o novo valor.')
     } else {
       await recorrencias.criar(dados)
+      guardarUltimaConta(sessao.estado.usuario?.membroId, form.localSaldoId)
       emit('salvo', 'Pronto: ela já aparece como prevista no ano.')
     }
     sessao.avisarMudanca()
@@ -225,6 +230,9 @@ async function salvar() {
       <input v-else id="r-pessoa" class="entrada" disabled
              :value="props.recorrencia?.membro?.nome ?? sessao.estado.usuario?.nome" />
     </div>
+
+    <CampoConta id="r-conta" v-model="form.localSaldoId" :conta-atual="r?.localSaldoId" :lembrar="!editando"
+                ajuda="Cada vez que confirmar, o lançamento já nasce nessa conta (e a que sai sozinha também). Dá para trocar só em um mês, ao confirmar com outro valor." />
 
     <div class="campo">
       <label for="r-obs">Observação <span class="texto-2">(opcional)</span></label>

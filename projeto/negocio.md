@@ -35,6 +35,27 @@ Uma linha por hipótese, da mais arriscada para a menos. Status: 🔴 não testa
 
 # Registro de iterações
 
+- **2026-10-31 (conta em cada lançamento):** o lançamento ganha conta opcional (campo no formulário, com a última
+  usada já preenchida, rótulo na lista e filtro por conta). Serve para a família conferir o app contra o extrato do
+  banco. **Efeito nas hipóteses:** toca a **H4** (lançar à mão cansa): conferir com o extrato é parte do custo de
+  manter o orçamento, e a conta liga o lançamento digitado ao importado. Também prepara, sem prometer, o saldo
+  calculado por conta, que seria um motivo para pagar. **Canvas:** nenhum bloco muda; sem recurso pago e sem custo.
+  **Crítica:** conta opcional pode nunca ser preenchida; se a maioria dos lançamentos novos continua sem conta, o
+  filtro vale pouco e a ideia de calcular saldo por conta não se sustenta. **Atualização no mesmo dia:** a recorrência também ganhou conta (as confirmações do mês, até as automáticas,
+  nascem nela), porque as contas fixas (condomínio, aluguel) são as que mais se confere com o extrato; sem isso o
+  campo sumia nas categorias recorrentes. **Pergunta aberta (H4):** que parte dos
+  lançamentos manuais novos tem conta depois de 30 dias, e quem preenche também confere com o extrato? Se for baixa,
+  perguntar nas entrevistas se a conta é o que falta ou se o problema é outro.
+- **2026-10-31 (destaque do que ficou sem categoria):** o lançamento na categoria "A classificar" (a que a
+  importação usa quando não sabe classificar) agora leva selo e faixa na lista, e um aviso conta quantos há no
+  período, com atalho para ver só esses. A marca passou a ser da categoria, não do nome. **Efeito nas hipóteses:**
+  toca a **H4**: se importar troca "digitar" por "classificar", a fricção só mudou de lugar; o destaque deixa a
+  pessoa ver e fechar essa fila, e dá uma medida nova. **Canvas:** nenhum bloco muda; sem recurso pago, sem custo.
+  **Crítica:** o destaque ajuda a resolver, mas não resolve sozinho; sem regras aprendidas de categoria, quem importa
+  todo mês reclassifica as mesmas descrições. **Pergunta aberta (H4):** que parte das linhas importadas continua
+  "sem categoria" 7 dias depois, e quem importa uma segunda vez classifica menos (a sugestão pela última descrição
+  funciona)? Se a fila não cai, "regras aprendidas" sobe na lista antes do Open Finance.
+
 - **2026-10-31 (importação de extrato OFX/OFC):** a família envia o extrato do banco ou do cartão, vê o que é novo, o
   que já foi importado e o que parece duplicado, e importa só o que quiser; a linha que bate com uma conta
   recorrente pendente confirma a conta em vez de criar outro lançamento. Liberado a todos os planos na v1.

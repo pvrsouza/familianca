@@ -97,6 +97,8 @@ export interface DadosLancamento {
   observacao?: string | null
   /** Só receita tributável; nulo = sem nota. */
   notaFiscal?: NotaFiscal | null
+  /** A conta (lugar onde está o dinheiro); nulo = sem conta. */
+  localSaldoId?: number | null
 }
 
 export interface FiltroLancamentos {
@@ -109,6 +111,10 @@ export interface FiltroLancamentos {
   /** Parte da descrição, observação, categoria, grupo ou pessoa (sem ligar para acento e maiúscula). */
   q?: string
   origem?: OrigemLancamento
+  /** Só os lançamentos dessa conta. */
+  localSaldoId?: number
+  /** true = só os que não têm conta. */
+  semConta?: boolean
 }
 
 /** AVULSO: lançado uma vez; RECORRENTE: confirmação de algo que se repete; PARCELADO: parcela de uma compra. */
@@ -152,6 +158,8 @@ export interface DadosRecorrencia {
   semVencimento?: boolean
   /** Só despesa: como é paga. */
   formaPagamento?: FormaPagamento | null
+  /** A conta (lugar onde está o dinheiro) das ocorrências; nulo = sem conta. */
+  localSaldoId?: number | null
 }
 
 export const recorrencias = {
@@ -163,9 +171,10 @@ export const recorrencias = {
   criar: (d: DadosRecorrencia) => api.post<Recorrencia>('/api/recorrencias', d),
   atualizar: (id: number, d: DadosRecorrencia) => api.put<Recorrencia>(`/api/recorrencias/${id}`, d),
   remover: (id: number) => api.delete(`/api/recorrencias/${id}`),
-  confirmar: (id: number, competencia: string, valor?: number, data?: string, notaFiscal?: NotaFiscal | null) =>
+  confirmar: (id: number, competencia: string, valor?: number, data?: string, notaFiscal?: NotaFiscal | null,
+              localSaldoId?: number | null) =>
     api.post<Lancamento>(`/api/recorrencias/${id}/ocorrencias/${competencia}/confirmacao`,
-      valor !== undefined || data || notaFiscal ? { valor, data, notaFiscal } : undefined),
+      valor !== undefined || data || notaFiscal || localSaldoId ? { valor, data, notaFiscal, localSaldoId } : undefined),
   pular: (id: number, competencia: string) => api.post<Recorrencia>(`/api/recorrencias/${id}/ocorrencias/${competencia}/pulo`),
   desfazerPulo: (id: number, competencia: string) =>
     api.delete<Recorrencia>(`/api/recorrencias/${id}/ocorrencias/${competencia}/pulo`),

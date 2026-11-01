@@ -53,7 +53,7 @@ public class LocalSaldoService implements GerenciarLocaisSaldo {
     public void remover(Long id) {
         exigir(id);
         if (locais.emUso(id)) {
-            throw new ConflitoException("Este lugar já entrou no saldo de algum mês: desative em vez de excluir");
+            throw new ConflitoException("Este lugar já tem saldo ou lançamentos: desative em vez de excluir");
         }
         locais.remover(id);
     }

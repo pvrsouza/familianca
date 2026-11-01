@@ -118,6 +118,8 @@ export interface Categoria {
   estimativaDesde: string | null
   /** A regra até estimativaDesde; nulo = a da família. */
   estimativaAntes: Estimativa | null
+  /** A categoria que recebe o que a importação de extrato não classificou; a lista de lançamentos a destaca. */
+  aClassificar: boolean
 }
 
 export interface Grupo {
@@ -161,6 +163,8 @@ export interface Lancamento {
   /** 0 = pago em dia; nulo = sem vencimento. */
   diasAtraso: number | null
   notaFiscal: NotaFiscal | null
+  /** A conta (lugar onde está o dinheiro); nulo = sem conta. */
+  conta: Ref | null
 }
 
 export interface Recorrencia {
@@ -206,6 +210,8 @@ export interface Recorrencia {
   previsoes: BaseEstimativa[]
   /** Valores previstos diferentes do de sempre, por mês (sem confirmar). */
   valoresAjustados: { competencia: string; valor: number }[]
+  /** Id da conta (lugar onde está o dinheiro) das ocorrências; nulo = sem conta. */
+  localSaldoId: number | null
 }
 
 export interface Pendente {

@@ -47,10 +47,16 @@ public interface GerenciarRecorrencias {
      * pagamento a cada mês e pode trazer a competência e a emissão da nota.
      */
     LancamentoDetalhado confirmar(Long id, Competencia competencia, Dinheiro valor, LocalDate data,
-                                  NotaFiscal notaFiscal);
+                                  NotaFiscal notaFiscal, Long localSaldoId);
+
+    /** localSaldoId nulo = a conta da recorrência. */
+    default LancamentoDetalhado confirmar(Long id, Competencia competencia, Dinheiro valor, LocalDate data,
+                                          NotaFiscal notaFiscal) {
+        return confirmar(id, competencia, valor, data, notaFiscal, null);
+    }
 
     default LancamentoDetalhado confirmar(Long id, Competencia competencia, Dinheiro valor, LocalDate data) {
-        return confirmar(id, competencia, valor, data, null);
+        return confirmar(id, competencia, valor, data, null, null);
     }
 
     RecorrenciaDetalhada pular(Long id, Competencia competencia);
@@ -85,13 +91,21 @@ public interface GerenciarRecorrencias {
      */
     record DadosRecorrencia(Long categoriaId, Long membroId, String descricao, Dinheiro valor, int dia,
                             Frequencia frequencia, Competencia inicio, Competencia fim, String observacao,
-                            boolean confirmarSozinha, boolean semVencimento, FormaPagamento formaPagamento) {
+                            boolean confirmarSozinha, boolean semVencimento, FormaPagamento formaPagamento,
+                            Long localSaldoId) {
+
+        public DadosRecorrencia(Long categoriaId, Long membroId, String descricao, Dinheiro valor, int dia,
+                                Frequencia frequencia, Competencia inicio, Competencia fim, String observacao,
+                                boolean confirmarSozinha, boolean semVencimento, FormaPagamento formaPagamento) {
+            this(categoriaId, membroId, descricao, valor, dia, frequencia, inicio, fim, observacao, confirmarSozinha,
+                    semVencimento, formaPagamento, null);
+        }
 
         public DadosRecorrencia(Long categoriaId, Long membroId, String descricao, Dinheiro valor, int dia,
                                 Frequencia frequencia, Competencia inicio, Competencia fim, String observacao,
                                 boolean confirmarSozinha) {
             this(categoriaId, membroId, descricao, valor, dia, frequencia, inicio, fim, observacao, confirmarSozinha,
-                    false, null);
+                    false, null, null);
         }
     }
 
