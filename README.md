@@ -79,6 +79,26 @@ Fora do devcontainer, direto no Mac (JDK 21+ e Maven): `docker compose up -d pos
   `LOGIN_EMAIL` e `LOGIN_SENHA` (12+ caracteres) e rode `cadastro/Token CSRF` → `cadastro/Criar conta e família` →
   `auth/Entrar`. Ambientes: `local` (8082, Bruno no host) e `devcontainer` (8080, Bruno dentro do container).
 
+### Pentest com o Strix (`infra/strix`)
+
+[Strix](https://github.com/usestrix/strix) 1.7.0: agentes de IA que atacam o app de verdade. Tudo roda em Docker, sem
+nada instalado no Mac. O CLI fica num container e cria o sandbox (`ghcr.io/usestrix/strix-sandbox`) pelo socket do
+Docker, na rede `familianca_default`, alcançando o app em `http://dev:8080`. Só contra o ambiente local.
+
+1. Suba o Familiança (`compose.yaml` da raiz, app rodando no devcontainer).
+2. Copie `infra/strix/.env.example` para `infra/strix/.env` (fora do git) e preencha `STRIX_LLM` (`provedor/modelo`)
+   e `LLM_API_KEY`. Cada varredura gasta tokens dessa chave: **sempre** passe `--max-budget` (USD), comece baixo e configure também um limite de gasto no painel do provedor.
+3. Da raiz do repositório:
+
+```bash
+docker compose -f infra/strix/compose.yaml run --rm strix -n -t http://dev:8080 -t ./ --instruction-file infra/strix/instrucoes.md --scan-mode quick --max-budget 5
+```
+
+O escopo e as prioridades do teste estão em `infra/strix/instrucoes.md` (o agente cria as próprias famílias de teste
+pelo cadastro aberto). Resultados em `strix_runs/` (fora do git). A telemetria do Strix fica desligada
+(`STRIX_TELEMETRY=0`); o código e as respostas do app vão para o provedor de LLM escolhido. O container recebe o
+socket do Docker (equivale a root no Docker do host): use só a imagem deste repositório.
+
 ## Arquitetura — Hexagonal (Ports & Adapters)
 
 ```

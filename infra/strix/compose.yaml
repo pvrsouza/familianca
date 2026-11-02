@@ -1,0 +1,29 @@
+name: familianca-strix
+
+# Pentest com o Strix contra o Familiança local (o compose.yaml da raiz tem de estar de pé).
+# Rodar da raiz do repositório (o projeto é montado no mesmo caminho do host, para o Strix ler o código):
+#   docker compose -f infra/strix/compose.yaml run --rm strix -n -t http://dev:8080 --instruction-file infra/strix/instrucoes.md
+# Resultados em strix_runs/ (fora do git).
+services:
+  strix:
+    build: .
+    working_dir: ${PWD}
+    volumes:
+      - ${PWD}:${PWD}
+      # O CLI cria o container de sandbox no Docker do host.
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      # O sandbox entra na rede do Familiança: alcança o app em http://dev:8080 e o CLI fala com ele pelo IP da rede.
+      STRIX_DOCKER_SANDBOX_NETWORK: familianca_default
+      STRIX_LLM: ${STRIX_LLM:?defina STRIX_LLM em infra/strix/.env}
+      LLM_API_KEY: ${LLM_API_KEY:?defina LLM_API_KEY em infra/strix/.env}
+      # Sem telemetria (PostHog/Scarf/OTEL): nada do teste sai para terceiros além do provedor de LLM.
+      STRIX_TELEMETRY: "0"
+    networks:
+      - familianca
+
+networks:
+  familianca:
+    name: familianca_default
+    external: true

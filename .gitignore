@@ -27,3 +27,6 @@ src/main/resources/static/
 # Capturas e rascunhos da skill impeccable (só para revisão local)
 .impeccable/review/
 .impeccable/mocks/
+
+# Resultados do pentest com o Strix (infra/strix)
+strix_runs/

@@ -687,7 +687,9 @@ Pontos de atenção constante na hora de desenvolver.
 
 # Pendências e planos futuros
 
-- **Segurança:** fases 1 a 3 do plano em [`docs/seguranca.md`](../docs/seguranca.md). Antes do deploy: script com
+- **Segurança:** fases 1 a 3 do plano em [`docs/seguranca.md`](../docs/seguranca.md). Pentest com IA (Strix,
+  configurado em 2026-11-02 em `infra/strix`): rodar a primeira varredura no ambiente local (sempre com `--max-budget`, ainda não testado: falta a chave da IA) e tratar os achados antes
+  do deploy. Antes do deploy: script com
   backup e rollback, tela do MFA no front. Antes de abrir para clientes: MFA obrigatório para ADMIN e e-mail
   transacional. Depende de infra: gerenciador de segredos e rotação. (Limite de login por IP e hash de senha migrável feitos em 2026-10-31;
   no deploy, o proxy precisa sobrescrever o `X-Forwarded-For`.)
