@@ -12,6 +12,17 @@ pergunta por vez, com a recomendação de quem critica. Só implementar depois d
 Se a skill não estiver instalada, fazer a mesma conversa sem ela. Ficam de fora tarefas sem decisão de solução (rodar
 testes, commit, push, dúvida pontual).
 
+## Olhar a arquitetura antes de implementar
+
+Depois de fechar a solução com `/grill-me` e **antes de escrever código**, rodar a skill `/improve-codebase-architecture`
+(plugin mattpocock-skills, que usa o vocabulário da skill `codebase-design`) **no ponto que a iteração vai mexer**
+(módulo, tela, fluxo), não no projeto inteiro. Ela procura módulos rasos (*shallow*), vazamentos pelo *seam* e partes
+difíceis de testar, e apresenta os candidatos de aprofundamento. Quem pediu decide se algum entra antes da
+funcionalidade (como refatoração separada, em commit próprio) ou se fica como pendência em `projeto/projeto.md`.
+Na entrega, dizer o que foi decidido. A varredura do projeto inteiro só roda quando pedida. Se a skill não carregar na
+sessão (plugin recém-instalado pede reinício), seguir o mesmo processo à mão a partir dos arquivos do plugin. Ficam de
+fora as mesmas tarefas sem decisão de solução e correções pontuais de bug.
+
 ## Segurança em todo desenvolvimento
 
 Toda mudança (backend, front, infra) passa pelo checklist de `docs/seguranca.md` ("Checklist para cada
@@ -53,7 +64,7 @@ testar. Ficam de fora as mesmas tarefas sem decisão de solução.
 ## Manter o harness de IA atualizado
 
 O harness é o que orienta a IA neste projeto: este `CLAUDE.md`, `.claude/settings.json` (plugins), as skills em
-`.claude/skills/` (hoje `iteracao-negocio`), `.agents/brand-context.md`, `PRODUCT.md` e `projeto/negocio.md`. Toda
+`.claude/skills/` (hoje `iteracao-negocio`; as de `grill-me`, `grilling`, `improve-codebase-architecture` e `codebase-design` vêm do plugin mattpocock-skills), `.agents/brand-context.md`, `PRODUCT.md` e `projeto/negocio.md`. Toda
 mudança ou implementação atualiza o harness no mesmo commit quando mexe no que ele descreve: plugin ou skill nova (ou
 removida), regra nova de como trabalhar, mudança de fluxo de entrega, recurso que muda produto, marca ou modelo de
 negócio. Skill citada aqui tem que existir com esse nome. Ao entregar, dizer o que foi atualizado no harness (ou

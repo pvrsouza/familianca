@@ -693,6 +693,20 @@ Pontos de atenção constante na hora de desenvolver.
   backup e rollback, tela do MFA no front. Antes de abrir para clientes: MFA obrigatório para ADMIN e e-mail
   transacional. Depende de infra: gerenciador de segredos e rotação. (Limite de login por IP e hash de senha migrável feitos em 2026-10-31;
   no deploy, o proxy precisa sobrescrever o `X-Forwarded-For`.)
+- **Arquitetura (varredura de 2026-11-02, skill `improve-codebase-architecture`):** candidatos a aprofundar, nenhum
+  iniciado. Ordem sugerida: **(1)** módulo "agenda de ocorrências" (estado prevista/vencida/confirmada de cada
+  ocorrência hoje espalhado por `RecorrenciaService`, `ConfirmacaoAutomatica`, `PrevisaoFamilia`, `VisaoAnualService`
+  e `CalculadoraVisaoAnual.Ocorrencia`); **(3)** módulo "lançar" (regra de lançamento copiada em 5 caminhos de
+  escrita); **(4)** visão anual decide sozinha o encadeamento de anos (`Entrada` com 16 campos); **(5)** importação:
+  separar decisão de gravação (hoje `analisar` pode gravar e a confirmação de recorrência grava duas vezes, o que
+  pode sobrescrever a conta escolhida: testar antes); **(2)** `Recorrencia` se cria e se edita sozinha (21
+  parâmetros); **(6)** leitura detalhada do orçamento (`Detalhador` duplicado); **(7)** separar `formato.ts` no
+  front (regras do servidor copiadas); **(8)** consistência "criar e confirmar" e contador de "sem categoria" no
+  servidor, `tipos.ts` gerado do OpenAPI; o front não tem nenhum teste.
+  - Candidato 1, discussão parada na pergunta 1: o módulo cuida da confirmação automática? Recomendação em
+    aberto: sim, com um núcleo puro no domínio (estado de cada ocorrência dados recorrências, confirmadas e `hoje`)
+    e uma casca na aplicação que carrega os dados uma vez e roda `ConfirmacaoAutomatica.processar()` antes.
+  - Relatório visual gerado em arquivo temporário (não está no repositório); refazer pela skill quando for retomar.
 - **Frontend — próximos passos** (v1 pronta; contexto em [`PRODUCT.md`](../PRODUCT.md)):
   - Usar no dia a dia da família e ajustar as telas com o que aparecer.
   - Tela de administração das famílias (hoje só pela API) e landing page em familianca.com.br. (O modo escuro já
