@@ -226,6 +226,10 @@ Pontos de atenção constante na hora de desenvolver.
   confirmar", com o valor e a data do extrato), no lugar de criar um lançamento novo e contar em dobro. Na dúvida
   não casa: empate entre duas contas, ou uma conta para duas linhas (casa só uma). Só vale para ocorrências até hoje
   nos últimos 12 meses.
+  - **A conta é a do extrato (2026-11-12):** a confirmação usa a conta do lote, não a da recorrência (é de lá que o
+    dinheiro saiu), como o "Outro valor" com outra conta só naquele mês; a recorrência guarda a dela para os
+    próximos meses. Antes, a confirmação validava a conta da recorrência: MEMBRO cuja conta tinha sido cadastrada
+    pelo dono numa conta pessoal dele recebia 403 e a importação inteira era recusada.
 - **Lote e desfazer:** cada importação é um lote (conta, período do extrato, quantas importadas, ignoradas e
   confirmadas, quem, quando; sem nome de arquivo nem descrições). "Desfazer importação" (DONO ou quem importou)
   apaga os lançamentos do lote, **menos os que já foram editados à mão**, e mostra quantos ficaram; as chaves das
@@ -698,8 +702,8 @@ Pontos de atenção constante na hora de desenvolver.
   ocorrência hoje espalhado por `RecorrenciaService`, `ConfirmacaoAutomatica`, `PrevisaoFamilia`, `VisaoAnualService`
   e `CalculadoraVisaoAnual.Ocorrencia`); **(3)** módulo "lançar" (regra de lançamento copiada em 5 caminhos de
   escrita); **(4)** visão anual decide sozinha o encadeamento de anos (`Entrada` com 16 campos); **(5)** importação:
-  separar decisão de gravação (hoje `analisar` pode gravar e a confirmação de recorrência grava duas vezes, o que
-  pode sobrescrever a conta escolhida: testar antes); **(2)** `Recorrencia` se cria e se edita sozinha (21
+  separar decisão de gravação (hoje `analisar` pode gravar e a confirmação de recorrência grava duas vezes;
+  desde 2026-11-12 as duas usam a conta do extrato, falta gravar uma vez só); **(2)** `Recorrencia` se cria e se edita sozinha (21
   parâmetros); **(6)** leitura detalhada do orçamento (`Detalhador` duplicado); **(7)** separar `formato.ts` no
   front (regras do servidor copiadas); **(8)** consistência "criar e confirmar" e contador de "sem categoria" no
   servidor, `tipos.ts` gerado do OpenAPI; o front não tem nenhum teste.

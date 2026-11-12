@@ -85,9 +85,13 @@ public class CasamentoRecorrencia {
         return casadas;
     }
 
-    /** Confirma a ocorrência com o valor e a data do extrato (regra "pagar = confirmar", com as mesmas permissões). */
-    public Lancamento confirmar(Long recorrenciaId, Competencia competencia, LocalDate data, Dinheiro valor) {
-        return recorrencias.confirmar(recorrenciaId, competencia, valor, data).lancamento();
+    /**
+     * Confirma a ocorrência com o valor, a data e a conta do extrato (regra "pagar = confirmar", com as mesmas
+     * permissões). A conta é a do extrato, não a da recorrência: é de lá que o dinheiro saiu.
+     */
+    public Lancamento confirmar(Long recorrenciaId, Competencia competencia, LocalDate data, Dinheiro valor,
+                                Long localSaldoId) {
+        return recorrencias.confirmar(recorrenciaId, competencia, valor, data, null, localSaldoId).lancamento();
     }
 
     private Par par(LinhaCasavel linha, OcorrenciaPendente o) {

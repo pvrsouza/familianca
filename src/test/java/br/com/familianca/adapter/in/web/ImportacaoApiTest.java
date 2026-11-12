@@ -388,4 +388,28 @@ class ImportacaoApiTest extends IntegracaoBase {
         analisar(mvc, local, "extrato.ofx", arquivo)
                 .andExpect(jsonPath("$.linhas[0].acaoSugerida").value("CONFIRMAR_RECORRENCIA"));
     }
+
+    @Test
+    void confirmarPeloExtratoUsaAContaDoExtratoENaoADaRecorrencia() throws Exception {
+        Membro maria = adicionarMembro(dono, "maria@teste.com", PapelFamilia.MEMBRO);
+        Long doDono = postarERetornarId("/api/locais-saldo",
+                "{\"nome\": \"Conta do dono\", \"tipo\": \"CONTA_CORRENTE\", \"membroId\": %d}".formatted(dono.id()));
+        Long daMaria = postarERetornarId("/api/locais-saldo",
+                "{\"nome\": \"Conta da Maria\", \"tipo\": \"CONTA_CORRENTE\", \"membroId\": %d}".formatted(maria.id()));
+        // Conta da Maria que o dono cadastrou para sair da conta dele.
+        Long luz = postarERetornarId("/api/recorrencias", """
+                {"categoriaId": %d, "descricao": "Luz", "valor": 200, "dia": 5, "frequencia": "MENSAL",
+                 "inicio": "2026-10", "membroId": %d, "localSaldoId": %d}"""
+                .formatted(categoria("Habitação", "Água"), maria.id(), doDono));
+
+        // Este mês a Maria pagou pela conta dela e importa o próprio extrato.
+        gravar(mvcComo(maria), daMaria, """
+                {"chave": "L1", "acao": "CONFIRMAR_RECORRENCIA", "data": "2026-10-06", "descricao": "Luz",
+                 "valor": 205.00, "tipo": "DESPESA", "recorrenciaId": %d, "competencia": "2026-10"}""".formatted(luz))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.confirmadas").value(1));
+
+        assertThat(jdbc.queryForObject("select local_saldo_id from lancamento where importacao_chave = 'L1'",
+                Long.class)).isEqualTo(daMaria);
+    }
 }

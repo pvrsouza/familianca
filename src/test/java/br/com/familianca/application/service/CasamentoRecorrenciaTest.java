@@ -49,7 +49,7 @@ class CasamentoRecorrenciaTest extends IntegracaoBase {
 
     private Lancamento confirmar(Long id, Competencia competencia, LocalDate data, Dinheiro valor) {
         garantirUsuario();
-        return casamento.confirmar(id, competencia, data, valor);
+        return casamento.confirmar(id, competencia, data, valor, null);
     }
 
     private Long aluguel() throws Exception {

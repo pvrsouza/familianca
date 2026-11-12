@@ -219,7 +219,7 @@ public class ImportacaoService implements GerenciarImportacoes {
     private void confirmarRecorrencia(LinhaPedido l, LoteImportacao lote, LocalSaldo local, String chave) {
         Lancamento confirmado = casamento.confirmar(obrigatorio(l.recorrenciaId(), "recorrência"),
                 Competencia.parse(obrigatorio(l.competencia(), "competência")), obrigatorio(l.data(), "data"),
-                Dinheiro.of(obrigatorio(l.valor(), "valor")));
+                Dinheiro.of(obrigatorio(l.valor(), "valor")), local.id());
         lancamentos.salvarImportado(confirmado, lote.id(), local.id(), chave);
     }
 
